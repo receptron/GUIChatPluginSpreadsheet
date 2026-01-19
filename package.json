@@ -31,7 +31,14 @@
     "dev": "vite",
     "build": "vite build && vue-tsc -p tsconfig.build.json --emitDeclarationOnly",
     "typecheck": "vue-tsc --noEmit",
-    "lint": "eslint src demo"
+    "lint": "eslint src demo",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:fixtures": "tsx tests/engine/run-all-fixtures.ts",
+    "test:calculator": "tsx tests/engine/run-calculator-tests.ts",
+    "test:evaluator": "tsx tests/engine/run-evaluator-tests.ts",
+    "test:functions": "tsx tests/engine/test-functions.ts",
+    "test:all": "vitest run && tsx tests/engine/run-all-fixtures.ts"
   },
   "peerDependencies": {
     "gui-chat-protocol": "^0.0.1",
@@ -42,6 +49,8 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",
+    "tsx": "^4.21.0",
+    "vitest": "^3.2.4",
     "@typescript-eslint/eslint-plugin": "^8.53.0",
     "@typescript-eslint/parser": "^8.53.0",
     "@vitejs/plugin-vue": "^6.0.3",
