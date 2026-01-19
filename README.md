@@ -19,6 +19,15 @@ This plugin provides a full-featured spreadsheet component with:
 - Excel file import/export (.xlsx)
 - Cell formatting and styling
 
+## Important: SheetJS Dependency
+
+> **Note:** This package uses [SheetJS](https://docs.sheetjs.com/docs/getting-started/installation/nodejs/) for Excel file import/export.
+> SheetJS is **not installed from npm**, but directly from the official SheetJS CDN:
+> ```
+> https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
+> ```
+> See [SheetJS Installation Guide](https://docs.sheetjs.com/docs/getting-started/installation/nodejs/) for details.
+
 ## Installation
 
 ```bash
