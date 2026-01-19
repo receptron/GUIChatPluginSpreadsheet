@@ -31,7 +31,9 @@
     "dev": "vite",
     "build": "vite build && vue-tsc -p tsconfig.build.json --emitDeclarationOnly",
     "typecheck": "vue-tsc --noEmit",
-    "lint": "eslint src demo"
+    "lint": "eslint src demo",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "peerDependencies": {
     "gui-chat-protocol": "^0.0.1",
@@ -42,6 +44,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",
+    "vitest": "^3.2.4",
     "@typescript-eslint/eslint-plugin": "^8.53.0",
     "@typescript-eslint/parser": "^8.53.0",
     "@vitejs/plugin-vue": "^6.0.3",
