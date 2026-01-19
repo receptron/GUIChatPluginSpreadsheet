@@ -40,6 +40,20 @@ const createMockContext = (
         return formula.slice(1, -1);
       if (formula.startsWith("'") && formula.endsWith("'"))
         return formula.slice(1, -1);
+      // Handle simple comparisons
+      const compMatch = formula.match(/^(\d+(?:\.\d+)?)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)$/);
+      if (compMatch) {
+        const [, left, op, right] = compMatch;
+        const l = Number(left), r = Number(right);
+        switch (op) {
+          case '>': return l > r;
+          case '<': return l < r;
+          case '>=': return l >= r;
+          case '<=': return l <= r;
+          case '=': case '==': return l === r;
+          case '<>': case '!=': return l !== r;
+        }
+      }
       return formula;
     },
   };

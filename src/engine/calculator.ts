@@ -481,12 +481,15 @@ export function calculateSheet(
         else if (
           isFormula &&
           typeof calculatedValue === "number" &&
-          calculatedValue >= 25000 &&
-          calculatedValue <= 100000 &&
+          calculatedValue >= 40000 &&
+          calculatedValue <= 55000 &&
+          Number.isInteger(calculatedValue) &&
           (!("f" in originalCell) || !originalCell.f)
         ) {
           // Check if this looks like a date serial number
-          // 25000 = May 10, 1968 - reasonable cutoff to avoid formatting regular numbers as dates
+          // 40000 = Jul 2009, 55000 = Jul 2050 - realistic date range
+          // Must be integer (dates without time component)
+          // Avoids formatting calculated averages/sums as dates
           // Apply default date format
           calculated[rowIdx][colIdx] = formatNumber(
             calculatedValue,
