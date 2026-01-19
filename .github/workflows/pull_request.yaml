@@ -28,6 +28,10 @@ jobs:
     - run: yarn run typecheck
     - run: yarn run lint
     - run: yarn run test
+    - run: yarn run test:fixtures
+    - run: yarn run test:calculator
+    - run: yarn run test:evaluator
+    - run: yarn run test:functions
     - run: yarn run build
     - name: Update version with timestamp
       run: |
