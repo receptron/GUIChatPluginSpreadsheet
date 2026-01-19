@@ -1,5 +1,7 @@
 # @gui-chat-plugin/spreadsheet
 
+[![npm version](https://badge.fury.io/js/%40gui-chat-plugin%2Fspreadsheet.svg)](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet)
+
 A spreadsheet plugin for [MulmoChat](https://github.com/receptron/MulmoChat) - a multi-modal voice chat application with OpenAI's GPT-4 Realtime API.
 
 ## What this plugin does
@@ -97,6 +99,14 @@ yarn typecheck
 # Lint
 yarn lint
 ```
+
+## Test Prompts
+
+Try these prompts to test the plugin:
+
+1. "Create a budget spreadsheet with income and expenses columns"
+2. "Make a multiplication table from 1 to 10"
+3. "Create a spreadsheet to track monthly sales with SUM totals"
 
 ## License
 
