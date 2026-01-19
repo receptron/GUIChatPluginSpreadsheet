@@ -1,0 +1,42 @@
+name: Node.js CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  lint_test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [24.x]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'yarn'
+    - run: yarn install
+    - run: yarn run typecheck
+    - run: yarn run lint
+    - run: yarn run build
+    - name: Update version with timestamp
+      run: |
+        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+        VERSION=$(node -p "require('./package.json').version")
+        NEW_VERSION="${VERSION}-${TIMESTAMP}"
+        npm version $NEW_VERSION --no-git-tag-version
+    - run: npm pack
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: npm-package
+        path: "*.tgz"
