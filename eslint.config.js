@@ -30,6 +30,8 @@ export default [
       ...vuePlugin.configs["flat/recommended"].rules,
       "vue/multi-word-component-names": "off",
       "@typescript-eslint/no-explicit-any": "off",
+      "preserve-caught-error": "warn",
+      "no-useless-assignment": "warn",
       "no-useless-escape": "off",
     },
   },
