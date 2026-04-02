@@ -5,4 +5,4 @@
  * For Vue components, import from "@anthropic/guichat-plugin-spreadsheet/vue"
  */
 
-export * from "./core";
+export * from "./core/index";
