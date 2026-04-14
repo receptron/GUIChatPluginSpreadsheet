@@ -1,6 +1,6 @@
 {
   "name": "@gui-chat-plugin/spreadsheet",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Spreadsheet plugin for GUIChat",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -41,7 +41,7 @@
     "test:all": "vitest run && tsx tests/engine/run-all-fixtures.ts"
   },
   "peerDependencies": {
-    "gui-chat-protocol": "^0.0.3",
+    "gui-chat-protocol": "^0.1.0",
     "vue": "^3.5.0"
   },
   "dependencies": {
@@ -56,7 +56,7 @@
     "eslint": "^10.1.0",
     "eslint-plugin-vue": "^10.8.0",
     "globals": "^17.4.0",
-    "gui-chat-protocol": "^0.0.4",
+    "gui-chat-protocol": "^0.1.0",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.21.0",
     "typescript": "~6.0.2",
