@@ -31,8 +31,11 @@ This plugin provides a full-featured spreadsheet component with:
 ## Installation
 
 ```bash
-yarn add @gui-chat-plugin/spreadsheet
+yarn add @gui-chat-plugin/spreadsheet gui-chat-protocol
 ```
+
+> `gui-chat-protocol` is a peer dependency — install it alongside the plugin; the host application provides the runtime and this plugin only declares the compatible range.
+
 
 ## Usage
 
