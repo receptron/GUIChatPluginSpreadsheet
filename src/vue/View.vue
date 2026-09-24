@@ -129,6 +129,8 @@ import {
   columnToIndex,
   indexToColumn,
 } from "../engine";
+import { applyCellHighlights, clearCellHighlights } from "./cellHighlights";
+import { getArrowKeyOffset, isWithinSheetBounds } from "./keyboardNav";
 
 // Import all spreadsheet functions to populate the function registry
 import "../engine/functions";
@@ -752,47 +754,13 @@ watch(
 watch(
   [miniEditorOpen, miniEditorCell, referencedCells, renderedHtml],
   () => {
-    // Remove previous highlights
-    const prevEditingCell =
-      tableContainer.value?.querySelector(".cell-editing");
-    if (prevEditingCell) {
-      prevEditingCell.classList.remove("cell-editing");
-    }
-
-    const prevReferencedCells =
-      tableContainer.value?.querySelectorAll(".cell-referenced");
-    if (prevReferencedCells) {
-      prevReferencedCells.forEach((cell) =>
-        cell.classList.remove("cell-referenced"),
-      );
-    }
-
-    if (miniEditorOpen.value && tableContainer.value) {
-      const table = tableContainer.value.querySelector("#spreadsheet-table");
-      if (table) {
-        // Highlight the selected cell
-        if (miniEditorCell.value) {
-          const row = table.querySelectorAll("tr")[miniEditorCell.value.row];
-          if (row) {
-            const cell = row.querySelectorAll("td")[miniEditorCell.value.col];
-            if (cell) {
-              cell.classList.add("cell-editing");
-            }
-          }
-        }
-
-        // Highlight referenced cells
-        for (const ref of referencedCells.value) {
-          const row = table.querySelectorAll("tr")[ref.row];
-          if (row) {
-            const cell = row.querySelectorAll("td")[ref.col];
-            if (cell) {
-              cell.classList.add("cell-referenced");
-            }
-          }
-        }
-      }
-    }
+    clearCellHighlights(tableContainer.value);
+    if (!miniEditorOpen.value) return;
+    applyCellHighlights(
+      tableContainer.value,
+      miniEditorCell.value,
+      referencedCells.value,
+    );
   },
   { flush: "post" },
 );
@@ -813,42 +781,13 @@ function handleKeyboardNavigation(event: KeyboardEvent) {
   }
 
   const { row, col } = miniEditorCell.value;
-  let newRow = row;
-  let newCol = col;
-
-  // Determine new position based on arrow key
-  switch (event.key) {
-    case "ArrowUp":
-      newRow = Math.max(0, row - 1);
-      break;
-    case "ArrowDown":
-      newRow = row + 1;
-      break;
-    case "ArrowLeft":
-      newCol = Math.max(0, col - 1);
-      break;
-    case "ArrowRight":
-      newCol = col + 1;
-      break;
-    default:
-      return; // Not an arrow key, ignore
-  }
+  const nextCell = getArrowKeyOffset(event.key, row, col);
+  if (!nextCell) return; // Not an arrow key, ignore
 
   // Get current sheet data to validate bounds
   try {
     const sheets = JSON.parse(editableData.value);
-    const currentSheet = sheets[activeSheetIndex.value];
-
-    if (!currentSheet || !currentSheet.data) return;
-
-    // Validate new position is within bounds
-    if (
-      newRow < 0 ||
-      newRow >= currentSheet.data.length ||
-      newCol < 0 ||
-      !currentSheet.data[newRow] ||
-      newCol >= currentSheet.data[newRow].length
-    ) {
+    if (!isWithinSheetBounds(sheets[activeSheetIndex.value], nextCell.row, nextCell.col)) {
       return; // Out of bounds, ignore
     }
 
@@ -856,7 +795,7 @@ function handleKeyboardNavigation(event: KeyboardEvent) {
     event.preventDefault();
 
     // Move to new cell
-    openMiniEditor(newRow, newCol);
+    openMiniEditor(nextCell.row, nextCell.col);
   } catch (error) {
     console.error("Failed to navigate cells:", error);
   }
