@@ -50,12 +50,17 @@ function createContext(
   ranges: Record<string, (number | string)[]> = {},
   rawRanges?: Record<string, (number | string)[]>,
 ): EvaluatorContext {
+  // A single cell answers the RANGE readers too, the way the real context does:
+  // it resolves every reference through expandRangeOrCell, so an aggregate like
+  // MAX(B1, A1:A3, 5) reads B1 via getRangeValues. A fake that answered nothing
+  // for "B1" dropped that argument without saying so.
+  const oneCell = (ref: string): (number | string)[] => (ref in cells ? [cells[ref]] : []);
   const context: EvaluatorContext = {
     getCellValue: (ref: string) => cells[ref] ?? 0,
     getRangeValues: (range: string) =>
-      ranges[range] ?? rawRanges?.[range] ?? [],
+      ranges[range] ?? rawRanges?.[range] ?? oneCell(range),
     getRangeValuesRaw: (range: string) =>
-      rawRanges?.[range] ?? ranges[range] ?? [],
+      rawRanges?.[range] ?? ranges[range] ?? oneCell(range),
     evaluateFormula: (formula: string) => evaluateFormula(formula, context),
   };
   return context;

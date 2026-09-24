@@ -4,230 +4,163 @@
 
 import {
   functionRegistry,
+  rawRangeReader,
+  requiredArg,
   toNumber,
   parseCriteria,
   type FunctionContext,
   type FunctionHandler,
+  type RangeGetter,
 } from "../registry";
+import { computeAverage, computeMedian, computeMode, sampleStdev, sampleVariance } from "./statistical-math";
+import { DIV_ZERO_ERROR } from "../spreadsheet-errors";
+import { holdsNumber } from "../numericCoercion";
+import type { CellValue } from "../types";
 
-const isLetter = (char: string): boolean => /[A-Z]/i.test(char);
+// Excel accepts up to 255 arguments for its aggregate functions.
+const MAX_AGGREGATE_ARGS = 255;
 
-const isCellReference = (segment: string): boolean => {
-  if (!segment) return false;
-  let index = 0;
-  if (segment[index] === "$") index++;
-  const colStart = index;
-  while (index < segment.length && isLetter(segment[index])) {
-    index++;
-  }
-  if (index === colStart) return false; // Require at least one column letter
-  if (segment[index] === "$") index++;
-  if (index >= segment.length) return false; // Require row digits
-  for (; index < segment.length; index++) {
-    const char = segment[index];
-    if (char < "0" || char > "9") {
-      return false;
-    }
-  }
-  return true;
-};
+// `A1`, `$A$1`, `AA100`: column letters then row digits, each half optionally
+// prefixed by `$`.
+const CELL_REFERENCE_PATTERN = /^\$?[A-Z]+\$?\d+$/i;
+
+const isCellReference = (segment: string): boolean => CELL_REFERENCE_PATTERN.test(segment);
+
+// Everything after the last `!` — the reference without its sheet name, or the
+// whole string when it carries none.
+const withoutSheetPrefix = (value: string): string => value.slice(value.lastIndexOf("!") + 1);
 
 const isRangeReference = (value: string): boolean => {
   if (!value) return false;
-  const rangePart = value.includes("!") ? value.split("!").slice(-1)[0] : value;
-  const [start, end] = rangePart.split(":");
+  const [start, end] = withoutSheetPrefix(value).split(":");
   if (!start || !end) return false;
   return isCellReference(start) && isCellReference(end);
 };
 
-const collectNumericValues = (
-  args: string[],
-  context: FunctionContext,
-): number[] => {
-  const values: number[] = [];
+// A bare cell reference (`A1`, `Sheet1!B2`) is read through the RANGE path, not
+// evaluated as a scalar: the scalar path coerces a blank or text cell to 0, so
+// COUNT(A999) counted an empty cell as a value. The range path yields nothing
+// for a cell that holds nothing, which is what the count functions need.
+const isReference = (arg: string): boolean => isRangeReference(arg) || isCellReference(withoutSheetPrefix(arg));
+
+/** One value an argument contributed, tagged by where it came from. A range cell
+ *  was already filtered by the range getter; a scalar is whatever the argument
+ *  evaluated to and may hold no number at all. */
+interface ArgumentValue {
+  value: CellValue;
+  isScalar: boolean;
+}
+
+const collectArgumentValues = (args: string[], context: FunctionContext, readRange: RangeGetter): ArgumentValue[] => {
+  const collected: ArgumentValue[] = [];
 
   for (const rawArg of args) {
     const arg = rawArg?.trim();
     if (!arg) continue;
 
-    if (isRangeReference(arg)) {
-      const rangeValues = context.getRangeValues(arg).map(toNumber);
-      values.push(...rangeValues);
+    if (isReference(arg)) {
+      readRange(arg).forEach((value) => collected.push({ value, isScalar: false }));
     } else {
-      const evaluated = context.evaluateFormula(arg);
-      values.push(toNumber(evaluated));
+      collected.push({ value: context.evaluateFormula(arg), isScalar: true });
     }
   }
 
-  return values;
+  return collected;
 };
+
+const collectNumericValues = (args: string[], context: FunctionContext): number[] =>
+  collectArgumentValues(args, context, context.getRangeValues).map(({ value }) => toNumber(value));
+
+// Same walk as `collectNumericValues`, but keeping each cell as it is: COUNTA
+// counts non-empty cells, so text must survive the trip.
+const collectRawValues = (args: string[], context: FunctionContext): CellValue[] =>
+  collectArgumentValues(args, context, rawRangeReader(context)).map(({ value }) => value);
 
 const sumHandler: FunctionHandler = (args, context) => {
-  if (args.length !== 1) throw new Error("SUM requires 1 argument");
-  const values = context.getRangeValues(args[0]);
-  return values.reduce((sum: number, val) => sum + toNumber(val), 0);
+  const values = collectNumericValues(args, context);
+  return values.reduce((sum: number, value) => sum + value, 0);
 };
 
-const averageHandler: FunctionHandler = (args, context) => {
-  if (args.length !== 1) throw new Error("AVERAGE requires 1 argument");
-  const values = context.getRangeValues(args[0]);
-  if (values.length === 0) return 0;
-  const sum = values.reduce((acc: number, val) => acc + toNumber(val), 0);
-  return sum / values.length;
-};
+// Multi-argument collection (#2360) feeding the empty-range error rule (#2501).
+const averageHandler: FunctionHandler = (args, context) => computeAverage(collectNumericValues(args, context));
 
 const maxHandler: FunctionHandler = (args, context) => {
-  if (args.length === 0) {
-    throw new Error("MAX requires at least 1 argument");
-  }
   const values = collectNumericValues(args, context);
   return values.length > 0 ? Math.max(...values) : 0;
 };
 
 const minHandler: FunctionHandler = (args, context) => {
-  if (args.length === 0) {
-    throw new Error("MIN requires at least 1 argument");
-  }
   const values = collectNumericValues(args, context);
   return values.length > 0 ? Math.min(...values) : 0;
 };
 
-const countHandler: FunctionHandler = (args, context) => {
-  if (args.length !== 1) throw new Error("COUNT requires 1 argument");
-  const values = context.getRangeValues(args[0]);
-  return values.length;
-};
+// COUNT counts NUMBERS, so it cannot go through the lenient numeric collection
+// the other aggregates share: `toNumber("text")` is 0, which made COUNT("text")
+// answer 1 where Excel answers 0 (Codex review). A range cell reached the list
+// only by being numeric already; a scalar has to be asked.
+const countsAsNumber = ({ value, isScalar }: ArgumentValue): boolean => !isScalar || holdsNumber(value);
 
-const medianHandler: FunctionHandler = (args, context) => {
-  if (args.length !== 1) throw new Error("MEDIAN requires 1 argument");
-  const values = context
-    .getRangeValues(args[0])
-    .map(toNumber)
-    .sort((a, b) => a - b);
+const countHandler: FunctionHandler = (args, context) => collectArgumentValues(args, context, context.getRangeValues).filter(countsAsNumber).length;
 
-  if (values.length === 0) return 0;
-  const mid = Math.floor(values.length / 2);
-  return values.length % 2 === 0
-    ? (values[mid - 1] + values[mid]) / 2
-    : values[mid];
-};
+const medianHandler: FunctionHandler = (args, context) => computeMedian(collectNumericValues(args, context));
 
 const modeHandler: FunctionHandler = (args, context) => {
-  if (args.length !== 1) throw new Error("MODE requires 1 argument");
-  const values = context.getRangeValues(args[0]).map(toNumber);
-
-  if (values.length === 0) return 0;
-
-  // Count frequency of each value
-  const frequency = new Map<number, number>();
-  for (const val of values) {
-    frequency.set(val, (frequency.get(val) || 0) + 1);
-  }
-
-  // Find the value with highest frequency
-  let maxFreq = 0;
-  let mode = values[0];
-  for (const [val, freq] of frequency.entries()) {
-    if (freq > maxFreq) {
-      maxFreq = freq;
-      mode = val;
-    }
-  }
-
-  return mode;
+  return computeMode(collectNumericValues(args, context));
 };
 
 const stdevHandler: FunctionHandler = (args, context) => {
-  if (args.length !== 1) throw new Error("STDEV requires 1 argument");
-  const values = context.getRangeValues(args[0]).map(toNumber);
-
-  if (values.length === 0) return 0;
-
-  const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-  const squaredDiffs = values.map((val) => Math.pow(val - mean, 2));
-  const variance =
-    squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
-  return Math.sqrt(variance);
+  return sampleStdev(collectNumericValues(args, context));
 };
 
 const varHandler: FunctionHandler = (args, context) => {
-  if (args.length !== 1) throw new Error("VAR requires 1 argument");
-  const values = context.getRangeValues(args[0]).map(toNumber);
-
-  if (values.length === 0) return 0;
-
-  const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-  const squaredDiffs = values.map((val) => Math.pow(val - mean, 2));
-  return squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
+  return sampleVariance(collectNumericValues(args, context));
 };
 
 const countaHandler: FunctionHandler = (args, context) => {
-  if (args.length !== 1) throw new Error("COUNTA requires 1 argument");
-  const values =
-    context.getRangeValuesRaw?.(args[0]) ?? context.getRangeValues(args[0]);
+  const values = collectRawValues(args, context);
   // Count non-empty cells
-  return values.filter((v) => v !== null && v !== undefined && v !== "").length;
+  return values.filter((value) => value !== null && value !== undefined && value !== "").length;
 };
 
 const countifHandler: FunctionHandler = (args, context) => {
-  if (args.length !== 2) throw new Error("COUNTIF requires 2 arguments");
-  const values =
-    context.getRangeValuesRaw?.(args[0]) ?? context.getRangeValues(args[0]);
-  const criteria = args[1].trim();
-  const compareFn = parseCriteria(criteria);
-  return values.filter(compareFn).length;
+  const values = rawRangeReader(context)(requiredArg(context, args, 0));
+  return values.filter(parseCriteria(requiredArg(context, args, 1).trim())).length;
 };
 
+/** The criteria range, the matcher and the value range SUMIF and AVERAGEIF both
+ *  read. Both value ranges are RAW, not numeric-only: dropping blanks would
+ *  shift the value range out of alignment with the (raw) criteria range, so a
+ *  blank would pull a later row's number into an earlier match (#2358). */
+const readConditionalRanges = (args: string[], context: FunctionContext) => {
+  const criteriaRef = requiredArg(context, args, 0);
+  const readRaw = rawRangeReader(context);
+  const valueRef = args.length === 3 ? requiredArg(context, args, 2) : criteriaRef;
+  return {
+    criteriaRange: readRaw(criteriaRef),
+    valueRange: readRaw(valueRef),
+    matches: parseCriteria(requiredArg(context, args, 1).trim()),
+  };
+};
+
+/** Sum and count the values whose row in `criteriaRange` matches. The two
+ *  ranges stay row-aligned, so a matched row with no value contributes 0. */
+const aggregateMatchedRows = (criteriaRange: CellValue[], valueRange: CellValue[], matches: (value: CellValue) => boolean) =>
+  criteriaRange.reduce(
+    (totals, criteriaValue, index) => (matches(criteriaValue) ? { sum: totals.sum + toNumber(valueRange[index] ?? 0), count: totals.count + 1 } : totals),
+    { sum: 0, count: 0 },
+  );
+
 const sumifHandler: FunctionHandler = (args, context) => {
-  if (args.length < 2 || args.length > 3) {
-    throw new Error("SUMIF requires 2 or 3 arguments");
-  }
-
-  const criteriaRange =
-    context.getRangeValuesRaw?.(args[0]) ?? context.getRangeValues(args[0]);
-  const criteria = args[1].trim();
-  const sumRange =
-    args.length === 3
-      ? context.getRangeValues(args[2])
-      : context.getRangeValues(args[0]);
-
-  const compareFn = parseCriteria(criteria);
-
-  let sum = 0;
-  for (let i = 0; i < criteriaRange.length; i++) {
-    if (compareFn(criteriaRange[i])) {
-      sum += toNumber(sumRange[i] ?? 0);
-    }
-  }
-
-  return sum;
+  const { criteriaRange, valueRange, matches } = readConditionalRanges(args, context);
+  return aggregateMatchedRows(criteriaRange, valueRange, matches).sum;
 };
 
 const averageifHandler: FunctionHandler = (args, context) => {
-  if (args.length < 2 || args.length > 3) {
-    throw new Error("AVERAGEIF requires 2 or 3 arguments");
-  }
-
-  const criteriaRange =
-    context.getRangeValuesRaw?.(args[0]) ?? context.getRangeValues(args[0]);
-  const criteria = args[1].trim();
-  const avgRange =
-    args.length === 3
-      ? context.getRangeValues(args[2])
-      : context.getRangeValues(args[0]);
-
-  const compareFn = parseCriteria(criteria);
-
-  let sum = 0;
-  let count = 0;
-  for (let i = 0; i < criteriaRange.length; i++) {
-    if (compareFn(criteriaRange[i])) {
-      sum += toNumber(avgRange[i] ?? 0);
-      count++;
-    }
-  }
-
-  return count > 0 ? sum / count : 0;
+  const { criteriaRange, valueRange, matches } = readConditionalRanges(args, context);
+  const { sum, count } = aggregateMatchedRows(criteriaRange, valueRange, matches);
+  // Excel returns #DIV/0! when no cell matches (the average of nothing is
+  // undefined), rather than a silent 0.
+  return count > 0 ? sum / count : DIV_ZERO_ERROR;
 };
 
 // Register all statistical functions
@@ -235,7 +168,7 @@ functionRegistry.register({
   name: "SUM",
   handler: sumHandler,
   minArgs: 1,
-  maxArgs: 1,
+  maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the sum of all numbers in a range",
   examples: ["SUM(A1:A10)", "SUM(B2:B20)"],
   category: "Statistical",
@@ -245,7 +178,7 @@ functionRegistry.register({
   name: "AVERAGE",
   handler: averageHandler,
   minArgs: 1,
-  maxArgs: 1,
+  maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the average (arithmetic mean) of numbers in a range",
   examples: ["AVERAGE(A1:A10)", "AVERAGE(B2:B20)"],
   category: "Statistical",
@@ -273,7 +206,7 @@ functionRegistry.register({
   name: "COUNT",
   handler: countHandler,
   minArgs: 1,
-  maxArgs: 1,
+  maxArgs: MAX_AGGREGATE_ARGS,
   description: "Counts the number of cells in a range",
   examples: ["COUNT(A1:A10)", "COUNT(B2:B20)"],
   category: "Statistical",
@@ -283,7 +216,7 @@ functionRegistry.register({
   name: "MEDIAN",
   handler: medianHandler,
   minArgs: 1,
-  maxArgs: 1,
+  maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the median (middle) value in a range",
   examples: ["MEDIAN(A1:A10)", "MEDIAN(B2:B20)"],
   category: "Statistical",
@@ -293,7 +226,7 @@ functionRegistry.register({
   name: "MODE",
   handler: modeHandler,
   minArgs: 1,
-  maxArgs: 1,
+  maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the most frequently occurring value in a range",
   examples: ["MODE(A1:A10)", "MODE(B2:B20)"],
   category: "Statistical",
@@ -303,7 +236,7 @@ functionRegistry.register({
   name: "STDEV",
   handler: stdevHandler,
   minArgs: 1,
-  maxArgs: 1,
+  maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the standard deviation of numbers in a range",
   examples: ["STDEV(A1:A10)", "STDEV(B2:B20)"],
   category: "Statistical",
@@ -313,7 +246,7 @@ functionRegistry.register({
   name: "VAR",
   handler: varHandler,
   minArgs: 1,
-  maxArgs: 1,
+  maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the variance of numbers in a range",
   examples: ["VAR(A1:A10)", "VAR(B2:B20)"],
   category: "Statistical",
@@ -323,7 +256,7 @@ functionRegistry.register({
   name: "COUNTA",
   handler: countaHandler,
   minArgs: 1,
-  maxArgs: 1,
+  maxArgs: MAX_AGGREGATE_ARGS,
   description: "Counts the number of non-empty cells in a range",
   examples: ["COUNTA(A1:A10)", "COUNTA(B2:B20)"],
   category: "Statistical",
