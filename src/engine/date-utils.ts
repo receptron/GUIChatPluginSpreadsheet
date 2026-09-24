@@ -41,25 +41,16 @@ export const serialToDate = (serial: number): Date => {
   return date;
 };
 
+/** A name list that always has a first entry, so a formatter can fall back to it
+ *  when a date is unreadable and its month/weekday index comes out NaN. */
+export type NameList = readonly [string, ...string[]];
+
 /**
  * Month names for formatting
  */
-export const MONTH_NAMES_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
+export const MONTH_NAMES_SHORT: NameList = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export const MONTH_NAMES_FULL = [
+export const MONTH_NAMES_FULL: NameList = [
   "January",
   "February",
   "March",
@@ -77,22 +68,6 @@ export const MONTH_NAMES_FULL = [
 /**
  * Day names for formatting
  */
-export const DAY_NAMES_SHORT = [
-  "Sun",
-  "Mon",
-  "Tue",
-  "Wed",
-  "Thu",
-  "Fri",
-  "Sat",
-];
+export const DAY_NAMES_SHORT: NameList = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export const DAY_NAMES_FULL = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+export const DAY_NAMES_FULL: NameList = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

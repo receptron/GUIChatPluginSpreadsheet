@@ -5,12 +5,8 @@
  */
 
 import { calculateSheet, calculateWorkbook } from "./calculator";
-import type {
-  SheetData,
-  CalculatedSheet,
-  EngineOptions,
-  SpreadsheetCell,
-} from "./types";
+import type { SheetData, CalculatedSheet, EngineOptions, SpreadsheetCell } from "./types";
+import { isObj } from "./guards";
 
 /**
  * SpreadsheetEngine - Main calculation engine class
@@ -49,6 +45,7 @@ export class SpreadsheetEngine {
       maxIterations: options.maxIterations ?? 100,
       enableCrossSheetRefs: options.enableCrossSheetRefs ?? true,
       strictMode: options.strictMode ?? false,
+      preferDDMMYYYY: options.preferDDMMYYYY ?? false,
     };
   }
 
@@ -77,7 +74,7 @@ export class SpreadsheetEngine {
    * ```
    */
   calculate(sheet: SheetData, allSheets?: SheetData[]): CalculatedSheet {
-    return calculateSheet(sheet, allSheets);
+    return calculateSheet(sheet, allSheets, { preferDDMMYYYY: this.options.preferDDMMYYYY });
   }
 
   /**
@@ -99,7 +96,7 @@ export class SpreadsheetEngine {
    * ```
    */
   calculateWorkbook(sheets: SheetData[]): CalculatedSheet[] {
-    return calculateWorkbook(sheets);
+    return calculateWorkbook(sheets, { preferDDMMYYYY: this.options.preferDDMMYYYY });
   }
 
   /**
@@ -146,15 +143,12 @@ export class SpreadsheetEngine {
    * ]);
    * ```
    */
-  createSheet(
-    name: string,
-    data: Array<Array<SpreadsheetCell | string | number>>,
-  ): SheetData {
+  createSheet(name: string, data: Array<Array<SpreadsheetCell | string | number>>): SheetData {
     return {
       name,
       data: data.map((row) =>
         row.map((cell) => {
-          if (typeof cell === "object" && cell !== null && "v" in cell) {
+          if (isObj(cell) && "v" in cell) {
             return cell as SpreadsheetCell;
           }
           return { v: cell };

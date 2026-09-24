@@ -464,3 +464,12 @@ This creates one test case per fixture file automatically!
    ```
 
 Done! No code changes, no configuration - just add two JSON files.
+
+## A note on the financial fixture
+
+`financial-functions` expects the sign convention Excel itself uses: a payment
+leaves the account, so `PMT`, `IPMT` and `PPMT` are negative when the present
+value is positive. Two cells in `expected/financial-functions.json` disagreed
+with that and were corrected when the engine was replaced — the interest payment
+had the wrong sign, and the principal payment was not `PMT - IPMT`. If a change
+makes either go positive again, it is the change that is wrong.
