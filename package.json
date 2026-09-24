@@ -33,7 +33,7 @@
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint src demo",
     "test": "vitest run",
-    "test:engine": "tsx --test \"tests/engine/test_*.ts\"",
+    "test:engine": "tsx --test \"tests/**/test_*.ts\"",
     "test:watch": "vitest",
     "test:fixtures": "tsx tests/engine/run-all-fixtures.ts",
     "test:calculator": "tsx tests/engine/run-calculator-tests.ts",
