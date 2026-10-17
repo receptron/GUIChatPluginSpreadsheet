@@ -21,12 +21,7 @@
     <div v-if="ViewComponent" class="bg-white rounded-lg p-5 mb-5 shadow-md">
       <h2 class="text-gray-600 text-xl mb-4">View Component</h2>
       <div class="border border-gray-200 rounded h-[600px]">
-        <component
-          :is="ViewComponent"
-          :selectedResult="result"
-          :sendTextMessage="handleSendTextMessage"
-          @updateResult="handleUpdate"
-        />
+        <component :is="ViewComponent" :selectedResult="result" :sendTextMessage="handleSendTextMessage" @updateResult="handleUpdate" />
       </div>
     </div>
 

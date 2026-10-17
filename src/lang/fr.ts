@@ -2,7 +2,7 @@ import type { Messages } from "./messages";
 
 const fr: Messages = {
   untitled: "Tableur",
-  sheetCount: (count) => count === 1 ? "1 feuille" : `${count} feuilles`,
+  sheetCount: (count) => (count === 1 ? "1 feuille" : `${count} feuilles`),
   excel: "Excel",
   valuePlaceholder: "Valeur",
   valueOrFormulaPlaceholder: "Valeur ou formule (ex. 100 ou SUM(B2:B11))",

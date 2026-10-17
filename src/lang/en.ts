@@ -2,7 +2,7 @@ import type { Messages } from "./messages";
 
 const en: Messages = {
   untitled: "Spreadsheet",
-  sheetCount: (count) => count === 1 ? "1 sheet" : `${count} sheets`,
+  sheetCount: (count) => (count === 1 ? "1 sheet" : `${count} sheets`),
   excel: "Excel",
   valuePlaceholder: "Value",
   valueOrFormulaPlaceholder: "Value or Formula (e.g., 100 or SUM(B2:B11))",

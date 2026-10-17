@@ -6,13 +6,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  isSpreadsheetError,
-  isErrorResult,
-  errorCodeOf,
-  spreadsheetError,
-  SPREADSHEET_ERRORS,
-} from "../../src/engine/spreadsheet-errors.ts";
+import { isSpreadsheetError, isErrorResult, errorCodeOf, spreadsheetError, SPREADSHEET_ERRORS } from "../../src/engine/spreadsheet-errors.ts";
 
 describe("isSpreadsheetError", () => {
   it("recognises the Excel error strings", () => {

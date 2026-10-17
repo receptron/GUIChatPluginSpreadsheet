@@ -2,7 +2,7 @@ import type { Messages } from "./messages";
 
 const ptBR: Messages = {
   untitled: "Planilha",
-  sheetCount: (count) => count === 1 ? "1 aba" : `${count} abas`,
+  sheetCount: (count) => (count === 1 ? "1 aba" : `${count} abas`),
   excel: "Excel",
   valuePlaceholder: "Valor",
   valueOrFormulaPlaceholder: "Valor ou Fórmula (ex.: 100 ou SUM(B2:B11))",

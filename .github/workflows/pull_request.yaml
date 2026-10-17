@@ -48,6 +48,9 @@ jobs:
     - run: yarn install --frozen-lockfile --network-timeout 120000
     - run: yarn run typecheck
     - run: yarn run lint
+    # Windows checkouts get CRLF line endings, which prettier reports as unformatted.
+    - run: yarn run format:check
+      if: runner.os == 'Linux'
     - run: yarn run build
     - run: yarn run test
     - run: yarn run test:all

@@ -34,7 +34,15 @@ const hostContext = (artifacts: FileOps): ToolContext => {
   return context;
 };
 
-const sheets: SpreadsheetSheet[] = [{ name: "Budget", data: [[{ v: "Income" }, { v: 5000 }], [{ v: "Total" }, { v: "=B1" }]] }];
+const sheets: SpreadsheetSheet[] = [
+  {
+    name: "Budget",
+    data: [
+      [{ v: "Income" }, { v: 5000 }],
+      [{ v: "Total" }, { v: "=B1" }],
+    ],
+  },
+];
 const savedPath = "artifacts/spreadsheets/2026/10/0123456789abcdef.json";
 
 describe("executeSpreadsheet without files.artifacts", () => {

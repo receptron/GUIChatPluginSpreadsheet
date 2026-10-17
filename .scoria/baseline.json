@@ -1,0 +1,1784 @@
+{
+  "report": {
+    "schemaVersion": 1,
+    "root": "/Users/isamu/ss/llm/GUIChatPlugins/GUIChatPluginSpreadsheet",
+    "label": "@gui-chat-plugin/spreadsheet",
+    "profile": "library",
+    "stacks": [
+      "vue",
+      "ts"
+    ],
+    "complete": true,
+    "size": {
+      "files": 142,
+      "sloc": 6644,
+      "testSloc": 8576
+    },
+    "dimensions": [
+      {
+        "dimension": "architecture",
+        "status": "experimental",
+        "score": 45,
+        "coverage": 1,
+        "metrics": [
+          {
+            "metric": "knip.unused_export_ratio",
+            "value": 0.2394,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 0.2
+            },
+            "weight": 0.3,
+            "points": 0
+          },
+          {
+            "metric": "knip.unused_file_ratio",
+            "value": 0.4366,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 0.3
+            },
+            "weight": 0.25,
+            "points": 0
+          },
+          {
+            "metric": "knip.unused_dependencies",
+            "value": 0,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 10
+            },
+            "weight": 0.2,
+            "points": 20
+          },
+          {
+            "metric": "circular.cycle_count",
+            "value": 0,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 8
+            },
+            "weight": 0.25,
+            "points": 25
+          }
+        ],
+        "confidence": "high",
+        "confidenceReason": "3 suppressions in scope"
+      },
+      {
+        "dimension": "correctness",
+        "status": "experimental",
+        "score": 67.64,
+        "coverage": 1,
+        "metrics": [
+          {
+            "metric": "oxlint.errors_per_kloc",
+            "value": 0,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 3
+            },
+            "weight": 0.6,
+            "density": true,
+            "points": 60
+          },
+          {
+            "metric": "oxlint.violations_per_kloc",
+            "value": 6.472,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 8
+            },
+            "weight": 0.4,
+            "density": true,
+            "points": 7.64,
+            "topContributors": [
+              {
+                "file": "tests/engine/test_ifsInjection.ts",
+                "value": 13
+              },
+              {
+                "file": "tests/engine/test_condition.ts",
+                "value": 6
+              },
+              {
+                "file": "tests/engine/test_mathematicalFunctions.ts",
+                "value": 4
+              },
+              {
+                "file": "tests/vue/test_sheetSession.ts",
+                "value": 2
+              },
+              {
+                "file": "tests/engine/run-all-fixtures.ts",
+                "value": 2
+              }
+            ]
+          }
+        ],
+        "confidence": "high",
+        "confidenceReason": "3 suppressions in scope"
+      },
+      {
+        "dimension": "documentation",
+        "status": "experimental",
+        "score": 96.7374,
+        "coverage": 0.75,
+        "metrics": [
+          {
+            "metric": "readme-contract.has_readme",
+            "value": 1,
+            "state": "ok",
+            "scale": {
+              "good": 1,
+              "bad": 0
+            },
+            "weight": 0.35,
+            "points": 46.6667
+          },
+          {
+            "metric": "readme-contract.readme_words",
+            "value": 781,
+            "state": "ok",
+            "scale": {
+              "good": 120,
+              "bad": 30
+            },
+            "weight": 0.2,
+            "points": 26.6667
+          },
+          {
+            "metric": "readme-contract.documented_flag_ratio",
+            "value": 0,
+            "state": "skipped",
+            "scale": {
+              "good": 1,
+              "bad": 0.5
+            },
+            "weight": 0.25,
+            "points": 0
+          },
+          {
+            "metric": "comment-quality.marker_per_kloc",
+            "value": 0.2447,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 2
+            },
+            "weight": 0.2,
+            "density": true,
+            "points": 23.404,
+            "topContributors": [
+              {
+                "file": "src/engine/calculator.ts",
+                "value": 1
+              }
+            ]
+          }
+        ],
+        "confidence": "high",
+        "confidenceReason": "3 suppressions in scope"
+      },
+      {
+        "dimension": "integrity",
+        "status": "experimental",
+        "score": 97.041,
+        "coverage": 1,
+        "metrics": [
+          {
+            "metric": "suppression-scan.source_per_kloc",
+            "value": 0.4515,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 5
+            },
+            "weight": 0.3,
+            "density": true,
+            "points": 27.291,
+            "topContributors": [
+              {
+                "file": "demo/App.vue",
+                "value": 1
+              },
+              {
+                "file": "src/engine/evaluator.ts",
+                "value": 1
+              },
+              {
+                "file": "src/engine/registry.ts",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "metric": "suppression-scan.unreasoned_ratio",
+            "value": 0,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 1
+            },
+            "weight": 0.2,
+            "points": 20
+          },
+          {
+            "metric": "suppression-scan.test_count",
+            "value": 5,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 200
+            },
+            "weight": 0.1,
+            "points": 9.75
+          },
+          {
+            "metric": "config-integrity.gap_ratio",
+            "value": 0,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 0.6
+            },
+            "weight": 0.25,
+            "points": 25
+          },
+          {
+            "metric": "ci-integrity.gap_ratio",
+            "value": 0,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 0.6
+            },
+            "weight": 0.15,
+            "points": 15
+          }
+        ],
+        "confidence": "high",
+        "confidenceReason": "no suppression signal wired"
+      },
+      {
+        "dimension": "readability",
+        "status": "experimental",
+        "score": 71.7573,
+        "coverage": 1,
+        "metrics": [
+          {
+            "metric": "file-shape.sloc_p95",
+            "value": 342,
+            "state": "ok",
+            "scale": {
+              "good": 150,
+              "bad": 800
+            },
+            "weight": 0.3,
+            "points": 21.1385,
+            "topContributors": [
+              {
+                "file": "src/vue/View.vue",
+                "value": 805
+              },
+              {
+                "file": "src/engine/evaluator.ts",
+                "value": 440
+              },
+              {
+                "file": "src/engine/calculator.ts",
+                "value": 381
+              },
+              {
+                "file": "src/engine/functions/text.ts",
+                "value": 342
+              },
+              {
+                "file": "src/engine/functions/statistical.ts",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "metric": "file-shape.max_file_sloc",
+            "value": 805,
+            "state": "ok",
+            "scale": {
+              "good": 300,
+              "bad": 2000
+            },
+            "weight": 0.2,
+            "points": 14.0588
+          },
+          {
+            "metric": "file-shape.god_file_count",
+            "value": 1,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 20
+            },
+            "weight": 0.15,
+            "points": 14.25
+          },
+          {
+            "metric": "jscpd.duplicated_lines_pct",
+            "value": 2.3,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 10
+            },
+            "weight": 0.2,
+            "points": 15.4,
+            "topContributors": [
+              {
+                "file": "tests/engine/run-pv-analysis-complete-test.ts",
+                "value": 100
+              },
+              {
+                "file": "tests/engine/run-pv-analysis-test.ts",
+                "value": 86
+              },
+              {
+                "file": "tests/engine/run-evaluator-tests.ts",
+                "value": 55
+              },
+              {
+                "file": "tests/engine/run-formatter-tests.ts",
+                "value": 40
+              },
+              {
+                "file": "tests/engine/run-calculator-tests.ts",
+                "value": 38
+              }
+            ]
+          },
+          {
+            "metric": "oxlint.violations_per_kloc",
+            "value": 6.472,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 12
+            },
+            "weight": 0.15,
+            "density": true,
+            "points": 6.91,
+            "topContributors": [
+              {
+                "file": "tests/engine/test_ifsInjection.ts",
+                "value": 13
+              },
+              {
+                "file": "tests/engine/test_condition.ts",
+                "value": 6
+              },
+              {
+                "file": "tests/engine/test_mathematicalFunctions.ts",
+                "value": 4
+              },
+              {
+                "file": "tests/vue/test_sheetSession.ts",
+                "value": 2
+              },
+              {
+                "file": "tests/engine/run-all-fixtures.ts",
+                "value": 2
+              }
+            ]
+          }
+        ],
+        "confidence": "high",
+        "confidenceReason": "3 suppressions in scope"
+      },
+      {
+        "dimension": "security",
+        "status": "experimental",
+        "score": 84.75,
+        "coverage": 1,
+        "metrics": [
+          {
+            "metric": "audit.critical",
+            "value": 0,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 1
+            },
+            "weight": 0.4,
+            "points": 40
+          },
+          {
+            "metric": "audit.high",
+            "value": 2,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 5
+            },
+            "weight": 0.35,
+            "points": 21
+          },
+          {
+            "metric": "audit.moderate",
+            "value": 1,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 20
+            },
+            "weight": 0.25,
+            "points": 23.75
+          }
+        ],
+        "confidence": "high",
+        "confidenceReason": "no suppression signal wired"
+      },
+      {
+        "dimension": "test-coverage",
+        "status": "experimental",
+        "score": 93.1,
+        "coverage": 1,
+        "metrics": [
+          {
+            "metric": "test-presence.test_to_source_ratio",
+            "value": 1.2908,
+            "state": "ok",
+            "scale": {
+              "good": 0.5,
+              "bad": 0.05
+            },
+            "weight": 0.3,
+            "points": 30
+          },
+          {
+            "metric": "coverage.line_pct",
+            "value": 78.5,
+            "state": "ok",
+            "scale": {
+              "good": 90,
+              "bad": 40
+            },
+            "weight": 0.3,
+            "points": 23.1
+          },
+          {
+            "metric": "coverage.branch_pct",
+            "value": 93.28,
+            "state": "ok",
+            "scale": {
+              "good": 85,
+              "bad": 30
+            },
+            "weight": 0.25,
+            "points": 25
+          },
+          {
+            "metric": "coverage.function_pct",
+            "value": 90.41,
+            "state": "ok",
+            "scale": {
+              "good": 90,
+              "bad": 40
+            },
+            "weight": 0.15,
+            "points": 15
+          }
+        ],
+        "confidence": "high",
+        "confidenceReason": "3 suppressions in scope"
+      },
+      {
+        "dimension": "type-safety",
+        "status": "experimental",
+        "score": 88.7125,
+        "coverage": 1,
+        "metrics": [
+          {
+            "metric": "source-mix.untyped_sloc_ratio",
+            "value": 0,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 0.5
+            },
+            "weight": 0.3,
+            "points": 30
+          },
+          {
+            "metric": "source-mix.untyped_file_ratio",
+            "value": 0,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 0.5
+            },
+            "weight": 0.2,
+            "points": 20,
+            "topContributors": []
+          },
+          {
+            "metric": "tsc.type_errors_per_kloc",
+            "value": 0.4515,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 2
+            },
+            "weight": 0.5,
+            "density": true,
+            "points": 38.7125
+          }
+        ],
+        "confidence": "high",
+        "confidenceReason": "3 suppressions in scope"
+      },
+      {
+        "dimension": "ui-consistency",
+        "status": "experimental",
+        "score": 78.99,
+        "coverage": 1,
+        "metrics": [
+          {
+            "metric": "ui-token.color_cardinality",
+            "value": 25,
+            "state": "ok",
+            "scale": {
+              "good": 20,
+              "bad": 120
+            },
+            "weight": 0.3,
+            "points": 28.5,
+            "topContributors": [
+              {
+                "file": "src/vue/View.vue",
+                "value": 25
+              },
+              {
+                "file": "demo/App.vue",
+                "value": 0
+              },
+              {
+                "file": "src/vue/Preview.vue",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "metric": "ui-token.spacing_cardinality",
+            "value": 24,
+            "state": "ok",
+            "scale": {
+              "good": 10,
+              "bad": 60
+            },
+            "weight": 0.3,
+            "points": 21.6,
+            "topContributors": [
+              {
+                "file": "src/vue/View.vue",
+                "value": 22
+              },
+              {
+                "file": "demo/App.vue",
+                "value": 2
+              },
+              {
+                "file": "src/vue/Preview.vue",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "metric": "ui-token.inline_style_per_kloc",
+            "value": 0,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 10
+            },
+            "weight": 0.2,
+            "density": true,
+            "points": 20
+          },
+          {
+            "metric": "ui-token.style_block_ratio",
+            "value": 0.3333,
+            "state": "ok",
+            "scale": {
+              "good": 0,
+              "bad": 0.6
+            },
+            "weight": 0.2,
+            "points": 8.89
+          }
+        ],
+        "confidence": "high",
+        "confidenceReason": "3 suppressions in scope"
+      }
+    ],
+    "metrics": {
+      "suppression-scan.source_count": 3,
+      "suppression-scan.test_count": 5,
+      "suppression-scan.source_per_kloc": 0.4515,
+      "suppression-scan.unreasoned_source_count": 0,
+      "suppression-scan.unreasoned_ratio": 0,
+      "file-shape.sloc_p95": 342,
+      "file-shape.max_file_sloc": 805,
+      "file-shape.god_file_count": 1,
+      "file-shape.source_file_count": 66,
+      "file-shape.source_sloc": 6644,
+      "source-mix.untyped_file_ratio": 0,
+      "source-mix.untyped_sloc_ratio": 0,
+      "source-mix.untyped_file_count": 0,
+      "source-mix.typed_file_count": 66,
+      "config-integrity.gap_ratio": 0,
+      "config-integrity.gap_count": 0,
+      "ci-integrity.gap_ratio": 0,
+      "ci-integrity.gap_count": 0,
+      "ci-integrity.workflow_count": 2,
+      "oxlint.violations_per_kloc": 6.472,
+      "oxlint.violations": 43,
+      "oxlint.errors_per_kloc": 0,
+      "jscpd.duplicated_lines_pct": 2.3,
+      "jscpd.clone_count": 21,
+      "tsc.type_errors": 3,
+      "tsc.type_errors_per_kloc": 0.4515,
+      "knip.unused_files": 62,
+      "knip.unused_file_ratio": 0.4366,
+      "knip.unused_export_ratio": 0.2394,
+      "knip.unused_exports": 34,
+      "knip.unused_dependencies": 0,
+      "audit.critical": 0,
+      "audit.high": 2,
+      "audit.moderate": 1,
+      "audit.low": 0,
+      "test-presence.test_to_source_ratio": 1.2908,
+      "test-presence.test_sloc": 8576,
+      "test-presence.test_file_count": 73,
+      "coverage.line_pct": 78.5,
+      "coverage.branch_pct": 93.28,
+      "coverage.function_pct": 90.41,
+      "circular.cycle_count": 0,
+      "readme-contract.has_readme": 1,
+      "readme-contract.readme_words": 781,
+      "comment-quality.marker_per_kloc": 0.2447,
+      "comment-quality.marker_count": 1,
+      "comment-quality.comment_density": 0.4134,
+      "ui-token.color_cardinality": 25,
+      "ui-token.spacing_cardinality": 24,
+      "ui-token.inline_style_per_kloc": 0,
+      "ui-token.style_block_ratio": 0.3333,
+      "ui-token.ui_file_count": 3
+    },
+    "findings": [
+      {
+        "rule": "god-file",
+        "severity": "warning",
+        "file": "src/vue/View.vue",
+        "line": 1,
+        "message": "805 lines (limit 500)",
+        "probe": "file-shape",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_translateFormula.ts",
+        "line": 1,
+        "message": "Function `calc` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/vue/test_sheetSession.ts",
+        "line": 1,
+        "message": "Function `resolve` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/vue/test_sheetSession.ts",
+        "line": 1,
+        "message": "Function `reject` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_cellEmpty.ts",
+        "line": 1,
+        "message": "Function `withBlanks` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_concatSafety.ts",
+        "line": 1,
+        "message": "Function `concat` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe2`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe2`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe3`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe3`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Function `trailingBackslashSheet` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe4`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe4`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe5`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe5`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe6`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_ifsInjection.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__ifsProbe6`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_criteria.ts",
+        "line": 1,
+        "message": "Function `countif` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_logicalFunctions.ts",
+        "line": 1,
+        "message": "Function `evalFormula` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-array-sort",
+        "severity": "warning",
+        "file": "src/engine/functions/statistical-math.ts",
+        "line": 1,
+        "message": "Use `Array#toSorted()` instead of `Array#sort()`.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/run-all-fixtures.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__filename`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/run-all-fixtures.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__dirname`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_calculateDateLocale.ts",
+        "line": 1,
+        "message": "Function `formulaResult` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe2`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe2`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe3`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe3`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/preserve-caught-error",
+        "severity": "warning",
+        "file": "tests/engine/run-parser-tests.ts",
+        "line": 1,
+        "message": "There is no cause error attached to this new thrown error.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/preserve-caught-error",
+        "severity": "warning",
+        "file": "src/core/plugin.ts",
+        "line": 1,
+        "message": "There is no cause error attached to this new thrown error.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_multiRangeAggregates.ts",
+        "line": 1,
+        "message": "Function `countSheet` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-array-sort",
+        "severity": "warning",
+        "file": "tests/engine/test_formulaRefs.ts",
+        "line": 1,
+        "message": "Use `Array#toSorted()` instead of `Array#sort()`.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_lookupBounds.ts",
+        "line": 1,
+        "message": "Function `oneColumn` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-shadow",
+        "severity": "warning",
+        "file": "src/engine/calculator.ts",
+        "line": 1,
+        "message": "'options' is already declared in the upper scope.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_argCountValidation.ts",
+        "line": 1,
+        "message": "Function `withData` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "src/engine/functions/lookup.ts",
+        "line": 1,
+        "message": "Function `compare` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/approx-constant",
+        "severity": "warning",
+        "file": "tests/engine/test_mathematicalFunctions.ts",
+        "line": 1,
+        "message": "Approximate value of `PI` found.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/approx-constant",
+        "severity": "warning",
+        "file": "tests/engine/test_mathematicalFunctions.ts",
+        "line": 1,
+        "message": "Approximate value of `PI` found.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "src/engine/functions/text.ts",
+        "line": 171,
+        "message": "6 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "src/engine/functions/financial.ts",
+        "line": 65,
+        "message": "6 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "src/engine/functions/financial.ts",
+        "line": 80,
+        "message": "6 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/test_textFormat.ts",
+        "line": 17,
+        "message": "6 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/test_lookupFunctions.ts",
+        "line": 14,
+        "message": "7 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/test_formulaRefs.ts",
+        "line": 214,
+        "message": "9 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/test_expandRangeOrCell.ts",
+        "line": 12,
+        "message": "9 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-pv-analysis-test.ts",
+        "line": 12,
+        "message": "86 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-pv-analysis-complete-test.ts",
+        "line": 10,
+        "message": "94 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-pv-analysis-complete-test.ts",
+        "line": 156,
+        "message": "6 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-lowercase-test.ts",
+        "line": 10,
+        "message": "15 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-lowercase-test.ts",
+        "line": 83,
+        "message": "16 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-formatter-tests.ts",
+        "line": 6,
+        "message": "24 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-formatter-tests.ts",
+        "line": 145,
+        "message": "16 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-evaluator-tests.ts",
+        "line": 10,
+        "message": "28 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-evaluator-tests.ts",
+        "line": 34,
+        "message": "11 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-evaluator-tests.ts",
+        "line": 224,
+        "message": "16 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-calculator-tests.ts",
+        "line": 6,
+        "message": "23 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "tests/engine/run-calculator-tests.ts",
+        "line": 380,
+        "message": "15 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "duplicated-block",
+        "severity": "warning",
+        "file": "src/engine/condition.ts",
+        "line": 72,
+        "message": "14 duplicated lines",
+        "probe": "jscpd",
+        "dimension": "readability",
+        "tier": 0
+      },
+      {
+        "rule": "tsc/TS2307",
+        "severity": "error",
+        "file": "demo/main.ts",
+        "line": 2,
+        "message": "Cannot find module './App.vue' or its corresponding type declarations.",
+        "probe": "tsc",
+        "dimension": "type-safety",
+        "tier": 1
+      },
+      {
+        "rule": "tsc/TS2307",
+        "severity": "error",
+        "file": "src/vue/index.ts",
+        "line": 15,
+        "message": "Cannot find module './View.vue' or its corresponding type declarations.",
+        "probe": "tsc",
+        "dimension": "type-safety",
+        "tier": 1
+      },
+      {
+        "rule": "tsc/TS2307",
+        "severity": "error",
+        "file": "src/vue/index.ts",
+        "line": 16,
+        "message": "Cannot find module './Preview.vue' or its corresponding type declarations.",
+        "probe": "tsc",
+        "dimension": "type-safety",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/core/test_execute.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/core/test_paths.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/core/test_sheetGuards.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/cellAccess.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/run-formatter-tests.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/run-parser-tests.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_argCountValidation.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_calculateDateLocale.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_cellBuilder.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_cellEmpty.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_cellFormatting.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_cellRefSubstitution.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_concatSafety.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_conditionalAggregates.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_criteria.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_crossSheetReference.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_dateLocale.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_dateParser.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_dateUtils.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_datedif.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_errorReporting.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_errorValue.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_expandRangeOrCell.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_financialMath.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_financialPeriodicHandlers.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_formatter.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_formulaError.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_formulaRefs.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_ifBranchEvaluation.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unfinished-marker",
+        "severity": "warning",
+        "file": "src/engine/calculator.ts",
+        "line": 380,
+        "message": "TODO left in the code",
+        "probe": "comment-quality",
+        "dimension": "documentation",
+        "tier": 0
+      },
+      {
+        "rule": "style-block",
+        "severity": "warning",
+        "file": "src/vue/View.vue",
+        "line": 1,
+        "message": "a style block, where a utility class or a token would be shared",
+        "probe": "ui-token",
+        "dimension": "ui-consistency",
+        "tier": 0
+      }
+    ],
+    "probes": [
+      {
+        "probe": "suppression-scan",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": []
+      },
+      {
+        "probe": "file-shape",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": []
+      },
+      {
+        "probe": "source-mix",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": []
+      },
+      {
+        "probe": "config-integrity",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": []
+      },
+      {
+        "probe": "ci-integrity",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": []
+      },
+      {
+        "probe": "oxlint",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": [
+          "oxlint"
+        ]
+      },
+      {
+        "probe": "jscpd",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": [
+          "jscpd"
+        ]
+      },
+      {
+        "probe": "tsc",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": [
+          "typescript"
+        ]
+      },
+      {
+        "probe": "knip",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": [
+          "knip"
+        ]
+      },
+      {
+        "probe": "audit",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": [
+          "yarn"
+        ]
+      },
+      {
+        "probe": "test-presence",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": []
+      },
+      {
+        "probe": "coverage",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": []
+      },
+      {
+        "probe": "circular",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": [
+          "madge"
+        ]
+      },
+      {
+        "probe": "readme-contract",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": []
+      },
+      {
+        "probe": "comment-quality",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": []
+      },
+      {
+        "probe": "ui-token",
+        "status": {
+          "kind": "ok"
+        },
+        "tools": []
+      }
+    ],
+    "toolVersions": {
+      "oxlint": "Version: 1.82.0",
+      "jscpd": "4.3.0",
+      "typescript": "6.0.3",
+      "knip": "6.35.1",
+      "yarn": "1.22.22",
+      "madge": "8.0.0"
+    },
+    "overall": {
+      "score": 80.4142,
+      "scoredDimensions": 9,
+      "comparable": false
+    }
+  },
+  "createdAt": "2026-10-17T22:17:37.784Z"
+}

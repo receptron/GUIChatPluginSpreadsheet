@@ -57,24 +57,9 @@ test("sales table with formulas and formatting", () => {
     name: "Sales",
     data: [
       [{ v: "Product" }, { v: "Price" }, { v: "Qty" }, { v: "Total" }],
-      [
-        { v: "Widget" },
-        { v: 10, f: "$#,##0.00" },
-        { v: 100 },
-        { v: "=B2*C2", f: "$#,##0.00" },
-      ],
-      [
-        { v: "Gadget" },
-        { v: 25, f: "$#,##0.00" },
-        { v: 50 },
-        { v: "=B3*C3", f: "$#,##0.00" },
-      ],
-      [
-        { v: "Total" },
-        { v: "" },
-        { v: "=C2+C3" },
-        { v: "=SUM(D2:D3)", f: "$#,##0.00" },
-      ],
+      [{ v: "Widget" }, { v: 10, f: "$#,##0.00" }, { v: 100 }, { v: "=B2*C2", f: "$#,##0.00" }],
+      [{ v: "Gadget" }, { v: 25, f: "$#,##0.00" }, { v: 50 }, { v: "=B3*C3", f: "$#,##0.00" }],
+      [{ v: "Total" }, { v: "" }, { v: "=C2+C3" }, { v: "=SUM(D2:D3)", f: "$#,##0.00" }],
     ],
   };
 
@@ -118,25 +103,9 @@ test("quarterly budget with SUM and AVERAGE", () => {
   const sheet = createSheet("Budget", [
     ["Category", "Q1", "Q2", "Q3", "Q4", "Total", "Avg"],
     ["Marketing", 5000, 6000, 5500, 7000, "=SUM(B2:E2)", "=AVERAGE(B2:E2)"],
-    [
-      "Engineering",
-      15000,
-      16000,
-      15500,
-      17000,
-      "=SUM(B3:E3)",
-      "=AVERAGE(B3:E3)",
-    ],
+    ["Engineering", 15000, 16000, 15500, 17000, "=SUM(B3:E3)", "=AVERAGE(B3:E3)"],
     ["Sales", 8000, 9000, 8500, 10000, "=SUM(B4:E4)", "=AVERAGE(B4:E4)"],
-    [
-      "Total",
-      "=SUM(B2:B4)",
-      "=SUM(C2:C4)",
-      "=SUM(D2:D4)",
-      "=SUM(E2:E4)",
-      "=SUM(F2:F4)",
-      "=AVERAGE(F2:F4)",
-    ],
+    ["Total", "=SUM(B2:B4)", "=SUM(C2:C4)", "=SUM(D2:D4)", "=SUM(E2:E4)", "=SUM(F2:F4)", "=AVERAGE(F2:F4)"],
   ]);
 
   const result = calculateSheet(sheet);
@@ -146,15 +115,7 @@ test("quarterly budget with SUM and AVERAGE", () => {
     ["Marketing", "5000", "6000", "5500", "7000", "23500", "5875"],
     ["Engineering", "15000", "16000", "15500", "17000", "63500", "15875"],
     ["Sales", "8000", "9000", "8500", "10000", "35500", "8875"],
-    [
-      "Total",
-      "28000",
-      "31000",
-      "29500",
-      "34000",
-      "122500",
-      "40833.333333333336",
-    ],
+    ["Total", "28000", "31000", "29500", "34000", "122500", "40833.333333333336"],
   ];
 
   expectSheetOutput(result, expected);
@@ -209,10 +170,7 @@ test("ROUND, ABS, POWER functions", () => {
 // Cross-sheet references
 console.log("\nCross-Sheet References:");
 test("calculates cross-sheet references", () => {
-  const sheets = [
-    createSheet("Sheet1", [[100]]),
-    createSheet("Sheet2", [["=Sheet1!A1*2"]]),
-  ];
+  const sheets = [createSheet("Sheet1", [[100]]), createSheet("Sheet2", [["=Sheet1!A1*2"]])];
 
   const results = calculateWorkbook(sheets);
 
@@ -328,24 +286,9 @@ test("sales commission with rates", () => {
     name: "Commission",
     data: [
       [{ v: "Sales Rep" }, { v: "Sales" }, { v: "Rate" }, { v: "Commission" }],
-      [
-        { v: "Alice" },
-        { v: 50000, f: "$#,##0" },
-        { v: 0.05, f: "0.00%" },
-        { v: "=B2*C2", f: "$#,##0.00" },
-      ],
-      [
-        { v: "Bob" },
-        { v: 75000, f: "$#,##0" },
-        { v: 0.07, f: "0.00%" },
-        { v: "=B3*C3", f: "$#,##0.00" },
-      ],
-      [
-        { v: "Total" },
-        { v: "=SUM(B2:B3)", f: "$#,##0" },
-        { v: "" },
-        { v: "=SUM(D2:D3)", f: "$#,##0.00" },
-      ],
+      [{ v: "Alice" }, { v: 50000, f: "$#,##0" }, { v: 0.05, f: "0.00%" }, { v: "=B2*C2", f: "$#,##0.00" }],
+      [{ v: "Bob" }, { v: 75000, f: "$#,##0" }, { v: 0.07, f: "0.00%" }, { v: "=B3*C3", f: "$#,##0.00" }],
+      [{ v: "Total" }, { v: "=SUM(B2:B3)", f: "$#,##0" }, { v: "" }, { v: "=SUM(D2:D3)", f: "$#,##0.00" }],
     ],
   };
 
@@ -373,9 +316,7 @@ test("detects circular references", () => {
     throw new Error("Expected circular reference errors but got none");
   }
   if (result.errors[0].type !== "circular") {
-    throw new Error(
-      `Expected circular error type, got ${result.errors[0].type}`,
-    );
+    throw new Error(`Expected circular error type, got ${result.errors[0].type}`);
   }
 });
 

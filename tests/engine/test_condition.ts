@@ -4,14 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  evaluateCondition,
-  isTruthyCondition,
-  readOperand,
-  renderConditionOperand,
-  splitComparison,
-  stripOuterParens,
-} from "../../src/engine/condition.ts";
+import { evaluateCondition, isTruthyCondition, readOperand, renderConditionOperand, splitComparison, stripOuterParens } from "../../src/engine/condition.ts";
 
 describe("splitComparison", () => {
   it("splits on each operator", () => {
