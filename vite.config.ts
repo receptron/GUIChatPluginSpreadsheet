@@ -18,7 +18,9 @@ export default defineConfig({
         `${entryName}.${format === "es" ? "js" : "cjs"}`,
     },
     rollupOptions: {
-      external: ["vue"],
+      // gui-chat-protocol must stay the host's copy: useRuntime/createUseT find the
+      // runtime by injection Symbol, and a bundled copy has a different one.
+      external: ["vue", /^gui-chat-protocol(\/.*)?$/],
       output: {
         exports: "named",
         globals: {

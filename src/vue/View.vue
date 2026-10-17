@@ -1,118 +1,101 @@
 <template>
   <div class="spreadsheet-container">
-    <div
-      v-if="
-        !selectedResult.data?.sheets || selectedResult.data.sheets.length === 0
-      "
-      class="min-h-full p-8 flex items-center justify-center"
-    >
-      <div class="text-gray-500">No spreadsheet data available</div>
+    <div v-if="loading" class="min-h-full p-8 flex items-center justify-center">
+      <div class="text-gray-500">{{ t.loading }}</div>
+    </div>
+    <div v-else-if="errorMessage" class="min-h-full p-8 flex items-center justify-center">
+      <div class="error">{{ errorMessage }}</div>
+    </div>
+    <div v-else-if="!resolvedSheets || resolvedSheets.length === 0" class="min-h-full p-8 flex items-center justify-center">
+      <div class="text-gray-500">{{ t.noData }}</div>
     </div>
     <template v-else>
       <div class="spreadsheet-content-wrapper">
         <div class="p-4">
           <div class="header">
             <h1 class="title">
-              {{ selectedResult.title || "Spreadsheet" }}
+              {{ selectedResult.title || t.untitled }}
             </h1>
-            <div class="button-group">
-              <button @click="downloadExcel" class="download-btn excel-btn">
-                <span class="material-icons">download</span>
-                Excel
-              </button>
-            </div>
+            <button
+              class="download-btn h-8 px-2.5 flex items-center gap-1 rounded bg-[#217346] hover:bg-[#1e6a3f] active:bg-[#1a5c36] text-white text-sm transition-colors"
+              @click="downloadExcel"
+            >
+              <span class="material-icons text-base">download</span>
+              {{ t.excel }}
+            </button>
           </div>
 
           <!-- Sheet tabs (if multiple sheets) -->
-          <div v-if="selectedResult.data.sheets.length > 1" class="sheet-tabs">
+          <div v-if="resolvedSheets.length > 1" class="sheet-tabs">
             <button
-              v-for="(sheet, index) in selectedResult.data.sheets"
+              v-for="(sheet, index) in resolvedSheets"
               :key="index"
-              @click="activeSheetIndex = index"
               :class="['sheet-tab', { active: activeSheetIndex === index }]"
+              @click="activeSheetIndex = index"
             >
               {{ sheet.name }}
             </button>
           </div>
 
           <!-- Spreadsheet table -->
-          <div
-            ref="tableContainer"
-            class="table-container"
-            v-html="renderedHtml"
-            @click="handleTableClick"
-          ></div>
+          <div ref="tableContainer" class="table-container" @click="handleTableClick" v-html="renderedHtml"></div>
         </div>
       </div>
 
       <!-- Collapsible Editor -->
-      <details
-        v-if="!miniEditorOpen"
-        ref="editorDetails"
-        class="spreadsheet-source"
-      >
-        <summary>Edit Spreadsheet Data</summary>
-        <textarea
-          ref="editorTextarea"
-          v-model="editableData"
-          @input="handleDataEdit"
-          class="spreadsheet-editor"
-          spellcheck="false"
-        ></textarea>
-        <button @click="applyChanges" class="apply-btn" :disabled="!hasChanges">
-          Apply Changes
-        </button>
+      <details v-if="!miniEditorOpen" ref="editorDetails" class="spreadsheet-source">
+        <summary>{{ t.editData }}</summary>
+        <textarea ref="editorTextarea" v-model="editableData" class="spreadsheet-editor" spellcheck="false" @input="handleDataEdit"></textarea>
+        <button class="apply-btn" :disabled="!hasChanges" @click="applyChanges">{{ t.applyChanges }}</button>
       </details>
 
       <!-- Mini Editor at Bottom -->
       <div v-if="miniEditorOpen" class="mini-editor-panel">
         <div class="mini-editor-content">
-          <span v-if="miniEditorCell" class="cell-ref">
-            {{ indexToCol(miniEditorCell.col) }}{{ miniEditorCell.row + 1 }}
-          </span>
+          <span v-if="miniEditorCell" class="cell-ref"> {{ indexToCol(miniEditorCell.col) }}{{ miniEditorCell.row + 1 }} </span>
 
           <!-- Type Selector -->
           <div class="radio-group">
             <label class="radio-option">
-              <input type="radio" value="string" v-model="miniEditorType" />
-              String
+              <input v-model="miniEditorType" type="radio" value="string" />
+              {{ t.stringType }}
             </label>
             <label class="radio-option">
-              <input type="radio" value="object" v-model="miniEditorType" />
-              Formula
+              <input v-model="miniEditorType" type="radio" value="object" />
+              {{ t.formulaType }}
             </label>
           </div>
 
           <!-- String input -->
           <input
             v-if="miniEditorType === 'string'"
-            type="text"
             v-model="miniEditorValue"
+            type="text"
             class="form-input"
-            placeholder="Value"
+            :placeholder="t.valuePlaceholder"
             @keyup.enter="saveMiniEditor"
           />
 
           <!-- Formula inputs -->
           <template v-if="miniEditorType === 'object'">
             <input
-              type="text"
               v-model="miniEditorFormula"
+              type="text"
               class="form-input"
-              placeholder="Value or Formula (e.g., 100 or SUM(B2:B11))"
+              :placeholder="t.valueOrFormulaPlaceholder"
               @keyup.enter="saveMiniEditor"
             />
             <input
-              type="text"
               v-model="miniEditorFormat"
+              type="text"
               class="form-input"
-              placeholder="Format (e.g., $#,##0.00)"
+              :placeholder="t.formatPlaceholder"
               @keyup.enter="saveMiniEditor"
             />
           </template>
 
-          <button @click="saveMiniEditor" class="save-btn">Update</button>
-          <button @click="closeMiniEditor" class="cancel-btn">✕</button>
+          <button class="save-btn" @click="saveMiniEditor">{{ t.update }}</button>
+          <button class="cancel-btn" @click="closeMiniEditor">✕</button>
         </div>
       </div>
     </template>
@@ -120,39 +103,45 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onUnmounted } from "vue";
+import { computed, inject, ref, watch, onMounted, onUnmounted } from "vue";
 import * as XLSX from "xlsx";
-import type { ToolResult } from "gui-chat-protocol";
-import type { SpreadsheetToolData } from "../core/types";
+import { PLUGIN_RUNTIME_KEY, type ToolResult } from "gui-chat-protocol/vue";
+import type { SpreadsheetToolData, SpreadsheetSheet, StorableCell, SpreadsheetCell } from "../core/types";
+import { isSpreadsheetArtifactPath } from "../core/paths";
+import { readSheets } from "../core/sheetGuards";
 import {
   SpreadsheetEngine,
-  columnToIndex,
+  prefersDayFirst,
   indexToColumn,
+  extractCellReferences,
+  buildCellFromInput,
+  normalizeData,
+  findCellJsonPosition,
+  type SheetData,
+  type CellValue,
 } from "../engine";
+import { errorMessage as formatErrorMessage, isObj, isRecord } from "../engine/guards";
 import { applyCellHighlights, clearCellHighlights } from "./cellHighlights";
 import { getArrowKeyOffset, isWithinSheetBounds } from "./keyboardNav";
+import { escapeHtml, isCrossOriginHttpUrl } from "./htmlText";
+import { useT } from "../lang";
 
 // Import all spreadsheet functions to populate the function registry
 import "../engine/functions";
+
+const t = useT();
+
+// Absent outside a host that provides the gui-chat-protocol runtime (a
+// standalone demo, MulmoChat): only inline workbooks render there.
+const runtime = inject(PLUGIN_RUNTIME_KEY, undefined);
+const locale = computed(() => runtime?.locale.value ?? "en");
 
 /**
  * Normalize malformed data structures
  * Some models generate flat arrays instead of 2D arrays - fix them
  */
- 
-function normalizeSheetData(data: any): any[][] {
-  // Handle null/undefined
-  if (!data) {
-    return [];
-  }
-
-  // If not an array
-  if (!Array.isArray(data)) {
-    return [];
-  }
-
-  // Empty array
-  if (data.length === 0) {
+function normalizeSheetData(data: unknown): unknown[][] {
+  if (!Array.isArray(data) || data.length === 0) {
     return [];
   }
 
@@ -163,9 +152,8 @@ function normalizeSheetData(data: any): any[][] {
 
   // If data is a flat array of cell objects, convert to 2D by pairing cells
   // Pattern: [cell1, cell2, cell3, cell4] -> [[cell1, cell2], [cell3, cell4]]
-  if (typeof data[0] === "object" && data[0] !== null) {
-     
-    const rows: any[][] = [];
+  if (isObj(data[0])) {
+    const rows: unknown[][] = [];
     for (let i = 0; i < data.length; i += 2) {
       const row = [data[i]];
       if (i + 1 < data.length) {
@@ -191,10 +179,94 @@ const emit = defineEmits<{
 // Create spreadsheet engine instance
 const engine = new SpreadsheetEngine();
 
+const loading = ref(false);
+const errorMessage = ref("");
+const resolvedSheets = ref<SpreadsheetSheet[]>([]);
+
+// Editor textarea backing ref. Declared up here (rather than next to
+// the other view-state refs further down) so the `fetchSheets().then`
+// initializer below can assign to it without TDZ.
+const editableData = ref(JSON.stringify(resolvedSheets.value || [], null, 2));
+
+const readDispatchedSheets = (raw: unknown): SpreadsheetSheet[] => {
+  const sheets = isRecord(raw) && isRecord(raw["data"]) ? readSheets(raw["data"]["sheets"]) : null;
+  if (!sheets) throw new Error(t.value.dataMustBeArray);
+  return sheets;
+};
+
+async function loadSheetsFromHost(path: string): Promise<void> {
+  if (!runtime) {
+    errorMessage.value = t.value.loadFailed(path);
+    return;
+  }
+  loading.value = true;
+  try {
+    resolvedSheets.value = await runtime.dispatch({ kind: "loadSpreadsheet", path }, readDispatchedSheets);
+  } catch (error) {
+    errorMessage.value = t.value.loadFailed(formatErrorMessage(error, t.value.unknownError));
+    resolvedSheets.value = [];
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function fetchSheets(): Promise<void> {
+  const raw = props.selectedResult.data?.sheets;
+  // Clear any stale error from a previous result BEFORE the early
+  // returns, otherwise switching from a failed file-backed load to
+  // a new inline-data result leaves the error panel on screen.
+  errorMessage.value = "";
+  if (!raw) {
+    resolvedSheets.value = [];
+    return;
+  }
+  if (isSpreadsheetArtifactPath(raw)) {
+    await loadSheetsFromHost(raw);
+    return;
+  }
+  const inline = readSheets(raw);
+  resolvedSheets.value = inline ?? [];
+  if (!inline) errorMessage.value = t.value.dataMustBeArray;
+}
+
+// Fetch on mount and sync editableData
+void fetchSheets().then(() => {
+  editableData.value = JSON.stringify(resolvedSheets.value || [], null, 2);
+});
+
+/** Persist edited sheets to disk when file-backed, and emit updateResult. */
+async function persistSheets(sheets: SpreadsheetSheet[]): Promise<void> {
+  const raw = props.selectedResult.data?.sheets;
+  const filePath = isSpreadsheetArtifactPath(raw) ? raw : null;
+  if (filePath) {
+    if (!runtime) {
+      errorMessage.value = t.value.saveFailed(filePath);
+      return;
+    }
+    try {
+      await runtime.dispatch({ kind: "saveSpreadsheet", path: filePath, sheets });
+    } catch (error) {
+      errorMessage.value = t.value.saveFailed(formatErrorMessage(error, t.value.unknownError));
+      return;
+    }
+  }
+
+  resolvedSheets.value = sheets;
+
+  const updatedResult: ToolResult<SpreadsheetToolData> = {
+    ...props.selectedResult,
+    data: {
+      ...props.selectedResult.data,
+      sheets: filePath ?? sheets,
+    },
+  };
+  emit("updateResult", updatedResult);
+}
+
 const activeSheetIndex = ref(0);
-const editableData = ref(
-  JSON.stringify(props.selectedResult.data?.sheets || [], null, 2),
-);
+// Editor state declared together with the other refs above. Seeded
+// in the on-mount `fetchSheets().then(...)` block above (the `.value`
+// assignment is in scope by the time that .then callback fires).
 const editorTextarea = ref<HTMLTextAreaElement | null>(null);
 const editorDetails = ref<HTMLDetailsElement | null>(null);
 const tableContainer = ref<HTMLDivElement | null>(null);
@@ -202,67 +274,59 @@ const tableContainer = ref<HTMLDivElement | null>(null);
 // Mini editor state
 const miniEditorOpen = ref(false);
 const miniEditorCell = ref<{ row: number; col: number } | null>(null);
- 
-const miniEditorValue = ref<any>(null);
+
+const miniEditorValue = ref<unknown>(null);
 const miniEditorType = ref<"number" | "string" | "object">("string");
 const miniEditorFormula = ref("");
 const miniEditorFormat = ref("");
 
 // Referenced cells state (for formula highlighting)
-const referencedCells = ref<Array<{ row: number; col: number }>>([]);
+const referencedCells = ref<{ row: number; col: number }[]>([]);
 
 // Check if spreadsheet data has been modified
 const hasChanges = computed(() => {
   try {
-    const currentData = JSON.stringify(
-      props.selectedResult.data?.sheets || [],
-      null,
-      2,
-    );
+    const currentData = JSON.stringify(resolvedSheets.value || [], null, 2);
     return editableData.value !== currentData;
   } catch {
     return false;
   }
 });
 
-// Helper functions using the spreadsheet engine utilities
-const colToIndex = columnToIndex;
+// Short alias used in the template column header.
 const indexToCol = indexToColumn;
 
+// `normalizeData` is the engine's own reader for the stored cell forms (bare
+// values, `null` gaps, flat rows); `calculate` runs it internally anyway, so
+// applying it here only meets the engine's declared type at the call site.
+const toEngineSheet = (sheet: SpreadsheetSheet): SheetData => ({ name: sheet.name, data: normalizeData(sheet.data) });
+
 // Calculate formulas in the data using the spreadsheet engine
-const calculateFormulas = (
-   
-  data: Array<Array<any>>,
-  sheetName?: string,
-   
-): Array<Array<any>> => {
+const calculateFormulas = (data: StorableCell[][], sheetName?: string): CellValue[][] => {
   // If we have a sheet name, we need to find all sheets for cross-sheet references
-  const allSheets = props.selectedResult.data?.sheets;
+  const allSheets = resolvedSheets.value.map(toEngineSheet);
 
   // Create a SheetData object for the engine
-  const sheet = {
+  const sheet: SheetData = {
     name: sheetName || "Sheet1",
-    data: data,
+    data: normalizeData(data),
   };
 
-  // Calculate using the engine
+  // Read the date order from the current locale on every calculation, so a
+  // locale switch takes effect without rebuilding the engine.
+  engine.setOptions({ preferDDMMYYYY: prefersDayFirst(locale.value) });
   const result = engine.calculate(sheet, allSheets);
 
-  // Return the calculated data
-   
-  return result.data as Array<Array<any>>;
+  return result.data;
 };
 
 // Render the active sheet as HTML table
 const renderedHtml = computed(() => {
-  if (
-    !props.selectedResult.data?.sheets ||
-    props.selectedResult.data.sheets.length === 0
-  ) {
+  if (!resolvedSheets.value || resolvedSheets.value.length === 0) {
     return "";
   }
 
-  const sheet = props.selectedResult.data.sheets[activeSheetIndex.value];
+  const sheet = resolvedSheets.value[activeSheetIndex.value];
   if (!sheet || !sheet.data) {
     return "";
   }
@@ -283,106 +347,39 @@ const renderedHtml = computed(() => {
     return html;
   } catch (error) {
     console.error("Failed to render spreadsheet:", error);
-    return `<div class="error">Failed to render spreadsheet: ${error instanceof Error ? error.message : "Unknown error"}</div>`;
+    // Fed into v-html, and a caught throw can carry an object whose
+    // `details` / `message` formatErrorMessage surfaces verbatim.
+    return `<div class="error">Failed to render spreadsheet: ${escapeHtml(formatErrorMessage(error, "Unknown error"))}</div>`;
   }
 });
 
 // Download as Excel file
 const downloadExcel = () => {
-  if (!props.selectedResult?.data?.sheets) return;
+  if (!resolvedSheets.value || resolvedSheets.value.length === 0) return;
 
   try {
     const workbook = XLSX.utils.book_new();
 
     // Add all sheets to workbook
-    props.selectedResult.data.sheets.forEach((sheet) => {
+    resolvedSheets.value.forEach((sheet) => {
       const worksheet = XLSX.utils.aoa_to_sheet(sheet.data);
       XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name);
     });
 
     // Generate filename
-    const filename = props.selectedResult.title
-      ? `${props.selectedResult.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.xlsx`
-      : "spreadsheet.xlsx";
+    const filename = props.selectedResult.title ? `${props.selectedResult.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.xlsx` : "spreadsheet.xlsx";
 
     // Write file
     XLSX.writeFile(workbook, filename);
   } catch (error) {
     console.error("Failed to download Excel:", error);
-    alert(
-      `Failed to download Excel file: ${error instanceof Error ? error.message : "Unknown error"}`,
-    );
+    alert(`Failed to download Excel file: ${formatErrorMessage(error, "Unknown error")}`);
   }
 };
 
 function handleDataEdit() {
   // Just update the local state, don't apply yet
   // User needs to click "Apply Changes" button
-}
-
-// Extract cell references from a formula string
-function extractCellReferences(
-  formula: string,
-): Array<{ row: number; col: number }> {
-  const references: Array<{ row: number; col: number }> = [];
-
-  // Remove the "=" prefix if present
-  const cleanFormula = formula.startsWith("=") ? formula.substring(1) : formula;
-
-  // First, extract range references (e.g., A1:B10, $A$1:$B$10)
-  const rangeRegex = /\$?[A-Z]+\$?\d+:\$?[A-Z]+\$?\d+/g;
-  const rangeMatches = cleanFormula.match(rangeRegex);
-
-  if (rangeMatches) {
-    for (const range of rangeMatches) {
-      // Remove $ symbols for absolute references
-      const cleanRange = range.replace(/\$/g, "");
-      const rangeMatch = cleanRange.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
-
-      if (rangeMatch) {
-        const startCol = colToIndex(rangeMatch[1]);
-        const startRow = parseInt(rangeMatch[2]) - 1;
-        const endCol = colToIndex(rangeMatch[3]);
-        const endRow = parseInt(rangeMatch[4]) - 1;
-
-        // Add all cells in the range
-        for (let row = startRow; row <= endRow; row++) {
-          for (let col = startCol; col <= endCol; col++) {
-            if (!references.some((ref) => ref.row === row && ref.col === col)) {
-              references.push({ row, col });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Remove ranges from formula before extracting individual cell references
-  const formulaWithoutRanges = cleanFormula.replace(rangeRegex, "");
-
-  // Then, extract individual cell references (e.g., A1, $B$2, B2)
-  const cellRefRegex = /\$?[A-Z]+\$?\d+/g;
-  const cellMatches = formulaWithoutRanges.match(cellRefRegex);
-
-  if (cellMatches) {
-    for (const match of cellMatches) {
-      // Remove $ symbols for absolute references
-      const cleanRef = match.replace(/\$/g, "");
-      const cellMatch = cleanRef.match(/^([A-Z]+)(\d+)$/);
-
-      if (cellMatch) {
-        const col = colToIndex(cellMatch[1]);
-        const row = parseInt(cellMatch[2]) - 1; // Convert to 0-based
-
-        // Add to references if not already present
-        if (!references.some((ref) => ref.row === row && ref.col === col)) {
-          references.push({ row, col });
-        }
-      }
-    }
-  }
-
-  return references;
 }
 
 function openMiniEditor(rowIndex: number, colIndex: number) {
@@ -397,23 +394,16 @@ function openMiniEditor(rowIndex: number, colIndex: number) {
     // Normalize the data in case it's malformed
     const normalizedData = normalizeSheetData(currentSheet.data);
 
-    if (
-      !normalizedData[rowIndex] ||
-      normalizedData[rowIndex][colIndex] === undefined
-    ) {
+    if (!normalizedData[rowIndex] || normalizedData[rowIndex][colIndex] === undefined) {
       return;
     }
 
     const cellValue = normalizedData[rowIndex][colIndex];
 
     // Determine cell type and extract values (new format: {v, f})
-    if (
-      typeof cellValue === "object" &&
-      cellValue !== null &&
-      "v" in cellValue
-    ) {
-      const value = cellValue.v;
-      const format = cellValue.f ?? "";
+    if (isRecord(cellValue) && "v" in cellValue) {
+      const value = cellValue["v"];
+      const format = typeof cellValue["f"] === "string" ? cellValue["f"] : "";
 
       // Check if it's a formula (value starts with "=")
       if (typeof value === "string" && value.startsWith("=")) {
@@ -439,7 +429,7 @@ function openMiniEditor(rowIndex: number, colIndex: number) {
     } else {
       // Legacy format or plain value
       miniEditorType.value = "string";
-      miniEditorValue.value = String(cellValue ?? "");
+      miniEditorValue.value = plainCellText(cellValue);
       miniEditorFormula.value = "";
       miniEditorFormat.value = "";
       referencedCells.value = [];
@@ -451,6 +441,10 @@ function openMiniEditor(rowIndex: number, colIndex: number) {
     console.error("Failed to open mini editor:", error);
   }
 }
+
+// A bare value as the editor shows it. An object without `v` (`{}`, `{ f }`)
+// holds no value, so it reads as empty rather than "[object Object]".
+const plainCellText = (value: unknown): string => (typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : "");
 
 function closeMiniEditor() {
   miniEditorOpen.value = false;
@@ -473,7 +467,7 @@ function saveMiniEditor() {
     const { row, col } = miniEditorCell.value;
 
     // Normalize the data in case it's malformed
-    let normalizedData = normalizeSheetData(currentSheet.data);
+    const normalizedData = normalizeSheetData(currentSheet.data);
 
     // Ensure the row exists
     while (normalizedData.length <= row) {
@@ -485,40 +479,14 @@ function saveMiniEditor() {
       normalizedData[row] = [];
     }
 
-    // Build the new cell value based on type (new format: {v, f})
-     
-    let newCellValue: any;
-    if (miniEditorType.value === "string") {
-      // String type - create simple cell with string value
-      newCellValue = {
-        v: String(miniEditorValue.value),
-      };
-    } else {
-      // object type (Formula or Number)
-      const input = miniEditorFormula.value?.trim() || "";
-
-      // Detect if it's a formula by checking for:
-      // 1. Function names or expressions starting with operators (-, +, etc.)
-      // 2. Cell references with operators (A1+B1, etc.)
-      // 3. Arithmetic expressions with operators (6/100, 5*2, etc.)
-      const isFormula =
-        /^[-+]?\s*[A-Z]+\s*\(/i.test(input) || // Any function call, optionally preceded by +/- operator
-        /[A-Z]+\d+\s*[\+\-\*\/\^]/.test(input) ||
-        /\d+\s*[\+\-\*\/\^]\s*\d+/.test(input);
-
-      newCellValue = { v: "" };
-      if (isFormula) {
-        // Store formula with "=" prefix
-        newCellValue.v = "=" + input;
-      } else if (input !== "") {
-        const numValue = parseFloat(input);
-        newCellValue.v = isNaN(numValue) ? input : numValue;
-      }
-      // Add format if provided
-      if (miniEditorFormat.value) {
-        newCellValue.f = miniEditorFormat.value;
-      }
-    }
+    // Build the new cell value (delegates formula/number detection
+    // and format attachment to the pure helper).
+    const newCellValue: SpreadsheetCell = buildCellFromInput({
+      type: miniEditorType.value,
+      value: miniEditorValue.value,
+      formula: miniEditorFormula.value,
+      format: miniEditorFormat.value,
+    });
 
     // Update the cell in normalized data
     normalizedData[row][col] = newCellValue;
@@ -529,16 +497,8 @@ function saveMiniEditor() {
     // Update editableData
     editableData.value = JSON.stringify(sheets, null, 2);
 
-    // Apply changes immediately
-    const updatedResult: ToolResult<SpreadsheetToolData> = {
-      ...props.selectedResult,
-      data: {
-        ...props.selectedResult.data,
-        sheets: sheets,
-      },
-    };
-
-    emit("updateResult", updatedResult);
+    // Persist to disk (if file-backed) and emit update
+    void persistSheets(sheets);
 
     // Update referenced cells if the saved cell contains a formula
     if (typeof newCellValue.v === "string" && newCellValue.v.startsWith("=")) {
@@ -548,26 +508,33 @@ function saveMiniEditor() {
     }
 
     // Don't close the mini editor - keep it open so user can see the updated references
-    // closeMiniEditor();
   } catch (error) {
-    alert(
-      `Failed to save cell: ${error instanceof Error ? error.message : "Unknown error"}`,
-    );
+    alert(`Failed to save cell: ${formatErrorMessage(error, "Unknown error")}`);
   }
 }
 
+// External http(s) links inside cells (XLSX hyperlink fields) open in a new
+// tab instead of navigating the host app away.
+function handleExternalLinkClick(event: MouseEvent): boolean {
+  if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return false;
+  const anchor = event.target instanceof Element ? event.target.closest("a") : null;
+  if (!anchor || !isCrossOriginHttpUrl(anchor.href, window.location.origin)) return false;
+  event.preventDefault();
+  if (runtime) runtime.openUrl(anchor.href);
+  else window.open(anchor.href, "_blank", "noopener,noreferrer");
+  return true;
+}
+
 function handleTableClick(event: MouseEvent) {
-  const target = event.target as HTMLElement;
-
-  // Check if clicked element is a table cell
-  if (target.tagName !== "TD") return;
-
-  // Get the row and column indices
-  const cell = target as HTMLTableCellElement;
-  const row = cell.parentElement as HTMLTableRowElement;
+  if (handleExternalLinkClick(event)) return;
+  const cell = event.target;
+  // HTMLTableCellElement covers <th> too, and only data cells carry coordinates.
+  if (!(cell instanceof HTMLTableCellElement) || cell.tagName !== "TD") return;
+  const row = cell.parentElement;
+  if (!(row instanceof HTMLTableRowElement)) return;
 
   const colIndex = cell.cellIndex;
-  const rowIndex = row.rowIndex;
+  const { rowIndex } = row;
 
   // Check if the main editor details is open
   const isEditorOpen = editorDetails.value?.open ?? false;
@@ -578,171 +545,67 @@ function handleTableClick(event: MouseEvent) {
     return;
   }
 
-  // If editor is open, try to find and select this cell in the editor
-  if (editorTextarea.value) {
-    try {
-      const sheets = JSON.parse(editableData.value);
-      const currentSheet = sheets[activeSheetIndex.value];
-
-      if (!currentSheet || !currentSheet.data) {
-        return;
-      }
-
-      // Normalize the data in case it's malformed
-      const normalizedData = normalizeSheetData(currentSheet.data);
-
-      if (
-        normalizedData[rowIndex] &&
-        normalizedData[rowIndex][colIndex] !== undefined
-      ) {
-        const cellValue = normalizedData[rowIndex][colIndex];
-        const cellStr = JSON.stringify(cellValue);
-
-        // Find the sheet's data section in the editor
-        const sheetStartMarker = `"name": "${currentSheet.name}"`;
-        const dataStartMarker = `"data": [`;
-
-        let searchPos = editableData.value.indexOf(sheetStartMarker);
-        if (searchPos >= 0) {
-          searchPos = editableData.value.indexOf(dataStartMarker, searchPos);
-          if (searchPos >= 0) {
-            // Now navigate through the formatted JSON to find the target row and cell
-            let currentRow = -1;
-            let pos = searchPos + dataStartMarker.length;
-
-            // Find the target row by counting opening brackets
-            while (pos < editableData.value.length && currentRow < rowIndex) {
-              const char = editableData.value[pos];
-              if (char === "[") {
-                currentRow++;
-                if (currentRow === rowIndex) {
-                  // Found our target row - now find the colIndex-th cell
-                  let currentCol = 0;
-                  let cellStart = -1;
-                  let inString = false;
-                  let inObject = 0;
-                  let bracketDepth = 0;
-
-                  for (let i = pos; i < editableData.value.length; i++) {
-                    const c = editableData.value[i];
-                    const prevChar = i > 0 ? editableData.value[i - 1] : "";
-
-                    // Track string boundaries
-                    if (c === '"' && prevChar !== "\\") {
-                      inString = !inString;
-                    }
-
-                    if (!inString) {
-                      // Track bracket depth to know when we exit this row
-                      if (c === "[") bracketDepth++;
-                      if (c === "]") {
-                        bracketDepth--;
-                        if (bracketDepth === 0) break; // End of row
-                      }
-
-                      // Track object depth
-                      if (c === "{") inObject++;
-                      if (c === "}") inObject--;
-
-                      // Count cells by top-level commas
-                      if (c === "," && inObject === 0 && bracketDepth === 1) {
-                        currentCol++;
-                      }
-                    }
-
-                    // Find the start of our target cell
-                    if (currentCol === colIndex && cellStart === -1) {
-                      // Skip whitespace and opening bracket/comma
-                      if (
-                        c !== " " &&
-                        c !== "\n" &&
-                        c !== "\t" &&
-                        c !== "[" &&
-                        c !== ","
-                      ) {
-                        cellStart = i;
-                        break;
-                      }
-                    }
-                  }
-
-                  if (cellStart >= 0) {
-                    editorTextarea.value.focus();
-                    editorTextarea.value.setSelectionRange(
-                      cellStart,
-                      cellStart + cellStr.length,
-                    );
-
-                    // Scroll the textarea to make the selection visible
-                    const textBeforeSelection = editableData.value.substring(
-                      0,
-                      cellStart,
-                    );
-                    const lineNumber = textBeforeSelection.split("\n").length;
-                    const lineHeight = 22;
-                    const textarea = editorTextarea.value;
-                    textarea.scrollTop = Math.max(
-                      0,
-                      lineNumber * lineHeight - textarea.clientHeight / 2,
-                    );
-                  }
-                  break;
-                }
-              }
-              pos++;
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Failed to select cell in editor:", error);
+  // If editor is open, try to find and select this cell in the editor.
+  if (!editorTextarea.value) return;
+  try {
+    const sheets = JSON.parse(editableData.value);
+    const currentSheet = sheets[activeSheetIndex.value];
+    if (!currentSheet || !currentSheet.data) return;
+    const normalizedData = normalizeSheetData(currentSheet.data);
+    if (!normalizedData[rowIndex] || normalizedData[rowIndex][colIndex] === undefined) {
+      return;
     }
+    const cellStr = JSON.stringify(normalizedData[rowIndex][colIndex]);
+    const cellStart = findCellJsonPosition(editableData.value, currentSheet.name, rowIndex, colIndex);
+    if (cellStart < 0) return;
+    editorTextarea.value.focus();
+    editorTextarea.value.setSelectionRange(cellStart, cellStart + cellStr.length);
+    // Scroll the textarea to make the selection visible.
+    const textBeforeSelection = editableData.value.substring(0, cellStart);
+    const lineNumber = textBeforeSelection.split("\n").length;
+    const lineHeight = 22;
+    const textarea = editorTextarea.value;
+    textarea.scrollTop = Math.max(0, lineNumber * lineHeight - textarea.clientHeight / 2);
+  } catch (error) {
+    console.error("Failed to select cell in editor:", error);
   }
 }
 
-function applyChanges() {
+async function applyChanges() {
   try {
     // Parse the edited JSON
     const parsedSheets = JSON.parse(editableData.value);
 
     // Validate it's an array
     if (!Array.isArray(parsedSheets)) {
-      throw new Error("Data must be an array of sheets");
+      throw new Error(t.value.dataMustBeArray);
     }
 
-    // Update the result with new spreadsheet data
-    const updatedResult: ToolResult<SpreadsheetToolData> = {
-      ...props.selectedResult,
-      data: {
-        ...props.selectedResult.data,
-        sheets: parsedSheets,
-      },
-    };
-
-    emit("updateResult", updatedResult);
+    // Persist to disk (if file-backed) and emit update
+    await persistSheets(parsedSheets);
 
     // Reset to first sheet after update
     activeSheetIndex.value = 0;
   } catch (error) {
-    alert(
-      `Invalid JSON format: ${error instanceof Error ? error.message : "Unknown error"}`,
-    );
+    alert(t.value.invalidJsonAlert(formatErrorMessage(error, t.value.unknownError)));
   }
 }
 
 // Watch for external changes to selectedResult
 watch(
   () => props.selectedResult.data?.sheets,
-  (newSheets) => {
-    editableData.value = JSON.stringify(newSheets || [], null, 2);
-    // Reset to first sheet when result changes
-    activeSheetIndex.value = 0;
+  () => {
+    void fetchSheets().then(() => {
+      editableData.value = JSON.stringify(resolvedSheets.value || [], null, 2);
+      // Reset to first sheet when result changes
+      activeSheetIndex.value = 0;
+    });
   },
 );
 
 // Reset active sheet if it's out of bounds
 watch(
-  () => props.selectedResult.data?.sheets?.length,
+  () => resolvedSheets.value?.length,
   (length) => {
     if (length && activeSheetIndex.value >= length) {
       activeSheetIndex.value = 0;
@@ -750,52 +613,38 @@ watch(
   },
 );
 
-// Highlight selected cell and referenced cells when mini editor is open
+// Highlight selected cell and referenced cells when mini editor is
+// open. The per-step DOM work lives in cellHighlights.ts so this
+// callback stays trivial and the complexity lands on the helpers,
+// each of which is linear.
 watch(
   [miniEditorOpen, miniEditorCell, referencedCells, renderedHtml],
   () => {
     clearCellHighlights(tableContainer.value);
     if (!miniEditorOpen.value) return;
-    applyCellHighlights(
-      tableContainer.value,
-      miniEditorCell.value,
-      referencedCells.value,
-    );
+    applyCellHighlights(tableContainer.value, miniEditorCell.value, referencedCells.value);
   },
   { flush: "post" },
 );
 
-// Keyboard navigation handler
-function handleKeyboardNavigation(event: KeyboardEvent) {
-  // Only handle arrow keys when mini editor is open and not focused on input
-  if (!miniEditorOpen.value || !miniEditorCell.value) return;
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+}
 
-  // Don't interfere if user is typing in an input field
-  const target = event.target as HTMLElement;
-  if (
-    target.tagName === "INPUT" ||
-    target.tagName === "TEXTAREA" ||
-    target.isContentEditable
-  ) {
-    return;
-  }
+function handleKeyboardNavigation(event: KeyboardEvent) {
+  if (!miniEditorOpen.value || !miniEditorCell.value) return;
+  if (isEditableTarget(event.target)) return;
 
   const { row, col } = miniEditorCell.value;
-  const nextCell = getArrowKeyOffset(event.key, row, col);
-  if (!nextCell) return; // Not an arrow key, ignore
+  const next = getArrowKeyOffset(event.key, row, col);
+  if (!next) return;
 
-  // Get current sheet data to validate bounds
   try {
     const sheets = JSON.parse(editableData.value);
-    if (!isWithinSheetBounds(sheets[activeSheetIndex.value], nextCell.row, nextCell.col)) {
-      return; // Out of bounds, ignore
-    }
-
-    // Prevent default scrolling behavior
+    if (!isWithinSheetBounds(sheets[activeSheetIndex.value], next.row, next.col)) return;
     event.preventDefault();
-
-    // Move to new cell
-    openMiniEditor(nextCell.row, nextCell.col);
+    openMiniEditor(next.row, next.col);
   } catch (error) {
     console.error("Failed to navigate cells:", error);
   }
@@ -838,40 +687,6 @@ onUnmounted(() => {
   font-size: 2em;
   margin: 0;
   font-weight: bold;
-}
-
-.button-group {
-  display: flex;
-  gap: 0.5em;
-}
-
-.download-btn {
-  padding: 0.5em 1em;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9em;
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  transition: background-color 0.2s;
-}
-
-.excel-btn {
-  background-color: #217346;
-}
-
-.excel-btn:hover {
-  background-color: #1e6a3f;
-}
-
-.excel-btn:active {
-  background-color: #1a5c36;
-}
-
-.download-btn .material-icons {
-  font-size: 1.2em;
 }
 
 /* Sheet tabs */
@@ -967,7 +782,7 @@ onUnmounted(() => {
   padding: 0.5rem;
   background: #f5f5f5;
   border-top: 1px solid #e0e0e0;
-  font-family: monospace;
+  font-family: Consolas, "MS Gothic", "BIZ UDGothic", monospace;
   font-size: 0.85rem;
   flex-shrink: 0;
 }
@@ -998,7 +813,7 @@ onUnmounted(() => {
   border: 1px solid #ccc;
   border-radius: 4px;
   color: #333;
-  font-family: "Courier New", monospace;
+  font-family: "Courier New", "MS Gothic", "BIZ UDGothic", monospace;
   font-size: 0.9rem;
   resize: vertical;
   margin-bottom: 0.5rem;
@@ -1057,7 +872,7 @@ onUnmounted(() => {
 }
 
 .cell-ref {
-  font-family: monospace;
+  font-family: Consolas, "MS Gothic", "BIZ UDGothic", monospace;
   font-weight: 600;
   color: #217346;
   font-size: 0.85rem;
