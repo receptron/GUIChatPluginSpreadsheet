@@ -10,52 +10,15 @@ permissions:
   contents: read
 
 jobs:
-  # Runs the project's code (yarn install, scoria) with read-only permissions.
-  measure:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    outputs:
-      has-sarif: ${{ steps.sarif.outputs.present }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24.x
-          cache: yarn
-      # Installed dependencies let scoria run tsc, knip and the cycle check.
-      - run: yarn install --frozen-lockfile --ignore-scripts
-      # scoria only reads an existing coverage report (coverage/lcov.info); it never runs the tests itself.
-      - run: yarn run test:coverage
-      # Report only (mode: report in scoria.config.json); the job summary shows the change since .scoria/baseline.json.
-      - run: yarn run quality --sarif scoria.sarif
-      - id: sarif
-        if: ${{ !cancelled() }}
-        run: echo "present=${{ hashFiles('scoria.sarif') != '' }}" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() && steps.sarif.outputs.present == 'true' }}
-        with:
-          name: scoria-sarif
-          path: scoria.sarif
-          retention-days: 7
-
-  # Only this job can write code scanning results, and it runs no project code.
-  # Skipped for pull requests from forks, whose head is not this repository.
-  upload:
-    needs: measure
-    if: ${{ needs.measure.outputs.has-sarif == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+  # Measures with scoria, uploads the findings to code scanning and publishes the README badge.
+  # The project's code runs only in the workflow's read-only job; see the workflow for how the
+  # write permissions below are split between its upload and badge jobs.
+  scoria:
+    uses: isamu/lab/.github/workflows/scoria-measure.yml@8e8a2ebe9b1a1909c894359cc0a33b168bbb4116
     permissions:
-      contents: read
+      contents: write
       security-events: write
-    # Actions in this job are pinned to commit SHAs because it holds a write permission.
-    steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: scoria-sarif
-      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
-        with:
-          sarif_file: scoria.sarif
-          category: scoria
+    with:
+      # scoria only reads an existing coverage report (coverage/lcov.info); it never runs the tests itself.
+      before: yarn run test:coverage
+      scoria: yarn run quality

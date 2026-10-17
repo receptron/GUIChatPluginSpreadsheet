@@ -1,6 +1,7 @@
 # @gui-chat-plugin/spreadsheet
 
 [![npm version](https://badge.fury.io/js/%40gui-chat-plugin%2Fspreadsheet.svg)](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet)
+[![scoria](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/receptron/GUIChatPluginSpreadsheet/badges/scoria.json)](https://github.com/receptron/GUIChatPluginSpreadsheet/actions/workflows/scoria.yml)
 
 A spreadsheet plugin for [MulmoChat](https://github.com/receptron/MulmoChat) - a multi-modal voice chat application with OpenAI's GPT-4 Realtime API.
 
