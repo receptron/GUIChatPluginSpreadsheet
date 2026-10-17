@@ -13,10 +13,7 @@ export interface SheetSessionHost {
 }
 
 export type LoadOutcome =
-  | { kind: "sheets"; sheets: SpreadsheetSheet[] }
-  | { kind: "notSheets" }
-  | { kind: "noHost"; path: string }
-  | { kind: "loadFailed"; error: unknown };
+  { kind: "sheets"; sheets: SpreadsheetSheet[] } | { kind: "notSheets" } | { kind: "noHost"; path: string } | { kind: "loadFailed"; error: unknown };
 
 export interface SheetSession {
   /** Resolves to null when a newer `load` started before this one finished. */

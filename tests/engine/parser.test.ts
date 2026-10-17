@@ -12,7 +12,6 @@
 import { describe, test, expect } from "vitest";
 import { columnToIndex, indexToColumn } from "../../src/engine/parser";
 
-
 describe("Parser - Column Conversion", () => {
   describe("columnToIndex", () => {
     test("converts single letters correctly", () => {

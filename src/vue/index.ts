@@ -41,13 +41,7 @@ export type {
 } from "../core/types";
 
 // Re-export core plugin utilities
-export {
-  TOOL_NAME,
-  TOOL_DEFINITION,
-  SYSTEM_PROMPT,
-  executeSpreadsheet,
-  pluginCore,
-} from "../core/plugin";
+export { TOOL_NAME, TOOL_DEFINITION, SYSTEM_PROMPT, executeSpreadsheet, pluginCore } from "../core/plugin";
 
 export { executeSpreadsheetDispatch, isSpreadsheetDispatchArgs } from "../core/dispatch";
 export { isSpreadsheetArtifactPath } from "../core/paths";

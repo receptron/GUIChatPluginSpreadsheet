@@ -78,20 +78,8 @@
 
           <!-- Formula inputs -->
           <template v-if="miniEditorType === 'object'">
-            <input
-              v-model="miniEditorFormula"
-              type="text"
-              class="form-input"
-              :placeholder="t.valueOrFormulaPlaceholder"
-              @keyup.enter="saveMiniEditor"
-            />
-            <input
-              v-model="miniEditorFormat"
-              type="text"
-              class="form-input"
-              :placeholder="t.formatPlaceholder"
-              @keyup.enter="saveMiniEditor"
-            />
+            <input v-model="miniEditorFormula" type="text" class="form-input" :placeholder="t.valueOrFormulaPlaceholder" @keyup.enter="saveMiniEditor" />
+            <input v-model="miniEditorFormat" type="text" class="form-input" :placeholder="t.formatPlaceholder" @keyup.enter="saveMiniEditor" />
           </template>
 
           <button class="save-btn" @click="saveMiniEditor">{{ t.update }}</button>

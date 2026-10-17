@@ -4,7 +4,6 @@
  * Handles Excel A1 notation parsing and conversion
  */
 
-
 /**
  * Convert Excel column letters to 0-based index
  * A=0, B=1, ..., Z=25, AA=26, etc.

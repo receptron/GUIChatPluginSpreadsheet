@@ -14,7 +14,9 @@ const isCellValue = (value: unknown): value is SpreadsheetCellValue => typeof va
 const isStorableCell = (value: unknown): value is StorableCell =>
   value === null ||
   isCellValue(value) ||
-  (isRecord(value) && (value["v"] === undefined || value["v"] === null || isCellValue(value["v"])) && (value["f"] === undefined || typeof value["f"] === "string"));
+  (isRecord(value) &&
+    (value["v"] === undefined || value["v"] === null || isCellValue(value["v"])) &&
+    (value["f"] === undefined || typeof value["f"] === "string"));
 
 const isCellRow = (value: unknown): value is StorableCell[] => Array.isArray(value) && value.every(isStorableCell);
 

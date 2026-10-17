@@ -14,8 +14,7 @@ export default defineConfig({
       },
       name: "GUIChatPluginSpreadsheet",
       formats: ["es", "cjs"],
-      fileName: (format, entryName) =>
-        `${entryName}.${format === "es" ? "js" : "cjs"}`,
+      fileName: (format, entryName) => `${entryName}.${format === "es" ? "js" : "cjs"}`,
     },
     rollupOptions: {
       // gui-chat-protocol must stay the host's copy: useRuntime/createUseT find the
