@@ -82,6 +82,15 @@ A host that routes the View's `dispatch` to the plugin's own `execute` (as Mulmo
 
 The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to load or save a saved workbook; it also takes the UI language from that runtime (`en`, `ja`, `de`, `es`, `fr`, `ko`, `pt-BR`, `zh`, falling back to English).
 
+## Upgrading from 2.x
+
+3.0.0 changes what a host receives, so it is a major release:
+
+- `SpreadsheetToolData.sheets` is `SpreadsheetSheet[] | string`. With `files.artifacts` the tool returns the saved file's path instead of the workbook, so code that reads `data.sheets` as an array has to handle the path (or load it with the `loadSpreadsheet` dispatch).
+- `pluginCore.execute` also accepts `SpreadsheetDispatchArgs`.
+- The `gui-chat-protocol` peer is `^2.3.0`, and the package no longer bundles it: the host's copy is used.
+- Cells may hold a boolean `v`, and stored workbooks may contain bare values, `null` gaps and `{}` cells (`StorableCell`).
+
 ## Package Exports
 
 | Export | Description |
