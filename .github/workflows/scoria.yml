@@ -29,12 +29,7 @@ jobs:
       # scoria only reads an existing coverage report (coverage/lcov.info); it never runs the tests itself.
       - run: yarn run test:coverage
       # Report only (mode: report in scoria.config.json); the job summary shows the change since .scoria/baseline.json.
-      # Pinned to an exact version but not added to package.json: its own dependency tree carries
-      # audit advisories that would otherwise show up as this project's vulnerabilities.
-      - run: npx -y scoria@0.3.0 --sarif scoria.sarif
-        env:
-          # Keeps install scripts of scoria's dependency tree from running, as with yarn install above.
-          npm_config_ignore_scripts: 'true'
+      - run: yarn run quality --sarif scoria.sarif
       - id: sarif
         if: ${{ !cancelled() }}
         run: echo "present=${{ hashFiles('scoria.sarif') != '' }}" >> "$GITHUB_OUTPUT"
