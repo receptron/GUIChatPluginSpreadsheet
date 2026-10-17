@@ -17,13 +17,7 @@ export type {
 } from "./types";
 
 // Export plugin utilities
-export {
-  TOOL_NAME,
-  TOOL_DEFINITION,
-  SYSTEM_PROMPT,
-  executeSpreadsheet,
-  pluginCore,
-} from "./plugin";
+export { TOOL_NAME, TOOL_DEFINITION, SYSTEM_PROMPT, executeSpreadsheet, pluginCore } from "./plugin";
 
 // Hosts that mount their own route for the View's dispatch call these directly
 export { executeSpreadsheetDispatch, isSpreadsheetDispatchArgs } from "./dispatch";

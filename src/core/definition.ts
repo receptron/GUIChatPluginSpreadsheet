@@ -9,8 +9,7 @@ export const TOOL_NAME = "presentSpreadsheet";
 export const TOOL_DEFINITION: ToolDefinition = {
   type: "function",
   name: TOOL_NAME,
-  description:
-    "Display an Excel-like spreadsheet with formulas and calculations.",
+  description: "Display an Excel-like spreadsheet with formulas and calculations.",
   parameters: {
     type: "object",
     properties: {
@@ -20,8 +19,7 @@ export const TOOL_DEFINITION: ToolDefinition = {
       },
       sheets: {
         type: "array",
-        description:
-          "Sheets to render as spreadsheet tabs. Each sheet includes a name and 2D array of cells (rows x columns).",
+        description: "Sheets to render as spreadsheet tabs. Each sheet includes a name and 2D array of cells (rows x columns).",
         items: {
           type: "object",
           properties: {
@@ -35,12 +33,10 @@ export const TOOL_DEFINITION: ToolDefinition = {
                 'Rows of cells. Each cell is an object with \'v\' (value) and \'f\' (format). Use Excel-style A1 notation in formulas: columns are letters (A, B, C...), rows are 1-based numbers (1, 2, 3...). Values can be text, numbers, dates, or formulas. Examples: [{"v": "Product"}, {"v": 2024, "f": "#,##0"}, {"v": "01/15/2025", "f": "MM/DD/YYYY"}, {"v": "=B2*1.05", "f": "$#,##0.00"}]. Format codes: \'$#,##0.00\' (currency), \'#,##0\' (integer), \'0.00%\' (percent), \'0.00\' (decimal), \'MM/DD/YYYY\' (date), \'DD-MMM-YYYY\' (date), \'YYYY-MM-DD\' (ISO date).',
               items: {
                 type: "array",
-                description:
-                  "Row of cells. Each cell is an object with value and format.",
+                description: "Row of cells. Each cell is an object with value and format.",
                 items: {
                   type: "object",
-                  description:
-                    "Cell object with value and optional format. If value is a string starting with '=', it's treated as a formula.",
+                  description: "Cell object with value and optional format. If value is a string starting with '=', it's treated as a formula.",
                   properties: {
                     v: {
                       oneOf: [{ type: "string" }, { type: "number" }, { type: "boolean" }],

@@ -36,22 +36,29 @@ const createMockContext = (
     evaluateFormula: (formula: string) => {
       // Simple mock evaluator
       if (!isNaN(Number(formula))) return Number(formula);
-      if (formula.startsWith('"') && formula.endsWith('"'))
-        return formula.slice(1, -1);
-      if (formula.startsWith("'") && formula.endsWith("'"))
-        return formula.slice(1, -1);
+      if (formula.startsWith('"') && formula.endsWith('"')) return formula.slice(1, -1);
+      if (formula.startsWith("'") && formula.endsWith("'")) return formula.slice(1, -1);
       // Handle simple comparisons
       const compMatch = formula.match(/^(\d+(?:\.\d+)?)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)$/);
       if (compMatch) {
         const [, left, op, right] = compMatch;
-        const l = Number(left), r = Number(right);
+        const l = Number(left),
+          r = Number(right);
         switch (op) {
-          case '>': return l > r;
-          case '<': return l < r;
-          case '>=': return l >= r;
-          case '<=': return l <= r;
-          case '=': case '==': return l === r;
-          case '<>': case '!=': return l !== r;
+          case ">":
+            return l > r;
+          case "<":
+            return l < r;
+          case ">=":
+            return l >= r;
+          case "<=":
+            return l <= r;
+          case "=":
+          case "==":
+            return l === r;
+          case "<>":
+          case "!=":
+            return l !== r;
         }
       }
       return formula;
@@ -78,11 +85,7 @@ const runTest = (
     const result = func.handler(args, context);
 
     // Handle approximate equality for numbers
-    const isMatch =
-      result === expected ||
-      (typeof result === "number" &&
-        typeof expected === "number" &&
-        Math.abs(result - expected) < tolerance);
+    const isMatch = result === expected || (typeof result === "number" && typeof expected === "number" && Math.abs(result - expected) < tolerance);
 
     if (isMatch) {
       passedTests++;
@@ -109,39 +112,17 @@ console.log("─".repeat(50));
 
 const mathContext = createMockContext();
 
-runTest(
-  "Math",
-  "ROUND(3.14159, 2)",
-  "ROUND",
-  ["3.14159", "2"],
-  3.14,
-  mathContext,
-);
+runTest("Math", "ROUND(3.14159, 2)", "ROUND", ["3.14159", "2"], 3.14, mathContext);
 runTest("Math", "ROUND(3.5, 0)", "ROUND", ["3.5", "0"], 4, mathContext);
 runTest("Math", "ROUNDUP(3.14, 1)", "ROUNDUP", ["3.14", "1"], 3.2, mathContext);
-runTest(
-  "Math",
-  "ROUNDDOWN(3.99, 0)",
-  "ROUNDDOWN",
-  ["3.99", "0"],
-  3,
-  mathContext,
-);
+runTest("Math", "ROUNDDOWN(3.99, 0)", "ROUNDDOWN", ["3.99", "0"], 3, mathContext);
 runTest("Math", "ABS(-42)", "ABS", ["-42"], 42, mathContext);
 runTest("Math", "POWER(2, 3)", "POWER", ["2", "3"], 8, mathContext);
 runTest("Math", "SQRT(16)", "SQRT", ["16"], 4, mathContext);
 runTest("Math", "MOD(10, 3)", "MOD", ["10", "3"], 1, mathContext);
 runTest("Math", "PI()", "PI", [], Math.PI, mathContext);
 runTest("Math", "EXP(1)", "EXP", ["1"], Math.E, mathContext, 0.00001);
-runTest(
-  "Math",
-  "LN(2.718281828)",
-  "LN",
-  ["2.718281828"],
-  1,
-  mathContext,
-  0.00001,
-);
+runTest("Math", "LN(2.718281828)", "LN", ["2.718281828"], 1, mathContext, 0.00001);
 runTest("Math", "LOG(100)", "LOG", ["100"], 2, mathContext);
 runTest("Math", "LOG(8, 2)", "LOG", ["8", "2"], 3, mathContext);
 
@@ -167,23 +148,9 @@ runTest("Stats", "MIN(A1:A5)", "MIN", ["A1:A5"], 1, statContext);
 runTest("Stats", "COUNT(A1:A5)", "COUNT", ["A1:A5"], 5, statContext);
 runTest("Stats", "MEDIAN(A1:A5)", "MEDIAN", ["A1:A5"], 3, statContext);
 runTest("Stats", "MODE(C1:C3)", "MODE", ["C1:C3"], 5, statContext);
-runTest(
-  "Stats",
-  "COUNTIF(A1:A5, >2)",
-  "COUNTIF",
-  ["A1:A5", ">2"],
-  3,
-  statContext,
-);
+runTest("Stats", "COUNTIF(A1:A5, >2)", "COUNTIF", ["A1:A5", ">2"], 3, statContext);
 runTest("Stats", "SUMIF(A1:A5, >2)", "SUMIF", ["A1:A5", ">2"], 12, statContext);
-runTest(
-  "Stats",
-  "AVERAGEIF(A1:A5, >2)",
-  "AVERAGEIF",
-  ["A1:A5", ">2"],
-  4,
-  statContext,
-);
+runTest("Stats", "AVERAGEIF(A1:A5, >2)", "AVERAGEIF", ["A1:A5", ">2"], 4, statContext);
 
 // ============================================================================
 // LOGICAL FUNCTIONS TESTS
@@ -193,22 +160,8 @@ console.log("─".repeat(50));
 
 const logicContext = createMockContext({ A1: 10, B1: 5, C1: 15 });
 
-runTest(
-  "Logic",
-  "IF(10>5, Yes, No)",
-  "IF",
-  ["10>5", '"Yes"', '"No"'],
-  "Yes",
-  logicContext,
-);
-runTest(
-  "Logic",
-  "IF(3>5, Yes, No)",
-  "IF",
-  ["3>5", '"Yes"', '"No"'],
-  "No",
-  logicContext,
-);
+runTest("Logic", "IF(10>5, Yes, No)", "IF", ["10>5", '"Yes"', '"No"'], "Yes", logicContext);
+runTest("Logic", "IF(3>5, Yes, No)", "IF", ["3>5", '"Yes"', '"No"'], "No", logicContext);
 runTest("Logic", "AND(1, 1)", "AND", ["1", "1"], true, logicContext);
 runTest("Logic", "AND(1, 0)", "AND", ["1", "0"], false, logicContext);
 runTest("Logic", "OR(0, 1)", "OR", ["0", "1"], true, logicContext);
@@ -217,14 +170,7 @@ runTest("Logic", "NOT(0)", "NOT", ["0"], true, logicContext);
 runTest("Logic", "NOT(1)", "NOT", ["1"], false, logicContext);
 runTest("Logic", "TRUE()", "TRUE", [], true, logicContext);
 runTest("Logic", "FALSE()", "FALSE", [], false, logicContext);
-runTest(
-  "Logic",
-  'IFS(A1>20, "High", A1>5, "Medium")',
-  "IFS",
-  ["A1>20", '"High"', "A1>5", '"Medium"'],
-  "Medium",
-  logicContext,
-);
+runTest("Logic", 'IFS(A1>20, "High", A1>5, "Medium")', "IFS", ["A1>20", '"High"', "A1>5", '"Medium"'], "Medium", logicContext);
 
 // ============================================================================
 // TEXT FUNCTIONS TESTS
@@ -234,65 +180,16 @@ console.log("─".repeat(50));
 
 const textContext = createMockContext({ A1: "Hello", B1: "World" });
 
-runTest(
-  "Text",
-  'CONCATENATE("Hello", " ", "World")',
-  "CONCATENATE",
-  ['"Hello"', '" "', '"World"'],
-  "Hello World",
-  textContext,
-);
-runTest(
-  "Text",
-  'LEFT("Hello", 2)',
-  "LEFT",
-  ['"Hello"', "2"],
-  "He",
-  textContext,
-);
-runTest(
-  "Text",
-  'RIGHT("Hello", 2)',
-  "RIGHT",
-  ['"Hello"', "2"],
-  "lo",
-  textContext,
-);
-runTest(
-  "Text",
-  'MID("Hello", 2, 3)',
-  "MID",
-  ['"Hello"', "2", "3"],
-  "ell",
-  textContext,
-);
+runTest("Text", 'CONCATENATE("Hello", " ", "World")', "CONCATENATE", ['"Hello"', '" "', '"World"'], "Hello World", textContext);
+runTest("Text", 'LEFT("Hello", 2)', "LEFT", ['"Hello"', "2"], "He", textContext);
+runTest("Text", 'RIGHT("Hello", 2)', "RIGHT", ['"Hello"', "2"], "lo", textContext);
+runTest("Text", 'MID("Hello", 2, 3)', "MID", ['"Hello"', "2", "3"], "ell", textContext);
 runTest("Text", 'LEN("Hello")', "LEN", ['"Hello"'], 5, textContext);
 runTest("Text", 'UPPER("hello")', "UPPER", ['"hello"'], "HELLO", textContext);
 runTest("Text", 'LOWER("HELLO")', "LOWER", ['"HELLO"'], "hello", textContext);
-runTest(
-  "Text",
-  'TRIM("  hello  ")',
-  "TRIM",
-  ['"  hello  "'],
-  "hello",
-  textContext,
-);
-runTest(
-  "Text",
-  'EXACT("Hello", "Hello")',
-  "EXACT",
-  ['"Hello"', '"Hello"'],
-  true,
-  textContext,
-);
-runTest(
-  "Text",
-  'EXACT("Hello", "hello")',
-  "EXACT",
-  ['"Hello"', '"hello"'],
-  false,
-  textContext,
-);
+runTest("Text", 'TRIM("  hello  ")', "TRIM", ['"  hello  "'], "hello", textContext);
+runTest("Text", 'EXACT("Hello", "Hello")', "EXACT", ['"Hello"', '"Hello"'], true, textContext);
+runTest("Text", 'EXACT("Hello", "hello")', "EXACT", ['"Hello"', '"hello"'], false, textContext);
 
 // ============================================================================
 // DATE FUNCTIONS TESTS
@@ -303,62 +200,19 @@ console.log("─".repeat(50));
 const dateContext = createMockContext();
 
 // DATE(2023, 1, 1) should give Excel serial number 44927
-runTest(
-  "Date",
-  "DATE(2023, 1, 1)",
-  "DATE",
-  ["2023", "1", "1"],
-  44927,
-  dateContext,
-);
-runTest(
-  "Date",
-  "DATE(2024, 12, 31)",
-  "DATE",
-  ["2024", "12", "31"],
-  45657,
-  dateContext,
-);
+runTest("Date", "DATE(2023, 1, 1)", "DATE", ["2023", "1", "1"], 44927, dateContext);
+runTest("Date", "DATE(2024, 12, 31)", "DATE", ["2024", "12", "31"], 45657, dateContext);
 runTest("Date", "YEAR(44927)", "YEAR", ["44927"], 2023, dateContext);
 runTest("Date", "MONTH(44927)", "MONTH", ["44927"], 1, dateContext);
 runTest("Date", "DAY(44927)", "DAY", ["44927"], 1, dateContext);
-runTest(
-  "Date",
-  "TIME(14, 30, 0)",
-  "TIME",
-  ["14", "30", "0"],
-  0.6041666666666666,
-  dateContext,
-  0.00001,
-);
+runTest("Date", "TIME(14, 30, 0)", "TIME", ["14", "30", "0"], 0.6041666666666666, dateContext, 0.00001);
 runTest("Date", "HOUR(0.5)", "HOUR", ["0.5"], 12, dateContext);
 runTest("Date", "MINUTE(0.5)", "MINUTE", ["0.5"], 0, dateContext);
 
 // DATEDIF tests
-runTest(
-  "Date",
-  'DATEDIF(44927, 45292, "Y")',
-  "DATEDIF",
-  ["44927", "45292", '"Y"'],
-  1,
-  dateContext,
-);
-runTest(
-  "Date",
-  'DATEDIF(44927, 45292, "M")',
-  "DATEDIF",
-  ["44927", "45292", '"M"'],
-  12,
-  dateContext,
-);
-runTest(
-  "Date",
-  'DATEDIF(44927, 45292, "D")',
-  "DATEDIF",
-  ["44927", "45292", '"D"'],
-  365,
-  dateContext,
-);
+runTest("Date", 'DATEDIF(44927, 45292, "Y")', "DATEDIF", ["44927", "45292", '"Y"'], 1, dateContext);
+runTest("Date", 'DATEDIF(44927, 45292, "M")', "DATEDIF", ["44927", "45292", '"M"'], 12, dateContext);
+runTest("Date", 'DATEDIF(44927, 45292, "D")', "DATEDIF", ["44927", "45292", '"D"'], 365, dateContext);
 
 // TODAY and NOW tests (approximate - just check they return numbers)
 try {
@@ -415,62 +269,13 @@ const lookupContext = createMockContext(
   },
 );
 
-runTest(
-  "Lookup",
-  "VLOOKUP(2, A1:C3, 2, FALSE)",
-  "VLOOKUP",
-  ["2", "A1:C3", "2", "FALSE"],
-  "Banana",
-  lookupContext,
-);
-runTest(
-  "Lookup",
-  "VLOOKUP(3, A1:C3, 3, FALSE)",
-  "VLOOKUP",
-  ["3", "A1:C3", "3", "FALSE"],
-  30,
-  lookupContext,
-);
-runTest(
-  "Lookup",
-  'MATCH("Cherry", B1:B3, 0)',
-  "MATCH",
-  ['"Cherry"', "B1:B3", "0"],
-  3,
-  lookupContext,
-);
-runTest(
-  "Lookup",
-  "MATCH(2, A1:A3, 0)",
-  "MATCH",
-  ["2", "A1:A3", "0"],
-  2,
-  lookupContext,
-);
-runTest(
-  "Lookup",
-  "INDEX(A1:C3, 2, 2)",
-  "INDEX",
-  ["A1:C3", "2", "2"],
-  "Banana",
-  lookupContext,
-);
-runTest(
-  "Lookup",
-  "INDEX(A1:C3, 3, 3)",
-  "INDEX",
-  ["A1:C3", "3", "3"],
-  30,
-  lookupContext,
-);
-runTest(
-  "Lookup",
-  "XLOOKUP(2, A1:A3, B1:B3)",
-  "XLOOKUP",
-  ["2", "A1:A3", "B1:B3"],
-  "Banana",
-  lookupContext,
-);
+runTest("Lookup", "VLOOKUP(2, A1:C3, 2, FALSE)", "VLOOKUP", ["2", "A1:C3", "2", "FALSE"], "Banana", lookupContext);
+runTest("Lookup", "VLOOKUP(3, A1:C3, 3, FALSE)", "VLOOKUP", ["3", "A1:C3", "3", "FALSE"], 30, lookupContext);
+runTest("Lookup", 'MATCH("Cherry", B1:B3, 0)', "MATCH", ['"Cherry"', "B1:B3", "0"], 3, lookupContext);
+runTest("Lookup", "MATCH(2, A1:A3, 0)", "MATCH", ["2", "A1:A3", "0"], 2, lookupContext);
+runTest("Lookup", "INDEX(A1:C3, 2, 2)", "INDEX", ["A1:C3", "2", "2"], "Banana", lookupContext);
+runTest("Lookup", "INDEX(A1:C3, 3, 3)", "INDEX", ["A1:C3", "3", "3"], 30, lookupContext);
+runTest("Lookup", "XLOOKUP(2, A1:A3, B1:B3)", "XLOOKUP", ["2", "A1:A3", "B1:B3"], "Banana", lookupContext);
 
 // ============================================================================
 // FINANCIAL FUNCTIONS TESTS
@@ -482,48 +287,13 @@ const finContext = createMockContext();
 
 // Note: Financial functions have been tested and work correctly
 // The actual values may differ slightly from Excel due to different calculation methods
-runTest(
-  "Finance",
-  "FV(0.05/12, 12, -100, -1000, 1)",
-  "FV",
-  ["0.05/12", "12", "-100", "-1000", "1"],
-  3467.15,
-  finContext,
-  1,
-);
-runTest(
-  "Finance",
-  "PV(0.08/12, 12*20, 500)",
-  "PV",
-  ["0.08/12", "12*20", "500"],
-  -3768.04,
-  finContext,
-  1,
-);
-runTest(
-  "Finance",
-  "PMT(0.06/12, 30*12, 250000)",
-  "PMT",
-  ["0.06/12", "30*12", "250000"],
-  -18162.23,
-  finContext,
-  1,
-);
-runTest(
-  "Finance",
-  "NPV(0.1, -10000, 3000, 4200, 6800)",
-  "NPV",
-  ["0.1", "-10000", "3000", "4200", "6800"],
-  1188.44,
-  finContext,
-  0.01,
-);
+runTest("Finance", "FV(0.05/12, 12, -100, -1000, 1)", "FV", ["0.05/12", "12", "-100", "-1000", "1"], 3467.15, finContext, 1);
+runTest("Finance", "PV(0.08/12, 12*20, 500)", "PV", ["0.08/12", "12*20", "500"], -3768.04, finContext, 1);
+runTest("Finance", "PMT(0.06/12, 30*12, 250000)", "PMT", ["0.06/12", "30*12", "250000"], -18162.23, finContext, 1);
+runTest("Finance", "NPV(0.1, -10000, 3000, 4200, 6800)", "NPV", ["0.1", "-10000", "3000", "4200", "6800"], 1188.44, finContext, 0.01);
 
 // Test IRR with a range
-const irrContext = createMockContext(
-  {},
-  { "A1:A5": [-10000, 3000, 4200, 6800, 1000] },
-);
+const irrContext = createMockContext({}, { "A1:A5": [-10000, 3000, 4200, 6800, 1000] });
 runTest("Finance", "IRR(A1:A5)", "IRR", ["A1:A5"], 0.1911, irrContext, 0.01);
 
 // ============================================================================
@@ -535,9 +305,7 @@ console.log("=".repeat(50));
 console.log(`✅ Passed: ${passedTests}`);
 console.log(`❌ Failed: ${failedTests}`);
 console.log(`📊 Total:  ${passedTests + failedTests}`);
-console.log(
-  `✨ Success Rate: ${((passedTests / (passedTests + failedTests)) * 100).toFixed(1)}%`,
-);
+console.log(`✨ Success Rate: ${((passedTests / (passedTests + failedTests)) * 100).toFixed(1)}%`);
 
 if (failedTests > 0) {
   console.log("\n❌ FAILURES:");

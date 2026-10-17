@@ -4,13 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  computeAverage,
-  computeMedian,
-  computeMode,
-  sampleVariance,
-  sampleStdev,
-} from "../../src/engine/functions/statistical-math.ts";
+import { computeAverage, computeMedian, computeMode, sampleVariance, sampleStdev } from "../../src/engine/functions/statistical-math.ts";
 import { NA_ERROR, DIV_ZERO_ERROR, NUM_ERROR } from "../../src/engine/spreadsheet-errors.ts";
 
 // AVERAGE and MEDIAN of nothing used to be 0 — a number a reader cannot tell

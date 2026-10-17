@@ -4,12 +4,7 @@
  * Helper functions for testing with array-based output comparison
  */
 
-import type {
-  CellValue,
-  SheetData,
-  SpreadsheetCell,
-  CalculatedSheet,
-} from "../../src/engine/types";
+import type { CellValue, SheetData, SpreadsheetCell, CalculatedSheet } from "../../src/engine/types";
 
 /**
  * Convert calculated sheet data to string array for comparison
@@ -29,10 +24,7 @@ export function toStringArray(data: CellValue[][]): string[][] {
  * @param data - Array of arrays containing cells (strings, numbers, or SpreadsheetCell objects)
  * @returns SheetData object
  */
-export function createSheet(
-  name: string,
-  data: Array<Array<SpreadsheetCell | string | number>>,
-): SheetData {
+export function createSheet(name: string, data: Array<Array<SpreadsheetCell | string | number>>): SheetData {
   return {
     name,
     data: data.map((row) =>
@@ -53,33 +45,24 @@ export function createSheet(
  * @param actual - Calculated sheet result
  * @param expected - Expected string array output
  */
-export function expectSheetOutput(
-  actual: CalculatedSheet,
-  expected: string[][],
-): void {
+export function expectSheetOutput(actual: CalculatedSheet, expected: string[][]): void {
   const actualStrings = toStringArray(actual.data);
 
   // Check dimensions first
   if (actualStrings.length !== expected.length) {
-    throw new Error(
-      `Row count mismatch: expected ${expected.length} rows, got ${actualStrings.length} rows`,
-    );
+    throw new Error(`Row count mismatch: expected ${expected.length} rows, got ${actualStrings.length} rows`);
   }
 
   // Check each row
   actualStrings.forEach((row, i) => {
     if (row.length !== expected[i].length) {
-      throw new Error(
-        `Column count mismatch in row ${i}: expected ${expected[i].length} columns, got ${row.length} columns`,
-      );
+      throw new Error(`Column count mismatch in row ${i}: expected ${expected[i].length} columns, got ${row.length} columns`);
     }
 
     // Check each cell
     row.forEach((cell, j) => {
       if (cell !== expected[i][j]) {
-        throw new Error(
-          `Cell mismatch at row ${i}, col ${j}: expected "${expected[i][j]}", got "${cell}"`,
-        );
+        throw new Error(`Cell mismatch at row ${i}, col ${j}: expected "${expected[i][j]}", got "${cell}"`);
       }
     });
   });
@@ -92,9 +75,7 @@ export function expectSheetOutput(
  * @param data - Simple 2D array of values
  * @returns Map of sheet data
  */
-export function createContext(
-  data: Array<Array<string | number>>,
-): Map<string, SpreadsheetCell[][]> {
+export function createContext(data: Array<Array<string | number>>): Map<string, SpreadsheetCell[][]> {
   const sheets = new Map<string, SpreadsheetCell[][]>();
   sheets.set(
     "Sheet1",

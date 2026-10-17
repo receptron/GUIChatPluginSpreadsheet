@@ -5,14 +5,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  dateToSerial,
-  serialToDate,
-  DAY_NAMES_FULL,
-  DAY_NAMES_SHORT,
-  MONTH_NAMES_FULL,
-  MONTH_NAMES_SHORT,
-} from "../../src/engine/date-utils.ts";
+import { dateToSerial, serialToDate, DAY_NAMES_FULL, DAY_NAMES_SHORT, MONTH_NAMES_FULL, MONTH_NAMES_SHORT } from "../../src/engine/date-utils.ts";
 
 const utc = (year: number, month: number, day: number, hour = 0, minute = 0, second = 0) => new Date(Date.UTC(year, month - 1, day, hour, minute, second));
 

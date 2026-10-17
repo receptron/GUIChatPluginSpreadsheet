@@ -3,13 +3,7 @@
  * Run with: tsx tests/engine/run-parser-tests.ts
  */
 
-import {
-  columnToIndex,
-  indexToColumn,
-  parseCellRef,
-  parseRangeRef,
-  cellRefToA1,
-} from "../../src/engine/parser";
+import { columnToIndex, indexToColumn, parseCellRef, parseRangeRef, cellRefToA1 } from "../../src/engine/parser";
 
 let passedTests = 0;
 let failedTests = 0;
@@ -51,12 +45,9 @@ function expect(actual: any) {
         throw new Error("Expected function to throw");
       } catch (error) {
         if (message) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
           if (!errorMessage.includes(message)) {
-            throw new Error(
-              `Expected error to include "${message}", got "${errorMessage}"`,
-            );
+            throw new Error(`Expected error to include "${message}", got "${errorMessage}"`);
           }
         }
       }
@@ -173,17 +164,13 @@ test("cellRefToA1: basic", () => {
   expect(cellRefToA1({ row: 0, col: 0 })).toBe("A1");
 });
 test("cellRefToA1: absolute", () => {
-  expect(
-    cellRefToA1({ row: 0, col: 0, absolute: { row: true, col: true } }),
-  ).toBe("$A$1");
+  expect(cellRefToA1({ row: 0, col: 0, absolute: { row: true, col: true } })).toBe("$A$1");
 });
 test("cellRefToA1: cross-sheet", () => {
   expect(cellRefToA1({ row: 0, col: 0, sheet: "Sheet1" })).toBe("Sheet1!A1");
 });
 test("cellRefToA1: cross-sheet with spaces", () => {
-  expect(cellRefToA1({ row: 1, col: 1, sheet: "My Sheet" })).toBe(
-    "'My Sheet'!B2",
-  );
+  expect(cellRefToA1({ row: 1, col: 1, sheet: "My Sheet" })).toBe("'My Sheet'!B2");
 });
 
 // Summary

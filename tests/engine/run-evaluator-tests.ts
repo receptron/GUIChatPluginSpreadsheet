@@ -3,11 +3,7 @@
  * Run with: npx tsx tests/engine/run-evaluator-tests.ts
  */
 
-import {
-  parseFunctionArgs,
-  evaluateFormula,
-  type EvaluatorContext,
-} from "../../src/engine/evaluator";
+import { parseFunctionArgs, evaluateFormula, type EvaluatorContext } from "../../src/engine/evaluator";
 import "../../src/engine/functions"; // Load all functions
 
 let passedTests = 0;
@@ -57,10 +53,8 @@ function createContext(
   const oneCell = (ref: string): (number | string)[] => (ref in cells ? [cells[ref]] : []);
   const context: EvaluatorContext = {
     getCellValue: (ref: string) => cells[ref] ?? 0,
-    getRangeValues: (range: string) =>
-      ranges[range] ?? rawRanges?.[range] ?? oneCell(range),
-    getRangeValuesRaw: (range: string) =>
-      rawRanges?.[range] ?? ranges[range] ?? oneCell(range),
+    getRangeValues: (range: string) => ranges[range] ?? rawRanges?.[range] ?? oneCell(range),
+    getRangeValuesRaw: (range: string) => rawRanges?.[range] ?? ranges[range] ?? oneCell(range),
     evaluateFormula: (formula: string) => evaluateFormula(formula, context),
   };
   return context;
@@ -86,10 +80,7 @@ test("parses quoted strings", () => {
   expect(parseFunctionArgs('"Hello", "World"')).toEqual(['"Hello"', '"World"']);
 });
 test("parses complex nested", () => {
-  expect(parseFunctionArgs("ROUND(SUM(A1:A10), 2), B1")).toEqual([
-    "ROUND(SUM(A1:A10), 2)",
-    "B1",
-  ]);
+  expect(parseFunctionArgs("ROUND(SUM(A1:A10), 2), B1")).toEqual(["ROUND(SUM(A1:A10), 2)", "B1"]);
 });
 
 // Simple arithmetic
@@ -169,11 +160,7 @@ test("evaluates COUNT function", () => {
   expect(evaluateFormula("COUNT(A1:A10)", ctx)).toBe(10);
 });
 test("evaluates COUNTA function", () => {
-  const ctx = createContext(
-    {},
-    {},
-    { "A1:A5": ["Laptop", "", 42, "Projector", ""] },
-  );
+  const ctx = createContext({}, {}, { "A1:A5": ["Laptop", "", 42, "Projector", ""] });
   expect(evaluateFormula("COUNTA(A1:A5)", ctx)).toBe(3);
 });
 test("evaluates COUNTIF with text", () => {

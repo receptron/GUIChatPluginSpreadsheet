@@ -59,14 +59,10 @@ if (!fs.existsSync(EXPECTED_DIR)) {
 
 console.log("\n=== Spreadsheet Fixture Test Suite ===\n");
 console.log(`Input Directory:    ${path.relative(process.cwd(), INPUT_DIR)}`);
-console.log(
-  `Expected Directory: ${path.relative(process.cwd(), EXPECTED_DIR)}\n`,
-);
+console.log(`Expected Directory: ${path.relative(process.cwd(), EXPECTED_DIR)}\n`);
 
 // Discover all test files
-const inputFiles = fs
-  .readdirSync(INPUT_DIR)
-  .filter((file) => file.endsWith(".json"));
+const inputFiles = fs.readdirSync(INPUT_DIR).filter((file) => file.endsWith(".json"));
 
 if (inputFiles.length === 0) {
   console.log("⚠ No test files found in input directory\n");
@@ -95,9 +91,7 @@ for (const inputFile of inputFiles) {
   // Check if expected file exists
   if (!fs.existsSync(expectedPath)) {
     console.log(`❌ SKIP: Expected output file not found`);
-    console.log(
-      `   Looking for: ${path.relative(process.cwd(), expectedPath)}\n`,
-    );
+    console.log(`   Looking for: ${path.relative(process.cwd(), expectedPath)}\n`);
 
     results.push({
       name: testName,
@@ -141,15 +135,9 @@ for (const inputFile of inputFiles) {
 
     // Display dimensions
     console.log("Dimensions:");
-    console.log(
-      `  Input:    ${inputSheet.data.length} rows × ${inputSheet.data[0]?.length || 0} columns`,
-    );
-    console.log(
-      `  Expected: ${expected.length} rows × ${expected[0]?.length || 0} columns`,
-    );
-    console.log(
-      `  Actual:   ${actual.length} rows × ${actual[0]?.length || 0} columns\n`,
-    );
+    console.log(`  Input:    ${inputSheet.data.length} rows × ${inputSheet.data[0]?.length || 0} columns`);
+    console.log(`  Expected: ${expected.length} rows × ${expected[0]?.length || 0} columns`);
+    console.log(`  Actual:   ${actual.length} rows × ${actual[0]?.length || 0} columns\n`);
 
     // Compare output
     try {
@@ -161,9 +149,7 @@ for (const inputFile of inputFiles) {
       if (result.errors.length > 0) {
         console.log("⚠ Calculation errors detected:");
         result.errors.forEach((error) => {
-          console.log(
-            `  - Row ${error.cell.row}, Col ${error.cell.col}: ${error.error}`,
-          );
+          console.log(`  - Row ${error.cell.row}, Col ${error.cell.col}: ${error.error}`);
         });
         console.log();
       }
@@ -200,17 +186,11 @@ for (const inputFile of inputFiles) {
         const maxCols = Math.max(expectedRow.length, actualRow.length);
 
         for (let j = 0; j < maxCols && differences.length < 5; j++) {
-          const expectedCell =
-            expectedRow[j] !== undefined ? String(expectedRow[j]) : undefined;
-          const actualCell =
-            actualRow[j] !== undefined ? String(actualRow[j]) : undefined;
+          const expectedCell = expectedRow[j] !== undefined ? String(expectedRow[j]) : undefined;
+          const actualCell = actualRow[j] !== undefined ? String(actualRow[j]) : undefined;
 
           if (expectedCell !== actualCell) {
-            differences.push(
-              `  Row ${i + 1}, Col ${j + 1}:\n` +
-                `    Expected: "${expectedCell}"\n` +
-                `    Actual:   "${actualCell}"`,
-            );
+            differences.push(`  Row ${i + 1}, Col ${j + 1}:\n` + `    Expected: "${expectedCell}"\n` + `    Actual:   "${actualCell}"`);
           }
         }
       }
@@ -263,17 +243,13 @@ const failedTests = results.filter((r) => !r.passed);
 
 console.log(`Total Tests:   ${results.length}`);
 console.log(`Passed:        ${passedTests.length} ✓`);
-console.log(
-  `Failed:        ${failedTests.length} ${failedTests.length > 0 ? "❌" : ""}`,
-);
+console.log(`Failed:        ${failedTests.length} ${failedTests.length > 0 ? "❌" : ""}`);
 console.log(`Total Time:    ${totalDuration}ms\n`);
 
 if (passedTests.length > 0) {
   console.log("Passed Tests:");
   passedTests.forEach((result) => {
-    console.log(
-      `  ✓ ${result.name} (${result.duration}ms, ${result.cellCount} cells, ${result.formulaCount} formulas)`,
-    );
+    console.log(`  ✓ ${result.name} (${result.duration}ms, ${result.cellCount} cells, ${result.formulaCount} formulas)`);
   });
   console.log();
 }
