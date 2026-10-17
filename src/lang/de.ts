@@ -1,0 +1,24 @@
+import type { Messages } from "./messages";
+
+const de: Messages = {
+  untitled: "Tabelle",
+  sheetCount: (count) => count === 1 ? "1 Blatt" : `${count} Blätter`,
+  excel: "Excel",
+  valuePlaceholder: "Wert",
+  valueOrFormulaPlaceholder: "Wert oder Formel (z. B. 100 oder SUM(B2:B11))",
+  formatPlaceholder: "Format (z. B. $#,##0.00)",
+  loading: "Tabelle wird geladen...",
+  noData: "Keine Tabellendaten verfügbar",
+  editData: "Tabellendaten bearbeiten",
+  applyChanges: "Änderungen übernehmen",
+  dataMustBeArray: "Daten müssen ein Array von Blättern sein",
+  loadFailed: (error) => `Laden der Tabelle fehlgeschlagen: ${error}`,
+  saveFailed: (error) => `Speichern der Tabelle fehlgeschlagen: ${error}`,
+  invalidJsonAlert: (error) => `Ungültiges JSON-Format: ${error}`,
+  unknownError: "Unbekannter Fehler",
+  update: "Aktualisieren",
+  stringType: "Zeichenkette",
+  formulaType: "Formel",
+};
+
+export default de;

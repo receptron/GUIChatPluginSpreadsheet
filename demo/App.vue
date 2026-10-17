@@ -74,7 +74,7 @@ const result = ref<ToolResult<SpreadsheetToolData>>({
 // Truncate data for display
 const resultPreview = computed(() => {
   const preview = { ...result.value };
-  if (preview.data?.sheets) {
+  if (preview.data?.sheets && typeof preview.data.sheets !== "string") {
     // Show first sheet's first few rows only
     const truncatedSheets = preview.data.sheets.map((sheet) => ({
       name: sheet.name,

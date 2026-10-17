@@ -16,12 +16,14 @@ This plugin provides a full-featured spreadsheet component with:
 - Lookup functions (VLOOKUP, HLOOKUP, INDEX, MATCH)
 - Financial functions (PMT, PV, FV, NPV, IRR)
 - Multi-sheet support
-- Excel file import/export (.xlsx)
+- Excel file export (.xlsx)
+- Saving to the host's artifacts area, with cell edits written back
+- UI in 8 languages, following the host's locale
 - Cell formatting and styling
 
 ## Important: SheetJS Dependency
 
-> **Note:** This package uses [SheetJS](https://docs.sheetjs.com/docs/getting-started/installation/nodejs/) for Excel file import/export.
+> **Note:** This package uses [SheetJS](https://docs.sheetjs.com/docs/getting-started/installation/nodejs/) for Excel file export.
 > SheetJS is **not installed from npm**, but directly from the official SheetJS CDN:
 > ```
 > https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
@@ -58,9 +60,36 @@ import "@gui-chat-plugin/spreadsheet/style.css";
 
 ```typescript
 import { pluginCore, TOOL_NAME } from "@gui-chat-plugin/spreadsheet";
-// or
-import pluginCore from "@gui-chat-plugin/spreadsheet";
 ```
+
+## Saving workbooks (host integration)
+
+The plugin works in two modes, chosen by what the host passes to `execute`:
+
+- **With `files.artifacts`** (the gui-chat-protocol runtime capability): the workbook is written to `artifacts/spreadsheets/YYYY/MM/<id>.json` and `data.sheets` holds that path. The View reads and saves it through `useRuntime().dispatch`, so cell edits land in the same file and the model can read them back from it.
+- **Without it**: `data.sheets` holds the workbook itself, and edits are reported through `updateResult` only.
+
+The View sends two dispatch calls:
+
+| `kind` | other args | result |
+|--------|-----------|--------|
+| `loadSpreadsheet` | `path` | `{ data: { sheets } }` |
+| `saveSpreadsheet` | `path`, `sheets` | `{ data: { sheets: path } }` |
+
+`path` must be a `.json` file under `artifacts/spreadsheets/`.
+
+A host that routes the View's `dispatch` to the plugin's own `execute` (as MulmoTerminal does) needs nothing more: `pluginCore.execute` tells the two calls apart by `kind`. A host with its own dispatch route can call `executeSpreadsheetDispatch(files.artifacts, args)` after checking `isSpreadsheetDispatchArgs(args)`.
+
+The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to load or save a saved workbook; it also takes the UI language from that runtime (`en`, `ja`, `de`, `es`, `fr`, `ko`, `pt-BR`, `zh`, falling back to English).
+
+## Upgrading from 2.x
+
+3.0.0 changes what a host receives, so it is a major release:
+
+- `SpreadsheetToolData.sheets` is `SpreadsheetSheet[] | string`. With `files.artifacts` the tool returns the saved file's path instead of the workbook, so code that reads `data.sheets` as an array has to handle the path (or load it with the `loadSpreadsheet` dispatch).
+- `pluginCore.execute` also accepts `SpreadsheetDispatchArgs`.
+- The `gui-chat-protocol` peer is `^2.3.0`, and the package no longer bundles it: the host's copy is used.
+- Cells may hold a boolean `v`, and stored workbooks may contain bare values, `null` gaps and `{}` cells (`StorableCell`).
 
 ## Package Exports
 
