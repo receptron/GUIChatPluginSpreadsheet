@@ -125,6 +125,7 @@ import { applyCellHighlights, clearCellHighlights } from "./cellHighlights";
 import { getArrowKeyOffset, isWithinSheetBounds } from "./keyboardNav";
 import { escapeHtml, isCrossOriginHttpUrl } from "./htmlText";
 import { useT } from "../lang";
+import { createSheetSession, type LoadOutcome } from "./sheetSession";
 
 // Import all spreadsheet functions to populate the function registry
 import "../engine/functions";
@@ -183,9 +184,7 @@ const loading = ref(false);
 const errorMessage = ref("");
 const resolvedSheets = ref<SpreadsheetSheet[]>([]);
 
-// Editor textarea backing ref. Declared up here (rather than next to
-// the other view-state refs further down) so the `fetchSheets().then`
-// initializer below can assign to it without TDZ.
+// Declared before fetchSheets, which writes it once a load lands.
 const editableData = ref(JSON.stringify(resolvedSheets.value || [], null, 2));
 
 const readDispatchedSheets = (raw: unknown): SpreadsheetSheet[] => {
@@ -194,61 +193,51 @@ const readDispatchedSheets = (raw: unknown): SpreadsheetSheet[] => {
   return sheets;
 };
 
-async function loadSheetsFromHost(path: string): Promise<void> {
-  if (!runtime) {
-    errorMessage.value = t.value.loadFailed(path);
-    return;
-  }
-  loading.value = true;
-  try {
-    resolvedSheets.value = await runtime.dispatch({ kind: "loadSpreadsheet", path }, readDispatchedSheets);
-  } catch (error) {
-    errorMessage.value = t.value.loadFailed(formatErrorMessage(error, t.value.unknownError));
-    resolvedSheets.value = [];
-  } finally {
-    loading.value = false;
-  }
+const session = createSheetSession(
+  runtime
+    ? {
+        loadFromHost: (path) => runtime.dispatch({ kind: "loadSpreadsheet", path }, readDispatchedSheets),
+        saveToHost: (path, sheets) => runtime.dispatch({ kind: "saveSpreadsheet", path, sheets }),
+      }
+    : null,
+);
+
+function loadErrorText(outcome: LoadOutcome): string {
+  if (outcome.kind === "notSheets") return t.value.dataMustBeArray;
+  if (outcome.kind === "noHost") return t.value.loadFailed(outcome.path);
+  if (outcome.kind === "loadFailed") return t.value.loadFailed(formatErrorMessage(outcome.error, t.value.unknownError));
+  return "";
 }
 
-async function fetchSheets(): Promise<void> {
-  const raw = props.selectedResult.data?.sheets;
-  // Clear any stale error from a previous result BEFORE the early
-  // returns, otherwise switching from a failed file-backed load to
-  // a new inline-data result leaves the error panel on screen.
+/** Load the selected result's workbook. A load overtaken by a newer one
+ *  (the result changed while it was in flight) leaves the state alone. */
+async function fetchSheets(resetActiveSheet: boolean): Promise<void> {
+  // Clear any stale error from a previous result first, otherwise switching
+  // from a failed file-backed load to an inline result leaves the error up.
   errorMessage.value = "";
-  if (!raw) {
-    resolvedSheets.value = [];
-    return;
-  }
-  if (isSpreadsheetArtifactPath(raw)) {
-    await loadSheetsFromHost(raw);
-    return;
-  }
-  const inline = readSheets(raw);
-  resolvedSheets.value = inline ?? [];
-  if (!inline) errorMessage.value = t.value.dataMustBeArray;
+  loading.value = isSpreadsheetArtifactPath(props.selectedResult.data?.sheets);
+  const outcome = await session.load(props.selectedResult.data?.sheets);
+  if (!outcome) return;
+  loading.value = false;
+  resolvedSheets.value = outcome.kind === "sheets" ? outcome.sheets : [];
+  errorMessage.value = loadErrorText(outcome);
+  editableData.value = JSON.stringify(resolvedSheets.value, null, 2);
+  if (resetActiveSheet) activeSheetIndex.value = 0;
 }
-
-// Fetch on mount and sync editableData
-void fetchSheets().then(() => {
-  editableData.value = JSON.stringify(resolvedSheets.value || [], null, 2);
-});
 
 /** Persist edited sheets to disk when file-backed, and emit updateResult. */
 async function persistSheets(sheets: SpreadsheetSheet[]): Promise<void> {
   const raw = props.selectedResult.data?.sheets;
   const filePath = isSpreadsheetArtifactPath(raw) ? raw : null;
   if (filePath) {
-    if (!runtime) {
-      errorMessage.value = t.value.saveFailed(filePath);
-      return;
-    }
     try {
-      await runtime.dispatch({ kind: "saveSpreadsheet", path: filePath, sheets });
+      await session.save(filePath, sheets);
     } catch (error) {
       errorMessage.value = t.value.saveFailed(formatErrorMessage(error, t.value.unknownError));
       return;
     }
+    // The file is saved either way; only the result still on screen may take the edit.
+    if (props.selectedResult.data?.sheets !== raw) return;
   }
 
   resolvedSheets.value = sheets;
@@ -264,9 +253,9 @@ async function persistSheets(sheets: SpreadsheetSheet[]): Promise<void> {
 }
 
 const activeSheetIndex = ref(0);
-// Editor state declared together with the other refs above. Seeded
-// in the on-mount `fetchSheets().then(...)` block above (the `.value`
-// assignment is in scope by the time that .then callback fires).
+
+void fetchSheets(false);
+
 const editorTextarea = ref<HTMLTextAreaElement | null>(null);
 const editorDetails = ref<HTMLDetailsElement | null>(null);
 const tableContainer = ref<HTMLDivElement | null>(null);
@@ -595,11 +584,7 @@ async function applyChanges() {
 watch(
   () => props.selectedResult.data?.sheets,
   () => {
-    void fetchSheets().then(() => {
-      editableData.value = JSON.stringify(resolvedSheets.value || [], null, 2);
-      // Reset to first sheet when result changes
-      activeSheetIndex.value = 0;
-    });
+    void fetchSheets(true);
   },
 );
 
