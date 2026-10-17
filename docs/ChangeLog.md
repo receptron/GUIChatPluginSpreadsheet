@@ -1,5 +1,21 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@4.0.0 — 2026-10-18
+
+**Breaking release: Node.js 24 or later is now required** (`engines: { "node": ">=24" }`). There are no API or behaviour changes from 3.0.0; the library code differs only by formatting.
+
+- **Node.js >= 24** (#49): the package now declares `engines.node >=24`, and CI runs on Node 24.x and 26.x (Linux / macOS / Windows) instead of 22.x and 24.x. Yarn v1 refuses to install on Node 22. This follows from the scoria devDependency, which requires Node 24.
+- **Code-quality measurement with scoria** (#43, #49, #50, #51): `scoria.config.json` freezes the detected profile (library, vue + ts), `.scoria/baseline.json` records the reference run, and a `scoria` workflow reports scores on every PR and push to `main` (report-only, never fails a build) and uploads SARIF to code scanning. scoria is a devDependency (`^0.4.0`) run through `yarn quality`; 0.4.0 type-checks Vue with `vue-tsc`, which removes three false `TS2307` findings on `.vue` imports.
+- **Coverage** (#47): `yarn test:coverage` collects coverage across all test suites with `c8` (`yarn test:suites` — vitest and the `tsx`/`node:test` suites), including files no test loads, and scoria reads `coverage/lcov.info`.
+- **Prettier** (#46): `.prettierrc` (`printWidth: 160`), `yarn format` / `yarn format:check`, the codebase reformatted once, and `format:check` in CI on Linux. Reformatted JSON fixtures parse identically.
+- **Dependencies** (#41, #38, #39): typescript-eslint `^8.71.2`, `@vitejs/plugin-vue` `^6.0.10`, eslint `^10.13.0`, globals `^17.13.0`, vite `^8.3.4`, vitest `^5.0.5`, vue `^3.5.44`, vue-tsc `^3.3.13`; lockfile bumps of source-map-js 1.2.2 and postcss-selector-parser 7.1.6 (GHSA-rj75-hqrm-r3gf).
+- **Docs** (#40): `docs/ChangeLog.md` added with the 3.0.0 entry.
+
+### Breaking changes
+- Requires Node.js >= 24.
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.0.0`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.0.0)
+
 ## @gui-chat-plugin/spreadsheet@3.0.0 — 2026-10-18
 
 **Breaking release.** The View is now the same one MulmoClaude ships, and it runs in any gui-chat-protocol host: saving and translations go through the protocol's generic runtime instead of host-specific APIs. See [Upgrading from 2.x](https://github.com/receptron/GUIChatPluginSpreadsheet#upgrading-from-2x).
