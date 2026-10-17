@@ -26,6 +26,8 @@ jobs:
           cache: yarn
       # Installed dependencies let scoria run tsc, knip and the cycle check.
       - run: yarn install --frozen-lockfile --ignore-scripts
+      # scoria only reads an existing coverage report (coverage/lcov.info); it never runs the tests itself.
+      - run: yarn run test:coverage
       # Report only (mode: report in scoria.config.json); the job summary shows the change since .scoria/baseline.json.
       # Pinned to an exact version but not added to package.json: its own dependency tree carries
       # audit advisories that would otherwise show up as this project's vulnerabilities.

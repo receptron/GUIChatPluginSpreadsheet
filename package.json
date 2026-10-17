@@ -39,7 +39,9 @@
     "test:calculator": "tsx tests/engine/run-calculator-tests.ts",
     "test:evaluator": "tsx tests/engine/run-evaluator-tests.ts",
     "test:functions": "tsx tests/engine/test-functions.ts",
-    "test:all": "vitest run && yarn run test:engine && tsx tests/engine/run-all-fixtures.ts"
+    "test:all": "vitest run && yarn run test:engine && tsx tests/engine/run-all-fixtures.ts",
+    "test:suites": "yarn run test:all && yarn run test:calculator && yarn run test:evaluator && yarn run test:functions",
+    "test:coverage": "c8 yarn run test:suites"
   },
   "peerDependencies": {
     "gui-chat-protocol": "^2.3.0",
@@ -54,6 +56,7 @@
     "@typescript-eslint/eslint-plugin": "^8.71.2",
     "@typescript-eslint/parser": "^8.71.2",
     "@vitejs/plugin-vue": "^6.0.10",
+    "c8": "^12.0.0",
     "eslint": "^10.13.0",
     "eslint-plugin-vue": "^10.11.1",
     "globals": "^17.13.0",

@@ -8,7 +8,7 @@
       "vue",
       "ts"
     ],
-    "complete": false,
+    "complete": true,
     "size": {
       "files": 142,
       "sloc": 6644,
@@ -18,8 +18,8 @@
       {
         "dimension": "architecture",
         "status": "experimental",
-        "score": 26.6667,
-        "coverage": 0.75,
+        "score": 45,
+        "coverage": 1,
         "metrics": [
           {
             "metric": "knip.unused_export_ratio",
@@ -52,18 +52,18 @@
               "bad": 10
             },
             "weight": 0.2,
-            "points": 26.6667
+            "points": 20
           },
           {
             "metric": "circular.cycle_count",
             "value": 0,
-            "state": "skipped",
+            "state": "ok",
             "scale": {
               "good": 0,
               "bad": 8
             },
             "weight": 0.25,
-            "points": 0
+            "points": 25
           }
         ],
         "confidence": "high",
@@ -444,8 +444,8 @@
       {
         "dimension": "test-coverage",
         "status": "experimental",
-        "score": 100,
-        "coverage": 0.3,
+        "score": 93.1,
+        "coverage": 1,
         "metrics": [
           {
             "metric": "test-presence.test_to_source_ratio",
@@ -456,40 +456,40 @@
               "bad": 0.05
             },
             "weight": 0.3,
-            "points": 100
+            "points": 30
           },
           {
             "metric": "coverage.line_pct",
-            "value": 0,
-            "state": "skipped",
+            "value": 78.5,
+            "state": "ok",
             "scale": {
               "good": 90,
               "bad": 40
             },
             "weight": 0.3,
-            "points": 0
+            "points": 23.1
           },
           {
             "metric": "coverage.branch_pct",
-            "value": 0,
-            "state": "skipped",
+            "value": 93.28,
+            "state": "ok",
             "scale": {
               "good": 85,
               "bad": 30
             },
             "weight": 0.25,
-            "points": 0
+            "points": 25
           },
           {
             "metric": "coverage.function_pct",
-            "value": 0,
-            "state": "skipped",
+            "value": 90.41,
+            "state": "ok",
             "scale": {
               "good": 90,
               "bad": 40
             },
             "weight": 0.15,
-            "points": 0
+            "points": 15
           }
         ],
         "confidence": "high",
@@ -643,7 +643,7 @@
       "config-integrity.gap_count": 0,
       "ci-integrity.gap_ratio": 0,
       "ci-integrity.gap_count": 0,
-      "ci-integrity.workflow_count": 1,
+      "ci-integrity.workflow_count": 2,
       "oxlint.violations_per_kloc": 6.472,
       "oxlint.violations": 43,
       "oxlint.errors_per_kloc": 0,
@@ -663,6 +663,10 @@
       "test-presence.test_to_source_ratio": 1.2908,
       "test-presence.test_sloc": 8576,
       "test-presence.test_file_count": 73,
+      "coverage.line_pct": 78.5,
+      "coverage.branch_pct": 93.28,
+      "coverage.function_pct": 90.41,
+      "circular.cycle_count": 0,
       "readme-contract.has_readme": 1,
       "readme-contract.readme_words": 781,
       "comment-quality.marker_per_kloc": 0.2447,
@@ -686,121 +690,11 @@
         "tier": 0
       },
       {
-        "rule": "oxlint/no-array-sort",
-        "severity": "warning",
-        "file": "src/engine/functions/statistical-math.ts",
-        "line": 1,
-        "message": "Use `Array#toSorted()` instead of `Array#sort()`.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/no-array-sort",
-        "severity": "warning",
-        "file": "tests/engine/test_formulaRefs.ts",
-        "line": 1,
-        "message": "Use `Array#toSorted()` instead of `Array#sort()`.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/consistent-function-scoping",
-        "severity": "warning",
-        "file": "src/engine/functions/lookup.ts",
-        "line": 1,
-        "message": "Function `compare` does not capture any variables from its parent scope",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/consistent-function-scoping",
-        "severity": "warning",
-        "file": "tests/engine/test_multiRangeAggregates.ts",
-        "line": 1,
-        "message": "Function `countSheet` does not capture any variables from its parent scope",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/consistent-function-scoping",
-        "severity": "warning",
-        "file": "tests/engine/test_calculateDateLocale.ts",
-        "line": 1,
-        "message": "Function `formulaResult` does not capture any variables from its parent scope",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/no-shadow",
-        "severity": "warning",
-        "file": "src/engine/calculator.ts",
-        "line": 1,
-        "message": "'options' is already declared in the upper scope.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/no-array-reverse",
-        "severity": "warning",
-        "file": "src/engine/evaluator.ts",
-        "line": 1,
-        "message": "Use `Array#toReversed()` instead of `Array#reverse()`.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
         "rule": "oxlint/consistent-function-scoping",
         "severity": "warning",
         "file": "tests/engine/test_translateFormula.ts",
         "line": 1,
         "message": "Function `calc` does not capture any variables from its parent scope",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/preserve-caught-error",
-        "severity": "warning",
-        "file": "src/core/plugin.ts",
-        "line": 1,
-        "message": "There is no cause error attached to this new thrown error.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/consistent-function-scoping",
-        "severity": "warning",
-        "file": "tests/engine/test_concatSafety.ts",
-        "line": 1,
-        "message": "Function `concat` does not capture any variables from its parent scope",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/consistent-function-scoping",
-        "severity": "warning",
-        "file": "tests/engine/test_lookupBounds.ts",
-        "line": 1,
-        "message": "Function `oneColumn` does not capture any variables from its parent scope",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/consistent-function-scoping",
-        "severity": "warning",
-        "file": "tests/engine/test_logicalFunctions.ts",
-        "line": 1,
-        "message": "Function `evalFormula` does not capture any variables from its parent scope",
         "probe": "oxlint",
         "dimension": "correctness",
         "tier": 0
@@ -826,86 +720,6 @@
         "tier": 0
       },
       {
-        "rule": "oxlint/no-underscore-dangle",
-        "severity": "warning",
-        "file": "tests/engine/test_condition.ts",
-        "line": 1,
-        "message": "Unexpected dangling '_' in '`__conditionProbe`'.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/no-underscore-dangle",
-        "severity": "warning",
-        "file": "tests/engine/test_condition.ts",
-        "line": 1,
-        "message": "Unexpected dangling '_' in '`__conditionProbe`'.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/no-underscore-dangle",
-        "severity": "warning",
-        "file": "tests/engine/test_condition.ts",
-        "line": 1,
-        "message": "Unexpected dangling '_' in '`__conditionProbe2`'.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/no-underscore-dangle",
-        "severity": "warning",
-        "file": "tests/engine/test_condition.ts",
-        "line": 1,
-        "message": "Unexpected dangling '_' in '`__conditionProbe2`'.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/no-underscore-dangle",
-        "severity": "warning",
-        "file": "tests/engine/test_condition.ts",
-        "line": 1,
-        "message": "Unexpected dangling '_' in '`__conditionProbe3`'.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/no-underscore-dangle",
-        "severity": "warning",
-        "file": "tests/engine/test_condition.ts",
-        "line": 1,
-        "message": "Unexpected dangling '_' in '`__conditionProbe3`'.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/no-underscore-dangle",
-        "severity": "warning",
-        "file": "tests/engine/run-all-fixtures.ts",
-        "line": 1,
-        "message": "Unexpected dangling '_' in '`__filename`'.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
-        "rule": "oxlint/no-underscore-dangle",
-        "severity": "warning",
-        "file": "tests/engine/run-all-fixtures.ts",
-        "line": 1,
-        "message": "Unexpected dangling '_' in '`__dirname`'.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
         "rule": "oxlint/consistent-function-scoping",
         "severity": "warning",
         "file": "tests/engine/test_cellEmpty.ts",
@@ -916,21 +730,11 @@
         "tier": 0
       },
       {
-        "rule": "oxlint/preserve-caught-error",
-        "severity": "warning",
-        "file": "tests/engine/run-parser-tests.ts",
-        "line": 1,
-        "message": "There is no cause error attached to this new thrown error.",
-        "probe": "oxlint",
-        "dimension": "correctness",
-        "tier": 0
-      },
-      {
         "rule": "oxlint/consistent-function-scoping",
         "severity": "warning",
-        "file": "tests/engine/test_argCountValidation.ts",
+        "file": "tests/engine/test_concatSafety.ts",
         "line": 1,
-        "message": "Function `withData` does not capture any variables from its parent scope",
+        "message": "Function `concat` does not capture any variables from its parent scope",
         "probe": "oxlint",
         "dimension": "correctness",
         "tier": 0
@@ -1061,6 +865,206 @@
         "file": "tests/engine/test_ifsInjection.ts",
         "line": 1,
         "message": "Unexpected dangling '_' in '`__ifsProbe6`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_criteria.ts",
+        "line": 1,
+        "message": "Function `countif` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_logicalFunctions.ts",
+        "line": 1,
+        "message": "Function `evalFormula` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-array-sort",
+        "severity": "warning",
+        "file": "src/engine/functions/statistical-math.ts",
+        "line": 1,
+        "message": "Use `Array#toSorted()` instead of `Array#sort()`.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/run-all-fixtures.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__filename`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/run-all-fixtures.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__dirname`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_calculateDateLocale.ts",
+        "line": 1,
+        "message": "Function `formulaResult` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe2`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe2`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe3`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-underscore-dangle",
+        "severity": "warning",
+        "file": "tests/engine/test_condition.ts",
+        "line": 1,
+        "message": "Unexpected dangling '_' in '`__conditionProbe3`'.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/preserve-caught-error",
+        "severity": "warning",
+        "file": "tests/engine/run-parser-tests.ts",
+        "line": 1,
+        "message": "There is no cause error attached to this new thrown error.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/preserve-caught-error",
+        "severity": "warning",
+        "file": "src/core/plugin.ts",
+        "line": 1,
+        "message": "There is no cause error attached to this new thrown error.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_multiRangeAggregates.ts",
+        "line": 1,
+        "message": "Function `countSheet` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-array-sort",
+        "severity": "warning",
+        "file": "tests/engine/test_formulaRefs.ts",
+        "line": 1,
+        "message": "Use `Array#toSorted()` instead of `Array#sort()`.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_lookupBounds.ts",
+        "line": 1,
+        "message": "Function `oneColumn` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/no-shadow",
+        "severity": "warning",
+        "file": "src/engine/calculator.ts",
+        "line": 1,
+        "message": "'options' is already declared in the upper scope.",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "tests/engine/test_argCountValidation.ts",
+        "line": 1,
+        "message": "Function `withData` does not capture any variables from its parent scope",
+        "probe": "oxlint",
+        "dimension": "correctness",
+        "tier": 0
+      },
+      {
+        "rule": "oxlint/consistent-function-scoping",
+        "severity": "warning",
+        "file": "src/engine/functions/lookup.ts",
+        "line": 1,
+        "message": "Function `compare` does not capture any variables from its parent scope",
         "probe": "oxlint",
         "dimension": "correctness",
         "tier": 0
@@ -1348,36 +1352,6 @@
       {
         "rule": "unused-file",
         "severity": "warning",
-        "file": "tests/vue/test_cellHighlights.ts",
-        "line": 1,
-        "message": "nothing imports this file",
-        "probe": "knip",
-        "dimension": "architecture",
-        "tier": 1
-      },
-      {
-        "rule": "unused-file",
-        "severity": "warning",
-        "file": "tests/vue/test_keyboardNav.ts",
-        "line": 1,
-        "message": "nothing imports this file",
-        "probe": "knip",
-        "dimension": "architecture",
-        "tier": 1
-      },
-      {
-        "rule": "unused-file",
-        "severity": "warning",
-        "file": "tests/vue/test_sheetSession.ts",
-        "line": 1,
-        "message": "nothing imports this file",
-        "probe": "knip",
-        "dimension": "architecture",
-        "tier": 1
-      },
-      {
-        "rule": "unused-file",
-        "severity": "warning",
         "file": "tests/engine/cellAccess.ts",
         "line": 1,
         "message": "nothing imports this file",
@@ -1616,6 +1590,36 @@
         "tier": 1
       },
       {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_formulaError.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_formulaRefs.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
+        "rule": "unused-file",
+        "severity": "warning",
+        "file": "tests/engine/test_ifBranchEvaluation.ts",
+        "line": 1,
+        "message": "nothing imports this file",
+        "probe": "knip",
+        "dimension": "architecture",
+        "tier": 1
+      },
+      {
         "rule": "unfinished-marker",
         "severity": "warning",
         "file": "src/engine/calculator.ts",
@@ -1727,18 +1731,18 @@
       {
         "probe": "coverage",
         "status": {
-          "kind": "skipped",
-          "reason": "no coverage report in coverage/; scoria does not run the project's tests"
+          "kind": "ok"
         },
         "tools": []
       },
       {
         "probe": "circular",
         "status": {
-          "kind": "skipped",
-          "reason": "madge produced no readable report"
+          "kind": "ok"
         },
-        "tools": []
+        "tools": [
+          "madge"
+        ]
       },
       {
         "probe": "readme-contract",
@@ -1767,13 +1771,14 @@
       "jscpd": "4.3.0",
       "typescript": "6.0.3",
       "knip": "6.35.1",
-      "yarn": "1.22.22"
+      "yarn": "1.22.22",
+      "madge": "8.0.0"
     },
     "overall": {
-      "score": 79.1439,
+      "score": 80.4142,
       "scoredDimensions": 9,
       "comparable": false
     }
   },
-  "createdAt": "2026-10-17T22:02:29.820Z"
+  "createdAt": "2026-10-17T22:17:37.784Z"
 }
