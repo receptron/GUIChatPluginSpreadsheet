@@ -4,7 +4,7 @@
  */
 
 import { calculateSheet } from "../../src/engine/calculator";
-import { toStringArray, expectSheetOutput } from "./test-utils";
+import { toStringArray, expectSheetOutput, expectedPvAnalysisMonth, expectedPvAnalysisTotal } from "./test-utils";
 import "../../src/engine/functions"; // Load all functions
 
 console.log("\n=== PV Analysis - Complete Array Output Test ===\n");
@@ -54,7 +54,7 @@ try {
     ["Monthly Discount Rate", "0.42%", "Calculated automatically"],
 
     // Row 5: Total Present Value (SUM of all PVs)
-    ["Total Present Value", "$11,678.72", "Sum of discounted cash flows"],
+    ["Total Present Value", expectedPvAnalysisTotal(), "Sum of discounted cash flows"],
 
     // Rows 6-7: Empty
     ["", "", ""],
@@ -64,19 +64,7 @@ try {
     ["Month", "Cash Flow", "Present Value"],
 
     // Rows 9-20: Monthly calculations
-    // All values are formatted according to their format codes ($#,##0.00)
-    ["1", "$1,000.00", "$995.82"],
-    ["2", "$1,000.00", "$991.65"],
-    ["3", "$1,000.00", "$987.51"],
-    ["4", "$1,000.00", "$983.37"],
-    ["5", "$1,000.00", "$979.26"],
-    ["6", "$1,000.00", "$975.17"],
-    ["7", "$1,000.00", "$971.09"],
-    ["8", "$1,000.00", "$967.03"],
-    ["9", "$1,000.00", "$962.98"],
-    ["10", "$1,000.00", "$958.95"],
-    ["11", "$1,000.00", "$954.94"],
-    ["12", "$1,000.00", "$950.95"],
+    ...Array.from({ length: 12 }, (_, index) => [String(index + 1), "$1,000.00", expectedPvAnalysisMonth(index + 1)]),
   ];
 
   console.log("Expected Output:");
@@ -104,10 +92,10 @@ try {
   console.log("\n\nKey Calculations Verification:");
   console.log("==============================");
   console.log(`Monthly Discount Rate: ${actual[3][1]} (expected: 0.42%)`);
-  console.log(`Total Present Value: ${actual[4][1]} (expected: $11,678.72)`);
+  console.log(`Total Present Value: ${actual[4][1]} (expected: ${expectedPvAnalysisTotal()})`);
   console.log(`First Month Cash Flow: ${actual[8][1]} (expected: $1,000.00)`);
-  console.log(`First Month PV: ${actual[8][2]} (expected: $995.82)`);
-  console.log(`Last Month PV: ${actual[19][2]} (expected: $950.95)`);
+  console.log(`First Month PV: ${actual[8][2]} (expected: ${expectedPvAnalysisMonth(1)})`);
+  console.log(`Last Month PV: ${actual[19][2]} (expected: ${expectedPvAnalysisMonth(12)})`);
 
   // Check for errors
   if (result.errors.length > 0) {
