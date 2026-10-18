@@ -1,5 +1,18 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@4.0.1 — 2026-10-18
+
+Bug-fix release. `LOG10` now calculates, function-looking text inside a string literal is no longer evaluated, and the README lists exactly the functions the engine provides.
+
+- **`LOG10` calculates** (#60): the engine registered `LOG10`, but the evaluator and `looksLikeFormula` only recognised function names made of letters, so it evaluated to `#ERROR!`. A name containing digits is now treated as a call when it is registered (`isCallableName`); since `LOG10` has the same shape as a cell reference, an unregistered one such as `A1(2)` keeps its previous result.
+- **Calls inside string literals are text** (#60): the scan for calls skips string literals, so `="x"&"SUM(1,2)"` gives `xSUM(1,2)` (it gave `x(3)` before).
+- **README function list** (#60, fixes #59): the "Supported Functions" section listed functions the engine does not have (they evaluated to `#NAME?`) and omitted ones it does. It now matches the registry category by category, and `tests/engine/test_documentedFunctions.ts` fails if the README, the model guidance (`SYSTEM_PROMPT` / `TOOL_DEFINITION`) or the bundled samples drift from the registry.
+- **Code-scanning findings** (#55, #58): `cause` attached to the rethrown sheets parse error (`lib` raised to ES2022; `target` unchanged); duplicated argument reading in the financial handlers, FIND / SEARCH and the quote-aware condition scanner extracted (behaviour verified unchanged against the previous code, with permanent tests for argument order, first error and quoting); `knip.json` lists the test entry points; four previously unrun engine scripts now run in CI and check their results; a script testing a removed API deleted.
+- **CI** (#53, #61): scoria runs through the shared reusable workflow and the README shows its badge; scoria `^0.4.1`.
+- **Docs** (#52): `docs/ChangeLog.md` records 4.0.0.
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.0.1`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.0.1)
+
 ## @gui-chat-plugin/spreadsheet@4.0.0 — 2026-10-18
 
 **Breaking release: Node.js 24 or later is now required** (`engines: { "node": ">=24" }`). There are no API or behaviour changes from 3.0.0; the library code differs only by formatting.
