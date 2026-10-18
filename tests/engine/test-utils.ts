@@ -88,9 +88,17 @@ const PV_MONTHLY_INCOME = 1000;
 const PV_ANNUAL_RATE = 0.05;
 const PV_MONTHS = 12;
 
+const presentValueOfMonth = (month: number): number => PV_MONTHLY_INCOME / (1 + PV_ANNUAL_RATE / PV_MONTHS) ** month;
+
+const formatDollars = (value: number): string => `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** The PV analysis sheet's column C for `month` (1-based), computed without the engine and formatted as `$#,##0.00`. */
+export function expectedPvAnalysisMonth(month: number): string {
+  return formatDollars(presentValueOfMonth(month));
+}
+
 /** The PV analysis sheet's B5, computed without the engine and formatted as `$#,##0.00`. */
 export function expectedPvAnalysisTotal(): string {
-  const monthlyRate = PV_ANNUAL_RATE / PV_MONTHS;
-  const total = Array.from({ length: PV_MONTHS }, (_, index) => PV_MONTHLY_INCOME / (1 + monthlyRate) ** (index + 1)).reduce((sum, value) => sum + value, 0);
-  return `$${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const total = Array.from({ length: PV_MONTHS }, (_, index) => presentValueOfMonth(index + 1)).reduce((sum, value) => sum + value, 0);
+  return formatDollars(total);
 }
