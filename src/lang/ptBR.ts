@@ -15,7 +15,10 @@ const ptBR: Messages = {
   loadFailed: (error) => `Falha ao carregar a planilha: ${error}`,
   saveFailed: (error) => `Falha ao salvar a planilha: ${error}`,
   fileChangedElsewhere:
-    "Esta planilha foi alterada em outro lugar. Suas edições em Edit Spreadsheet Data ainda não foram aplicadas; aplicá-las substituirá essa alteração.",
+    "Esta planilha foi alterada em outro lugar. Suas edições em Edit Spreadsheet Data ainda não foram aplicadas; ao aplicá-las, você escolherá manter essa alteração ou substituí-la.",
+  saveConflict: "Sua edição não foi salva: esta planilha foi alterada em outro lugar depois de aberta.",
+  useFileVersion: "Usar a versão salva",
+  overwriteWithMine: "Substituir pela minha edição",
   cellEditorClosedByChange: "Esta planilha foi alterada em outro lugar, então o editor de células foi fechado. Clique na célula novamente para editá-la.",
   invalidJsonAlert: (error) => `Formato JSON inválido: ${error}`,
   unknownError: "Erro desconhecido",

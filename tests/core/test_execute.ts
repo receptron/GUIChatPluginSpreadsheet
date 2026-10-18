@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import type { FileOps, ToolContext } from "gui-chat-protocol";
 import { executeSpreadsheet, pluginCore } from "../../src/core/plugin.js";
 import { executeSpreadsheetDispatch, isSpreadsheetDispatchArgs } from "../../src/core/dispatch.js";
@@ -28,6 +29,8 @@ function memoryFiles(initial: Record<string, string> = {}): FileOps & { store: M
     },
   };
 }
+
+const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
 
 const hostContext = (artifacts: FileOps): ToolContext => {
   const context: ToolContext & { files: { artifacts: FileOps } } = { files: { artifacts } };
@@ -126,14 +129,14 @@ describe("executeSpreadsheetDispatch", () => {
   it("loads a saved workbook", async () => {
     const files = memoryFiles({ [rel]: JSON.stringify(sheets) });
     const result = await executeSpreadsheetDispatch(files, { kind: "loadSpreadsheet", path: savedPath });
-    assert.deepEqual(result.data, { sheets });
+    assert.deepEqual(result.data, { sheets, version: sha256(JSON.stringify(sheets)) });
   });
 
   it("saves edits over the same file", async () => {
     const files = memoryFiles({ [rel]: JSON.stringify(sheets) });
     const edited: SpreadsheetSheet[] = [{ name: "Budget", data: [[{ v: "Income" }, { v: 6000 }]] }];
     const result = await executeSpreadsheetDispatch(files, { kind: "saveSpreadsheet", path: savedPath, sheets: edited });
-    assert.deepEqual(result.data, { sheets: savedPath });
+    assert.deepEqual(result.data, { sheets: savedPath, version: sha256(JSON.stringify(edited)) });
     assert.deepEqual(JSON.parse(files.store.get(rel) ?? ""), edited);
   });
 
@@ -171,7 +174,7 @@ describe("pluginCore.execute routing", () => {
     const edited: SpreadsheetSheet[] = [{ name: "Budget", data: [[{ v: 1 }]] }];
     await pluginCore.execute(hostContext(files), { kind: "saveSpreadsheet", path, sheets: edited });
     const loaded = await pluginCore.execute(hostContext(files), { kind: "loadSpreadsheet", path });
-    assert.deepEqual(loaded.data, { sheets: edited });
+    assert.deepEqual(loaded.data, { sheets: edited, version: sha256(JSON.stringify(edited)) });
   });
 
   it("rejects a dispatch when the host has no files.artifacts", async () => {

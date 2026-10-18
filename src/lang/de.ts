@@ -15,7 +15,10 @@ const de: Messages = {
   loadFailed: (error) => `Laden der Tabelle fehlgeschlagen: ${error}`,
   saveFailed: (error) => `Speichern der Tabelle fehlgeschlagen: ${error}`,
   fileChangedElsewhere:
-    "Diese Tabelle wurde an anderer Stelle geändert. Ihre Änderungen unter Edit Spreadsheet Data sind noch nicht übernommen; wenn Sie sie übernehmen, ersetzen sie diese Änderung.",
+    "Diese Tabelle wurde an anderer Stelle geändert. Ihre Änderungen unter Edit Spreadsheet Data sind noch nicht übernommen; beim Übernehmen werden Sie gefragt, ob diese Änderung bleiben oder ersetzt werden soll.",
+  saveConflict: "Ihre Änderung wurde nicht gespeichert: Diese Tabelle wurde nach dem Öffnen an anderer Stelle geändert.",
+  useFileVersion: "Gespeicherte Fassung verwenden",
+  overwriteWithMine: "Mit meiner Änderung überschreiben",
   cellEditorClosedByChange:
     "Diese Tabelle wurde an anderer Stelle geändert, daher wurde der Zelleditor geschlossen. Klicken Sie erneut auf die Zelle, um sie zu bearbeiten.",
   invalidJsonAlert: (error) => `Ungültiges JSON-Format: ${error}`,

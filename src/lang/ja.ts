@@ -15,7 +15,10 @@ const ja: Messages = {
   loadFailed: (error) => `スプレッドシートの読み込みに失敗: ${error}`,
   saveFailed: (error) => `スプレッドシートの保存に失敗: ${error}`,
   fileChangedElsewhere:
-    "この表はほかの場所で書き換えられました。Edit Spreadsheet Data の編集はまだ適用されていません。適用すると、その書き換えを上書きします。",
+    "この表はほかの場所で書き換えられました。Edit Spreadsheet Data の編集はまだ適用されていません。適用すると、その書き換えを残すか上書きするかを確かめます。",
+  saveConflict: "編集は保存されていません。開いたあとに、この表がほかの場所で書き換えられました。",
+  useFileVersion: "保存されている内容を使う",
+  overwriteWithMine: "自分の編集で上書きする",
   cellEditorClosedByChange: "この表はほかの場所で書き換えられたので、セルの編集欄を閉じました。もう一度セルをクリックして編集してください。",
   invalidJsonAlert: (error) => `不正な JSON 形式です: ${error}`,
   unknownError: "不明なエラー",

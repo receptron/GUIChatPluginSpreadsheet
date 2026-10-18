@@ -36,5 +36,16 @@ export interface SpreadsheetArgs {
   sheets: SpreadsheetSheet[];
 }
 
-/** What the View sends through `useRuntime().dispatch`. */
-export type SpreadsheetDispatchArgs = { kind: "loadSpreadsheet"; path: string } | { kind: "saveSpreadsheet"; path: string; sheets: SpreadsheetSheet[] };
+/** What the View sends through `useRuntime().dispatch`. A save with `baseVersion` is written
+ *  only while the file still holds that version, so it cannot overwrite a change made since. */
+export type SpreadsheetDispatchArgs =
+  { kind: "loadSpreadsheet"; path: string } | { kind: "saveSpreadsheet"; path: string; sheets: SpreadsheetSheet[]; baseVersion?: string };
+
+/** What a load or save dispatch answers. `version` names the file's content as the answer
+ *  leaves it. With `conflict`, the save was not written: the file had changed since
+ *  `baseVersion`, and `sheets` is the file as it is now. */
+export interface SpreadsheetFileData {
+  sheets: SpreadsheetSheet[] | string;
+  version: string;
+  conflict?: true;
+}

@@ -26,6 +26,11 @@
           </div>
 
           <div v-if="fileChangedNotice" class="mb-2 rounded bg-amber-50 px-3 py-2 text-sm text-amber-800">{{ fileChangedNotice }}</div>
+          <div v-if="saveConflict" class="mb-2 flex flex-wrap items-center gap-2 rounded bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <span class="min-w-0 flex-1">{{ t.saveConflict }}</span>
+            <button class="rounded border border-amber-300 bg-white px-2 py-1 hover:bg-amber-100" @click="useFileVersion">{{ t.useFileVersion }}</button>
+            <button class="rounded bg-amber-700 px-2 py-1 text-white hover:bg-amber-800" @click="overwriteWithMine">{{ t.overwriteWithMine }}</button>
+          </div>
 
           <!-- Sheet tabs (if multiple sheets) -->
           <div v-if="resolvedSheets.length > 1" class="sheet-tabs">
@@ -98,7 +103,6 @@ import * as XLSX from "xlsx";
 import { PLUGIN_RUNTIME_KEY, type ToolResult } from "gui-chat-protocol/vue";
 import type { SpreadsheetToolData, SpreadsheetSheet, StorableCell, SpreadsheetCell } from "../core/types";
 import { isSpreadsheetArtifactPath } from "../core/paths";
-import { readSheets } from "../core/sheetGuards";
 import {
   SpreadsheetEngine,
   prefersDayFirst,
@@ -116,6 +120,7 @@ import { getArrowKeyOffset, isWithinSheetBounds } from "./keyboardNav";
 import { escapeHtml, isCrossOriginHttpUrl } from "./htmlText";
 import { useT } from "../lang";
 import { createSheetSession, type LoadOutcome } from "./sheetSession";
+import { readLoadReply, readSaveReply, type LoadedWorkbook, type SaveReply } from "../core/dispatchReplies";
 import { fileChangeAction } from "./fileFollow";
 
 // Import all spreadsheet functions to populate the function registry
@@ -178,17 +183,27 @@ const resolvedSheets = ref<SpreadsheetSheet[]>([]);
 // Declared before fetchSheets, which writes it once a load lands.
 const editableData = ref(JSON.stringify(resolvedSheets.value || [], null, 2));
 
-const readDispatchedSheets = (raw: unknown): SpreadsheetSheet[] => {
-  const sheets = isRecord(raw) && isRecord(raw["data"]) ? readSheets(raw["data"]["sheets"]) : null;
-  if (!sheets) throw new Error(t.value.dataMustBeArray);
-  return sheets;
+const readDispatchedSheets = (raw: unknown): LoadedWorkbook => {
+  const loaded = readLoadReply(raw);
+  if (!loaded) throw new Error(t.value.dataMustBeArray);
+  return loaded;
+};
+
+const readDispatchedSave = (raw: unknown): SaveReply => {
+  const reply = readSaveReply(raw);
+  if (!reply) throw new Error(t.value.dataMustBeArray);
+  return reply;
 };
 
 const session = createSheetSession(
   runtime
     ? {
         loadFromHost: (path) => runtime.dispatch({ kind: "loadSpreadsheet", path }, readDispatchedSheets),
-        saveToHost: (path, sheets) => runtime.dispatch({ kind: "saveSpreadsheet", path, sheets }),
+        saveToHost: (path, sheets, baseVersion) =>
+          runtime.dispatch(
+            baseVersion === undefined ? { kind: "saveSpreadsheet", path, sheets } : { kind: "saveSpreadsheet", path, sheets, baseVersion },
+            readDispatchedSave,
+          ),
       }
     : null,
 );
@@ -207,9 +222,11 @@ async function fetchSheets(resetActiveSheet: boolean): Promise<void> {
   // from a failed file-backed load to an inline result leaves the error up.
   errorMessage.value = "";
   loading.value = isSpreadsheetArtifactPath(props.selectedResult.data?.sheets);
-  const outcome = await session.load(props.selectedResult.data?.sheets);
+  const raw = props.selectedResult.data?.sheets;
+  const outcome = await session.load(raw);
   if (!outcome) return;
   loading.value = false;
+  if (outcome.kind === "sheets" && isSpreadsheetArtifactPath(raw)) session.adopt(raw, outcome.version);
   resolvedSheets.value = outcome.kind === "sheets" ? outcome.sheets : [];
   errorMessage.value = loadErrorText(outcome);
   editableData.value = JSON.stringify(resolvedSheets.value, null, 2);
@@ -218,20 +235,36 @@ async function fetchSheets(resetActiveSheet: boolean): Promise<void> {
 
 const fileChangedNotice = ref("");
 
+/** A save the file refused because it changed since this View read it: the user's sheets,
+ *  and the file's as they are now, until the user picks one. */
+interface SaveConflict {
+  path: string;
+  mine: SpreadsheetSheet[];
+  theirs: SpreadsheetSheet[];
+  version: string;
+}
+const saveConflict = ref<SaveConflict | null>(null);
+
 /** Read the workbook again after the host said it changed on disk — an agent, or
  *  another View, wrote it. Without this, this View kept the old sheets, and its
  *  next edit saved them over the newer file. */
 async function refreshFromFile(path: string): Promise<void> {
   const outcome = await session.load(path);
   if (outcome?.kind !== "sheets" || props.selectedResult.data?.sheets !== path) return;
+  // While the user is choosing, a newer file replaces the one they would take.
+  const conflict = saveConflict.value;
+  if (conflict && outcome.version !== undefined) {
+    saveConflict.value = { ...conflict, theirs: outcome.sheets, version: outcome.version };
+    return;
+  }
   const action = fileChangeAction(outcome.sheets, resolvedSheets.value, hasChanges.value, savesInFlight);
   if (action === "same") return;
   if (action === "hold") {
     fileChangedNotice.value = t.value.fileChangedElsewhere;
     return;
   }
-  resolvedSheets.value = outcome.sheets;
-  editableData.value = JSON.stringify(outcome.sheets, null, 2);
+  session.adopt(path, outcome.version);
+  showFileSheets(outcome.sheets);
   // An open cell editor holds the old cell; its Update would write that over the
   // change. It is closed, and the user told why, rather than left pointing at it.
   const editorWasOpen = miniEditorOpen.value;
@@ -254,6 +287,7 @@ function stopFollowingFile(): void {
 function followFile(raw: unknown): void {
   stopFollowingFile();
   fileChangedNotice.value = "";
+  saveConflict.value = null;
   if (!runtime || !isSpreadsheetArtifactPath(raw)) return;
   fileSubscription.stop = runtime.pubsub.subscribe(`file:${raw}`, () => void refreshFromFile(raw));
 }
@@ -265,7 +299,11 @@ async function persistSheets(sheets: SpreadsheetSheet[]): Promise<void> {
   if (filePath) {
     savesInFlight.push(sheets);
     try {
-      await session.save(filePath, sheets);
+      const reply = await session.save(filePath, sheets);
+      if (reply.kind === "conflict") {
+        if (props.selectedResult.data?.sheets === raw) saveConflict.value = { path: filePath, mine: sheets, theirs: reply.sheets, version: reply.version };
+        return;
+      }
     } catch (error) {
       errorMessage.value = t.value.saveFailed(formatErrorMessage(error, t.value.unknownError));
       return;
@@ -276,6 +314,7 @@ async function persistSheets(sheets: SpreadsheetSheet[]): Promise<void> {
     if (props.selectedResult.data?.sheets !== raw) return;
     // What is saved is what is shown now, so a notice about an earlier version is stale.
     fileChangedNotice.value = "";
+    saveConflict.value = null;
   }
 
   resolvedSheets.value = sheets;
@@ -288,6 +327,33 @@ async function persistSheets(sheets: SpreadsheetSheet[]): Promise<void> {
     },
   };
   emit("updateResult", updatedResult);
+}
+
+/** Show the file's sheets, dropping what the editors hold. */
+function showFileSheets(sheets: SpreadsheetSheet[]): void {
+  resolvedSheets.value = sheets;
+  editableData.value = JSON.stringify(sheets, null, 2);
+}
+
+/** Keep the file as it is now; the user's refused edit is dropped. */
+function useFileVersion(): void {
+  const conflict = saveConflict.value;
+  if (!conflict) return;
+  saveConflict.value = null;
+  session.adopt(conflict.path, conflict.version);
+  showFileSheets(conflict.theirs);
+  if (miniEditorOpen.value) closeMiniEditor();
+  fileChangedNotice.value = "";
+}
+
+/** Write the user's edit over the file as it is now. If the file changes yet again
+ *  before this lands, the save is refused again and the user asked again. */
+async function overwriteWithMine(): Promise<void> {
+  const conflict = saveConflict.value;
+  if (!conflict) return;
+  saveConflict.value = null;
+  session.adopt(conflict.path, conflict.version);
+  await persistSheets(conflict.mine);
 }
 
 const activeSheetIndex = ref(0);
