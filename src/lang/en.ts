@@ -15,7 +15,10 @@ const en: Messages = {
   loadFailed: (error) => `Failed to load spreadsheet: ${error}`,
   saveFailed: (error) => `Failed to save spreadsheet: ${error}`,
   fileChangedElsewhere:
-    "This spreadsheet was changed elsewhere. Your edits in Edit Spreadsheet Data are not applied yet; applying them will replace that change.",
+    "This spreadsheet was changed elsewhere. Your edits in Edit Spreadsheet Data are not applied yet; applying them asks whether to keep that change or replace it.",
+  saveConflict: "Your edit was not saved: this spreadsheet was changed elsewhere after you opened it.",
+  useFileVersion: "Use the saved version",
+  overwriteWithMine: "Save my edit over it",
   cellEditorClosedByChange: "This spreadsheet was changed elsewhere, so the cell editor was closed. Click the cell again to edit it.",
   invalidJsonAlert: (error) => `Invalid JSON format: ${error}`,
   unknownError: "Unknown error",

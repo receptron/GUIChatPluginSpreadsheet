@@ -14,6 +14,7 @@ export type {
   SpreadsheetToolData,
   SpreadsheetArgs,
   SpreadsheetDispatchArgs,
+  SpreadsheetFileData,
 } from "./types";
 
 // Export plugin utilities

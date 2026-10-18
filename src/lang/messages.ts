@@ -13,6 +13,9 @@ export interface Messages {
   loadFailed(error: string): string;
   saveFailed(error: string): string;
   fileChangedElsewhere: string;
+  saveConflict: string;
+  useFileVersion: string;
+  overwriteWithMine: string;
   cellEditorClosedByChange: string;
   invalidJsonAlert(error: string): string;
   unknownError: string;

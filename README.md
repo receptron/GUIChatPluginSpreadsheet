@@ -74,10 +74,12 @@ The View sends two dispatch calls:
 
 | `kind` | other args | result |
 |--------|-----------|--------|
-| `loadSpreadsheet` | `path` | `{ data: { sheets } }` |
-| `saveSpreadsheet` | `path`, `sheets` | `{ data: { sheets: path } }` |
+| `loadSpreadsheet` | `path` | `{ data: { sheets, version } }` |
+| `saveSpreadsheet` | `path`, `sheets`, `baseVersion?` | `{ data: { sheets: path, version } }`, or `{ data: { sheets, version, conflict: true } }` |
 
 `path` must be a `.json` file under `artifacts/spreadsheets/`.
+
+`version` is the SHA-256 of the file's text. The View saves with the `baseVersion` of the sheets it shows, and the save is written only while the file still has that version. When an agent or another View wrote the file in between, nothing is written: the answer carries the file's current `sheets` and `version` with `conflict: true`, and the View asks the user to keep that version or save their edit over it. A save without `baseVersion` is written unconditionally, as before. Saves of one file through the plugin are serialized, so two Views cannot both pass the check; a write that bypasses the plugin can still land between a save's check and its write, because `files.artifacts` has no compare-and-write.
 
 A host that routes the View's `dispatch` to the plugin's own `execute` (as MulmoTerminal does) needs nothing more: `pluginCore.execute` tells the two calls apart by `kind`. A host with its own dispatch route can call `executeSpreadsheetDispatch(files.artifacts, args)` after checking `isSpreadsheetDispatchArgs(args)`.
 
