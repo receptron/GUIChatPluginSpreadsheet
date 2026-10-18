@@ -1,6 +1,6 @@
 {
   "name": "@gui-chat-plugin/spreadsheet",
-  "version": "4.0.2",
+  "version": "4.1.0",
   "description": "Spreadsheet plugin for GUIChat",
   "type": "module",
   "main": "./dist/index.cjs",
