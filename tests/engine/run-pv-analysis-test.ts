@@ -2,7 +2,9 @@
  * Test for PV Analysis infinite loop bug
  */
 
+import assert from "node:assert/strict";
 import { calculateSheet } from "../../src/engine/calculator";
+import { expectedPvAnalysisTotal } from "./test-utils";
 import "../../src/engine/functions"; // Load all functions
 
 console.log("\n=== PV Analysis Test ===\n");
@@ -64,6 +66,9 @@ try {
       console.log(`  ${error.cell.row},${error.cell.col}: ${error.error}`);
     });
   }
+
+  assert.deepEqual(result.errors, [], "the sheet calculates without errors");
+  assert.equal(result.data[4][1], expectedPvAnalysisTotal(), "Total Present Value (B5)");
 
   console.log("\n✓ Test passed - no infinite loop");
   process.exit(0);
