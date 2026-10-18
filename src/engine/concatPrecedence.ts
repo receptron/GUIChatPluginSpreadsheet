@@ -23,7 +23,9 @@ const isQuote = (char: string): boolean => char === '"' || char === "'";
 /** Each character with whether it sits in a string literal and how deeply it is nested. */
 function placesOf(expr: string): Place[] {
   const state = { quote: "", depth: 0 };
-  return [...expr].map((char, index) => {
+  // UTF-16 units, not code points: every index here is handed to slice() and
+  // isEscapedAt(), which count units, so an emoji before `&` must not shift them.
+  return expr.split("").map((char, index) => {
     const escaped = isEscapedAt(expr, index);
     const opensOrCloses = !escaped && isQuote(char) && (state.quote === "" || state.quote === char);
     const inLiteral = state.quote !== "" || opensOrCloses;

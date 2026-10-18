@@ -51,6 +51,12 @@ describe("& joins as text whatever the operands are", () => {
     assert.equal(evaluate('=AND(1=1,1=2)&"x"'), "FALSEx");
   });
 
+  it("keeps operands whole when a character outside the BMP comes before &", () => {
+    const sheet: SheetData = { name: "S", data: [[{ v: "😀" }, { v: '=A1&"!"' }, { v: '="😀"&1+2' }, { v: '=("𝒳"&A1)&"x"' }]] };
+    const row = new SpreadsheetEngine().calculate(sheet).data[0];
+    assert.deepEqual(row?.slice(1), ["😀!", "😀3", "𝒳😀x"]);
+  });
+
   it("leaves an & inside a literal alone", () => {
     assert.equal(evaluate('="x&y"&"z"'), "x&yz");
   });
