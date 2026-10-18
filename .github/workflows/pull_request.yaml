@@ -80,3 +80,22 @@ jobs:
       with:
         name: npm-package
         path: "*.tgz"
+
+  # The published package supports Node >=22, but scoria (a devDependency) declares
+  # Node >=24, so Yarn v1 refuses a normal install here. Skip the engines check only
+  # to run the package's tests on the oldest supported Node.
+  test_node22:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    - uses: actions/setup-node@v6
+      with:
+        node-version: 22.x
+        cache: yarn
+    - run: yarn install --frozen-lockfile --ignore-engines --network-timeout 120000
+    - run: yarn run build
+    - run: yarn run test:suites
+    - run: yarn run test:fixtures
