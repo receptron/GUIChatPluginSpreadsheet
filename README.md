@@ -103,25 +103,25 @@ The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to loa
 ## Supported Functions
 
 ### Mathematical
-`SUM`, `AVERAGE`, `MIN`, `MAX`, `COUNT`, `COUNTA`, `ABS`, `ROUND`, `FLOOR`, `CEILING`, `POWER`, `SQRT`, `MOD`, `RAND`, `RANDBETWEEN`, `PI`
+`ABS`, `CEILING`, `EXP`, `FLOOR`, `INT`, `LN`, `LOG`, `LOG10`, `MOD`, `PI`, `POWER`, `ROUND`, `ROUNDDOWN`, `ROUNDUP`, `SIGN`, `SQRT`, `TRUNC`
 
 ### Text
-`CONCATENATE`, `LEFT`, `RIGHT`, `MID`, `LEN`, `UPPER`, `LOWER`, `PROPER`, `TRIM`, `SUBSTITUTE`, `REPLACE`, `TEXT`, `VALUE`, `FIND`, `SEARCH`, `REPT`
+`CONCAT`, `CONCATENATE`, `EXACT`, `FIND`, `LEFT`, `LEN`, `LOWER`, `MID`, `PROPER`, `REPLACE`, `RIGHT`, `SEARCH`, `SUBSTITUTE`, `TEXT`, `TRIM`, `UPPER`, `VALUE`
 
 ### Date & Time
-`TODAY`, `NOW`, `DATE`, `YEAR`, `MONTH`, `DAY`, `HOUR`, `MINUTE`, `SECOND`, `WEEKDAY`, `DAYS`, `EDATE`, `EOMONTH`, `WORKDAY`, `NETWORKDAYS`, `DATEDIF`
+`DATE`, `DATEDIF`, `DAY`, `HOUR`, `MINUTE`, `MONTH`, `NOW`, `SECOND`, `TIME`, `TODAY`, `YEAR`
 
 ### Logical
-`IF`, `AND`, `OR`, `NOT`, `TRUE`, `FALSE`, `IFERROR`, `IFNA`, `IFS`, `SWITCH`, `XOR`
+`AND`, `FALSE`, `IF`, `IFERROR`, `IFNA`, `IFS`, `NOT`, `OR`, `TRUE`
 
-### Lookup
-`VLOOKUP`, `HLOOKUP`, `INDEX`, `MATCH`, `OFFSET`, `INDIRECT`, `ROW`, `COLUMN`, `ROWS`, `COLUMNS`, `TRANSPOSE`
+### Lookup & Reference
+`HLOOKUP`, `INDEX`, `MATCH`, `VLOOKUP`, `XLOOKUP`
 
 ### Statistical
-`MEDIAN`, `MODE`, `STDEV`, `STDEVP`, `VAR`, `VARP`, `LARGE`, `SMALL`, `RANK`, `PERCENTILE`, `QUARTILE`, `CORREL`, `COUNTIF`, `COUNTIFS`, `SUMIF`, `SUMIFS`, `AVERAGEIF`, `AVERAGEIFS`
+`AVERAGE`, `AVERAGEIF`, `COUNT`, `COUNTA`, `COUNTIF`, `MAX`, `MEDIAN`, `MIN`, `MODE`, `STDEV`, `SUM`, `SUMIF`, `VAR`
 
 ### Financial
-`PMT`, `PV`, `FV`, `NPV`, `IRR`, `RATE`, `NPER`, `IPMT`, `PPMT`, `SLN`, `DB`, `DDB`
+`FV`, `IPMT`, `IRR`, `NPER`, `NPV`, `PMT`, `PPMT`, `PV`, `RATE`
 
 ## Development
 
