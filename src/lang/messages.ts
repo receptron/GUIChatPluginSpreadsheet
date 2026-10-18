@@ -12,6 +12,7 @@ export interface Messages {
   dataMustBeArray: string;
   loadFailed(error: string): string;
   saveFailed(error: string): string;
+  fileChangedElsewhere: string;
   invalidJsonAlert(error: string): string;
   unknownError: string;
   update: string;

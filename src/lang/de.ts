@@ -14,6 +14,8 @@ const de: Messages = {
   dataMustBeArray: "Daten müssen ein Array von Blättern sein",
   loadFailed: (error) => `Laden der Tabelle fehlgeschlagen: ${error}`,
   saveFailed: (error) => `Speichern der Tabelle fehlgeschlagen: ${error}`,
+  fileChangedElsewhere:
+    "Diese Tabelle wurde an anderer Stelle geändert. Ihre Änderungen unter Edit Spreadsheet Data sind noch nicht übernommen; wenn Sie sie übernehmen, ersetzen sie diese Änderung.",
   invalidJsonAlert: (error) => `Ungültiges JSON-Format: ${error}`,
   unknownError: "Unbekannter Fehler",
   update: "Aktualisieren",

@@ -14,6 +14,8 @@ const es: Messages = {
   dataMustBeArray: "Los datos deben ser una matriz de hojas",
   loadFailed: (error) => `Error al cargar la hoja de cálculo: ${error}`,
   saveFailed: (error) => `Error al guardar la hoja de cálculo: ${error}`,
+  fileChangedElsewhere:
+    "Esta hoja de cálculo se modificó en otro lugar. Sus cambios en Edit Spreadsheet Data aún no se han aplicado; si los aplica, reemplazarán esa modificación.",
   invalidJsonAlert: (error) => `Formato JSON no válido: ${error}`,
   unknownError: "Error desconocido",
   update: "Actualizar",

@@ -14,6 +14,8 @@ const ptBR: Messages = {
   dataMustBeArray: "Os dados devem ser uma matriz de planilhas",
   loadFailed: (error) => `Falha ao carregar a planilha: ${error}`,
   saveFailed: (error) => `Falha ao salvar a planilha: ${error}`,
+  fileChangedElsewhere:
+    "Esta planilha foi alterada em outro lugar. Suas edições em Edit Spreadsheet Data ainda não foram aplicadas; aplicá-las substituirá essa alteração.",
   invalidJsonAlert: (error) => `Formato JSON inválido: ${error}`,
   unknownError: "Erro desconhecido",
   update: "Atualizar",

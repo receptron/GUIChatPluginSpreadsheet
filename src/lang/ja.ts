@@ -14,6 +14,8 @@ const ja: Messages = {
   dataMustBeArray: "データはシートの配列である必要があります",
   loadFailed: (error) => `スプレッドシートの読み込みに失敗: ${error}`,
   saveFailed: (error) => `スプレッドシートの保存に失敗: ${error}`,
+  fileChangedElsewhere:
+    "この表はほかの場所で書き換えられました。Edit Spreadsheet Data の編集はまだ適用されていません。適用すると、その書き換えを上書きします。",
   invalidJsonAlert: (error) => `不正な JSON 形式です: ${error}`,
   unknownError: "不明なエラー",
   update: "更新",
