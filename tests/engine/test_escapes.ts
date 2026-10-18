@@ -18,6 +18,13 @@ describe("isEscapedAt", () => {
   it("is false at the start of the text", () => {
     assert.equal(isEscapedAt('"', 0), false);
   });
+
+  // A run this long overflowed the stack when the run was counted recursively.
+  it("counts a very long run without overflowing", () => {
+    const LONG_RUN = 200_000;
+    assert.equal(isEscapedAt(`${"\\".repeat(LONG_RUN)}"`, LONG_RUN), false);
+    assert.equal(isEscapedAt(`${"\\".repeat(LONG_RUN + 1)}"`, LONG_RUN + 1), true);
+  });
 });
 
 // A1 holds the text under test, formula in B1.

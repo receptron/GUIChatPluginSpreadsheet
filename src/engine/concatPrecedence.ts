@@ -26,8 +26,7 @@ function placesOf(expr: string): Place[] {
   // UTF-16 units, not code points: every index here is handed to slice() and
   // isEscapedAt(), which count units, so an emoji before `&` must not shift them.
   return expr.split("").map((char, index) => {
-    const escaped = isEscapedAt(expr, index);
-    const opensOrCloses = !escaped && isQuote(char) && (state.quote === "" || state.quote === char);
+    const opensOrCloses = isQuote(char) && !isEscapedAt(expr, index) && (state.quote === "" || state.quote === char);
     const inLiteral = state.quote !== "" || opensOrCloses;
     if (opensOrCloses) state.quote = state.quote === "" ? char : "";
     if (!inLiteral && char === ")") state.depth -= 1;
@@ -95,10 +94,12 @@ function translate(expr: string): string {
 /**
  * Excel `&` → a JS expression that concatenates with Excel's precedence.
  *
- * Falls back to the plain in-place rewrite when the expression compares (`=`,
- * `<`, `>` outside a literal), which a concatenation would have to bind tighter
- * than, or when an operand is empty (a leading or trailing `&`), which has no
- * Excel meaning to preserve.
+ * Returns the plain in-place rewrite when the expression compares (`=`, `<`, `>`
+ * outside a literal) or an operand is empty (a leading or trailing `&`). The
+ * evaluator's concatenation gate rejects that rewrite, so those formulas come out
+ * exactly as they did before: comparing a joined string needs text comparison,
+ * which the evaluator does not have, and treating `&` as `+` there would answer
+ * `=A1&B1=3` TRUE where Excel compares "12" with 3.
  */
 export function concatToSum(expr: string): string {
   const places = placesOf(expr);

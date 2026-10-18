@@ -35,8 +35,7 @@ export function replaceConcatOperator(expr: string): string {
   const out: string[] = [];
   let openQuote = "";
   chars.forEach((char, index) => {
-    const escaped = isEscapedAt(expr, index);
-    if (!escaped && (char === '"' || char === "'")) {
+    if ((char === '"' || char === "'") && !isEscapedAt(expr, index)) {
       openQuote = toggleQuote(openQuote, char);
     }
     out.push(char === "&" && openQuote === "" ? "+" : char);

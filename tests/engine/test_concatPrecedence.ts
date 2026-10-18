@@ -62,6 +62,14 @@ describe("& joins as text whatever the operands are", () => {
   });
 });
 
+describe("a comparison with & is not read as addition", () => {
+  // Excel compares the joined text "23" with 5, which is FALSE; adding would say TRUE.
+  it("does not answer TRUE by adding the operands", () => {
+    assert.notEqual(evaluate("=A1&B1=5"), true);
+    assert.notEqual(evaluate("=A1&B1=5"), "TRUE");
+  });
+});
+
 describe("concatToSum", () => {
   it("parenthesises each operand and starts the join from a string", () => {
     assert.equal(concatToSum('"a"&1+2'), '(""+("a")+(1+2))');
