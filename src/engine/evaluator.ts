@@ -7,7 +7,8 @@
 import { functionRegistry, isCallableName, tooFewArgumentsError } from "./registry";
 import type { CellValue } from "./types";
 import { parseDate } from "./date-parser";
-import { caretToPow, replaceConcatOperator, rewriteComparisonEq, isSafeArithmetic, isSafeComparison } from "./translateFormula";
+import { concatToSum } from "./concatPrecedence";
+import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison } from "./translateFormula";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
 
@@ -453,9 +454,7 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
   // Replace ^ with ** for exponentiation
   expr = caretToPow(expr);
 
-  // Check if this is a string concatenation expression (contains & and quoted strings)
   const hasStringConcat = expr.includes("&");
-  const hasQuotedStrings = /["']/.test(expr);
 
   // If it contains string concatenation, handle it specially. Convert & to +
   // for JS concatenation (leaving any & inside a literal untouched), then
@@ -463,8 +462,10 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
   // character, so masking is what lets `=A1&"!"` and escaped operands through
   // while still rejecting a genuinely unsafe expression. A non-safe structure
   // falls through to the paths below rather than erroring.
-  if (hasStringConcat && hasQuotedStrings) {
-    const result = replaceConcatOperator(expr);
+  // Numbers and booleans join too (`=A1&B1` with two numbers is "23", not 5),
+  // so a `&` is enough; the expression need not hold a quoted string.
+  if (hasStringConcat) {
+    const result = concatToSum(expr);
     if (isSafeConcatExpression(result)) {
       return evalValidatedExpression(result);
     }

@@ -102,8 +102,9 @@ describe("string concatenation through the engine (#2376)", () => {
   // A boolean operand (here A1 is the comparison `=1=1`) renders as `true`,
   // which the stricter safety gate used to reject — the concat came back as the
   // raw formula text instead of the joined value (Codex review).
+  // Joined as text, a boolean is written the way Excel writes it: TRUE.
   it("appends a literal to a boolean cell value", () => {
     const sheet: SheetData = { name: "S", data: [[{ v: "=1=1" }, { v: '=A1&"!"' }]] };
-    assert.equal(cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 1), "true!");
+    assert.equal(cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 1), "TRUE!");
   });
 });
