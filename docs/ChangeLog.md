@@ -1,5 +1,23 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@4.1.0 — 2026-10-19
+
+Analysis functions, and a way for another plugin to read a calculated range.
+
+- **14 new statistical functions** (#68, fixes #67): `CORREL`, `SLOPE`, `INTERCEPT`, `RSQ`, `PERCENTILE`, `QUARTILE`, `LARGE`, `SMALL`, `RANK`, `STDEVP`, `VARP`, `SUMIFS`, `COUNTIFS`, `AVERAGEIFS`. They used to evaluate to `#NAME?`, so hosts had to compute these in a script and paste the result in as a value that never recalculated.
+  - `PERCENTILE` / `QUARTILE` interpolate like Excel's `PERCENTILE.INC` / `QUARTILE.INC`.
+  - The paired functions (`CORREL` and the regression ones) pair two ranges by position and skip a pair with a blank or text on either side. Ranges of different sizes give `#N/A`.
+  - `*IFS` read every range raw so the rows stay aligned. Ranges of different sizes give `#VALUE!`. `AVERAGEIFS` leaves out matched cells that hold no number.
+  - Checked against the worked examples in Microsoft's documentation, and against simple-statistics on generated data.
+- **`calculatedRange` / `readCalculatedRange` from `./core`** (#70, fixes #69): return a range of a saved workbook (`Data!A1:C13`) as calculated rows, so another plugin — a chart — can draw from the sheet instead of a copy of its numbers. The engine now ships in the `./core` entry.
+  - A number formatted as text (`1,200`, `25.0%`) comes back as a number.
+  - A date comes back as its displayed text.
+  - Blanks and cells beyond the data come back as `null`, and error cells as their code.
+  - Ranges are capped at `MAX_RANGE_CELLS`, and `readCalculatedRange` accepts only paths under `artifacts/spreadsheets/`.
+- **Docs** (#66): `docs/ChangeLog.md` records 4.0.2.
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.1.0`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.1.0)
+
 ## @gui-chat-plugin/spreadsheet@4.0.2 — 2026-10-18
 
 Node.js 22 is supported again. 4.0.0 raised `engines` to `node >=24`, which made Yarn v1 refuse to install the package on Node 22; only the development tooling needed Node 24.
