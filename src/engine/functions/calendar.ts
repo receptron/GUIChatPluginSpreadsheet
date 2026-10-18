@@ -1,25 +1,59 @@
 /**
  * Calendar functions: WEEKDAY, DAYS, EDATE, EOMONTH, WORKDAY, NETWORKDAYS. The
  * rules live in date-calendar.ts; this file reads the arguments.
+ *
+ * Arguments are read strictly, as Excel does: a date given as text has already
+ * become a serial when the argument is evaluated, so text that is still text is
+ * #VALUE!, and an error in an argument is the function's answer.
  */
 
-import { functionRegistry, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
-import { collectNumericValues } from "./statistical";
+import { functionRegistry, rawRangeReader, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
 import { addMonths, addWorkdays, countWorkdays, daysBetween, endOfMonth, weekdayOf } from "../date-calendar";
+import { holdsNumber, toScalarNumber } from "../numericCoercion";
+import { isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
 
-const serialArg = (args: string[], context: FunctionContext, index: number): number => toNumber(context.evaluateFormula(requiredArg(context, args, index)));
+const numberArg = (args: string[], context: FunctionContext, index: number): number | SpreadsheetError =>
+  toScalarNumber(context.evaluateFormula(requiredArg(context, args, index)));
 
-/** The holiday dates in the optional argument at `index` — a range, or one date — or none. */
-const holidaysArg = (args: string[], context: FunctionContext, index: number): number[] =>
-  args.length > index ? collectNumericValues([requiredArg(context, args, index)], context) : [];
+/** The numbers, or the first error among them. */
+const numbersOrError = (values: (number | SpreadsheetError)[]): number[] | SpreadsheetError =>
+  values.find(isSpreadsheetErrorValue) ?? values.filter((value): value is number => typeof value === "number");
 
-const weekdayHandler: FunctionHandler = (args, context) => weekdayOf(serialArg(args, context, 0), args.length > 1 ? serialArg(args, context, 1) : 1);
-const daysHandler: FunctionHandler = (args, context) => daysBetween(serialArg(args, context, 0), serialArg(args, context, 1));
-const edateHandler: FunctionHandler = (args, context) => addMonths(serialArg(args, context, 0), serialArg(args, context, 1));
-const eomonthHandler: FunctionHandler = (args, context) => endOfMonth(serialArg(args, context, 0), serialArg(args, context, 1));
-const workdayHandler: FunctionHandler = (args, context) => addWorkdays(serialArg(args, context, 0), serialArg(args, context, 1), holidaysArg(args, context, 2));
-const networkdaysHandler: FunctionHandler = (args, context) =>
-  countWorkdays(serialArg(args, context, 0), serialArg(args, context, 1), holidaysArg(args, context, 2));
+/** The holiday dates in the optional argument at `index`: the numbers of a range
+ *  (blanks and text skipped, an error cell is the answer), or one date. */
+function holidaysArg(args: string[], context: FunctionContext, index: number): number[] | SpreadsheetError {
+  if (args.length <= index) return [];
+  const cells = rawRangeReader(context)(requiredArg(context, args, index));
+  if (cells.length === 0) return numbersOrError([numberArg(args, context, index)]);
+  return cells.find(isSpreadsheetErrorValue) ?? cells.filter(holdsNumber).map(toNumber);
+}
+
+const weekdayHandler: FunctionHandler = (args, context) => {
+  const values = numbersOrError([numberArg(args, context, 0), args.length > 1 ? numberArg(args, context, 1) : 1]);
+  if (isSpreadsheetErrorValue(values)) return values;
+  const [serial = 0, returnType = 1] = values;
+  return weekdayOf(serial, returnType);
+};
+
+const pairHandler =
+  (rule: (first: number, second: number) => number | SpreadsheetError): FunctionHandler =>
+  (args, context) => {
+    const values = numbersOrError([numberArg(args, context, 0), numberArg(args, context, 1)]);
+    if (isSpreadsheetErrorValue(values)) return values;
+    const [first = 0, second = 0] = values;
+    return rule(first, second);
+  };
+
+const withHolidays =
+  (rule: (first: number, second: number, holidays: number[]) => number | SpreadsheetError): FunctionHandler =>
+  (args, context) => {
+    const values = numbersOrError([numberArg(args, context, 0), numberArg(args, context, 1)]);
+    if (isSpreadsheetErrorValue(values)) return values;
+    const holidays = holidaysArg(args, context, 2);
+    if (isSpreadsheetErrorValue(holidays)) return holidays;
+    const [first = 0, second = 0] = values;
+    return rule(first, second, holidays);
+  };
 
 const CALENDAR_FUNCTIONS = [
   {
@@ -30,10 +64,17 @@ const CALENDAR_FUNCTIONS = [
     description: "Returns the day of the week (1 = Sunday by default)",
     examples: ["WEEKDAY(A2)", "WEEKDAY(A2, 2)"],
   },
-  { name: "DAYS", handler: daysHandler, minArgs: 2, maxArgs: 2, description: "Returns the number of days between two dates", examples: ["DAYS(B2, A2)"] },
+  {
+    name: "DAYS",
+    handler: pairHandler(daysBetween),
+    minArgs: 2,
+    maxArgs: 2,
+    description: "Returns the number of days between two dates",
+    examples: ["DAYS(B2, A2)"],
+  },
   {
     name: "EDATE",
-    handler: edateHandler,
+    handler: pairHandler(addMonths),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the date a number of months before or after a date",
@@ -41,7 +82,7 @@ const CALENDAR_FUNCTIONS = [
   },
   {
     name: "EOMONTH",
-    handler: eomonthHandler,
+    handler: pairHandler(endOfMonth),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the last day of the month a number of months away",
@@ -49,7 +90,7 @@ const CALENDAR_FUNCTIONS = [
   },
   {
     name: "WORKDAY",
-    handler: workdayHandler,
+    handler: withHolidays(addWorkdays),
     minArgs: 2,
     maxArgs: 3,
     description: "Returns the date a number of working days away, skipping weekends and holidays",
@@ -57,7 +98,7 @@ const CALENDAR_FUNCTIONS = [
   },
   {
     name: "NETWORKDAYS",
-    handler: networkdaysHandler,
+    handler: withHolidays(countWorkdays),
     minArgs: 2,
     maxArgs: 3,
     description: "Returns the number of working days between two dates, both included",

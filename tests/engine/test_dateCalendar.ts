@@ -4,7 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { addMonths, addWorkdays, countWorkdays, daysBetween, endOfMonth, weekdayOf } from "../../src/engine/date-calendar.ts";
+import { addMonths, addWorkdays, countWorkdays, daysBetween, endOfMonth, LAST_SERIAL, weekdayOf } from "../../src/engine/date-calendar.ts";
 import { dateToSerial } from "../../src/engine/date-utils.ts";
 import { NUM_ERROR } from "../../src/engine/spreadsheet-errors.ts";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
@@ -111,6 +111,43 @@ const evaluateInSheet = (formula: string): unknown => {
   return cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 4);
 };
 
+describe("edges of the calendar rules", () => {
+  it("covers every WEEKDAY return type on a Thursday", () => {
+    const thursday = serial(2008, 2, 14);
+    const expected: Record<number, number> = { 1: 5, 2: 4, 3: 3, 11: 4, 12: 3, 13: 2, 14: 1, 15: 7, 16: 6, 17: 5 };
+    Object.entries(expected).forEach(([type, day]) => assert.equal(weekdayOf(thursday, Number(type)), day, `type ${type}`));
+  });
+
+  it("drops the time of day before deciding NETWORKDAYS' order", () => {
+    const friday = serial(2026, 10, 23);
+    assert.equal(countWorkdays(friday + 0.9, friday + 0.1), 1);
+  });
+
+  it("counts a holiday once, and not at all on a weekend or outside the span", () => {
+    const monday = serial(2026, 10, 19);
+    const saturday = serial(2026, 10, 24);
+    assert.equal(countWorkdays(monday, monday + 6, [monday, monday, saturday, monday + 30]), 4);
+  });
+
+  it("agrees with a day-by-day count over generated spans", () => {
+    const isWeekday = (day: number): boolean => weekdayOf(day, 2) !== NUM_ERROR && Number(weekdayOf(day, 2)) <= 5;
+    const seed = { value: 11 };
+    const next = (): number => (seed.value = (seed.value * 16807) % 2147483647) / 2147483647;
+    Array.from({ length: 300 }, (): [number, number] => [Math.floor(40000 + next() * 4000), Math.floor(next() * 400)]).forEach(([start, length]) => {
+      const naive = Array.from({ length: length + 1 }, (_, offset) => start + offset).filter(isWeekday).length;
+      assert.equal(countWorkdays(start, start + length), naive, `${start}+${length}`);
+    });
+  });
+
+  it("answers #NUM! outside Excel's dates, quickly, for huge spans", () => {
+    assert.equal(countWorkdays(1, 1_000_000_000), NUM_ERROR);
+    assert.equal(addWorkdays(serial(2026, 1, 1), 1_000_000_000), NUM_ERROR);
+    assert.equal(addMonths(LAST_SERIAL, 1), NUM_ERROR);
+    assert.equal(daysBetween(-1, 1), NUM_ERROR);
+    assert.equal(typeof countWorkdays(0, LAST_SERIAL), "number");
+  });
+});
+
 describe("through the engine", () => {
   it("reads holidays from a range or a single date", () => {
     assert.equal(evaluateInSheet("=WORKDAY(DATE(2008,10,1),151,A2:C2)"), "05/05/2009");
@@ -122,6 +159,22 @@ describe("through the engine", () => {
     assert.equal(evaluateInSheet("=1+QUARTILE.INC(A1:D1,1)"), 2.75);
     assert.equal(evaluateInSheet("=stdev.p(A1:D1)"), Math.sqrt(1.25));
     assert.equal(evaluateInSheet("=RANK.EQ(3,A1:D1)"), 2);
+  });
+
+  it("reads every alias as its function", () => {
+    assert.equal(evaluateInSheet("=STDEV.S(A1:D1)"), evaluateInSheet("=STDEV(A1:D1)"));
+    assert.equal(evaluateInSheet("=VAR.S(A1:D1)"), evaluateInSheet("=VAR(A1:D1)"));
+    assert.equal(evaluateInSheet("=VAR.P(A1:D1)"), 1.25);
+  });
+
+  it("answers #VALUE! for text that is not a date, and passes an error through", () => {
+    assert.equal(evaluateInSheet('=DAYS("not a date",1)'), "#VALUE!");
+    assert.equal(evaluateInSheet("=WEEKDAY(1/0)"), "#DIV/0!");
+    assert.equal(evaluateInSheet("=NETWORKDAYS(DATE(2026,1,1),DATE(2026,1,31),1/0)"), "#DIV/0!");
+  });
+
+  it("reads a date written as text", () => {
+    assert.equal(evaluateInSheet('=DAYS("2021-03-15","2021-02-01")'), 42);
   });
 
   it("answers #NAME? for an unknown dotted name", () => {
