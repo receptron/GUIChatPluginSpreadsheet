@@ -324,6 +324,7 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
         getRangeValues: context.getRangeValues,
         getRangeValuesRaw: context.getRangeValuesRaw,
         evaluateFormula: context.evaluateFormula,
+        preferDDMMYYYY: context.preferDDMMYYYY,
       });
     }
 
