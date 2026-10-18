@@ -6,6 +6,7 @@
  */
 
 import "./statistical";
+import "./statistical-analysis";
 import "./mathematical";
 import "./logical";
 import "./text";

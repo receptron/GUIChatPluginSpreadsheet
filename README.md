@@ -118,7 +118,7 @@ The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to loa
 `HLOOKUP`, `INDEX`, `MATCH`, `VLOOKUP`, `XLOOKUP`
 
 ### Statistical
-`AVERAGE`, `AVERAGEIF`, `COUNT`, `COUNTA`, `COUNTIF`, `MAX`, `MEDIAN`, `MIN`, `MODE`, `STDEV`, `SUM`, `SUMIF`, `VAR`
+`AVERAGE`, `AVERAGEIF`, `AVERAGEIFS`, `CORREL`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `INTERCEPT`, `LARGE`, `MAX`, `MEDIAN`, `MIN`, `MODE`, `PERCENTILE`, `QUARTILE`, `RANK`, `RSQ`, `SLOPE`, `SMALL`, `STDEV`, `STDEVP`, `SUM`, `SUMIF`, `SUMIFS`, `VAR`, `VARP`
 
 ### Financial
 `FV`, `IPMT`, `IRR`, `NPER`, `NPV`, `PMT`, `PPMT`, `PV`, `RATE`
