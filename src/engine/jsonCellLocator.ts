@@ -1,3 +1,4 @@
+import { isEscapedAt } from "./escapes";
 /**
  * Locate the start offset of a specific cell value inside a
  * pretty-printed JSON spreadsheet document. Extracted from
@@ -24,11 +25,10 @@ function findRowOpenBracket(text: string, startPos: number, rowIndex: number): n
   let inString = false;
   for (let i = startPos; i < text.length; i++) {
     const c = text[i];
-    const prevChar = i > 0 ? text[i - 1] : "";
     // Track string literal boundaries so that a `[` inside a cell
     // value like `"has [bracket]"` doesn't get mistaken for a row
     // opener and throw off the row offset.
-    if (c === '"' && prevChar !== "\\") {
+    if (c === '"' && !isEscapedAt(text, i)) {
       inString = !inString;
       continue;
     }
@@ -52,9 +52,7 @@ function findCellStartWithinRow(text: string, rowStart: number, colIndex: number
 
   for (let i = rowStart; i < text.length; i++) {
     const c = text[i];
-    const prevChar = i > 0 ? text[i - 1] : "";
-
-    if (c === '"' && prevChar !== "\\") {
+    if (c === '"' && !isEscapedAt(text, i)) {
       inString = !inString;
     }
 
