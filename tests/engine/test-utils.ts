@@ -83,3 +83,14 @@ export function createContext(data: Array<Array<string | number>>): Map<string, 
   );
   return sheets;
 }
+
+const PV_MONTHLY_INCOME = 1000;
+const PV_ANNUAL_RATE = 0.05;
+const PV_MONTHS = 12;
+
+/** The PV analysis sheet's B5, computed without the engine and formatted as `$#,##0.00`. */
+export function expectedPvAnalysisTotal(): string {
+  const monthlyRate = PV_ANNUAL_RATE / PV_MONTHS;
+  const total = Array.from({ length: PV_MONTHS }, (_, index) => PV_MONTHLY_INCOME / (1 + monthlyRate) ** (index + 1)).reduce((sum, value) => sum + value, 0);
+  return `$${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}

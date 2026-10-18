@@ -46,7 +46,8 @@
     "test:evaluator": "tsx tests/engine/run-evaluator-tests.ts",
     "test:functions": "tsx tests/engine/test-functions.ts",
     "test:all": "vitest run && yarn run test:engine && tsx tests/engine/run-all-fixtures.ts",
-    "test:suites": "yarn run test:all && yarn run test:calculator && yarn run test:evaluator && yarn run test:functions",
+    "test:scripts": "tsx tests/engine/run-formatter-tests.ts && tsx tests/engine/run-lowercase-test.ts && tsx tests/engine/run-pv-analysis-test.ts && tsx tests/engine/run-recalc-test.ts",
+    "test:suites": "yarn run test:all && yarn run test:calculator && yarn run test:evaluator && yarn run test:functions && yarn run test:scripts",
     "test:coverage": "c8 yarn run test:suites"
   },
   "peerDependencies": {

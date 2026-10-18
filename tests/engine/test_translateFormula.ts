@@ -163,12 +163,12 @@ describe("isSafeComparison", () => {
   });
 });
 
+const calc = (formula: string): unknown => cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: formula }]] } satisfies SheetData).data, 0, 0);
+
 // End-to-end characterization: the pure functions compose inside the evaluator
 // to the exact behaviour observed before the extraction. Includes the
 // intentionally-wrong cases so the eventual #2359 fix shows up as a diff here.
 describe("translation through the engine (characterization)", () => {
-  const calc = (formula: string): unknown => cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: formula }]] } satisfies SheetData).data, 0, 0);
-
   it("exponentiates (and keeps the JS-associativity quirk)", () => {
     assert.equal(calc("=2^3"), 8);
     assert.equal(calc("=2^3^2"), 512);

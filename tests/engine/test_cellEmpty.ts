@@ -58,33 +58,34 @@ describe("isEmptyCell — not empty", () => {
   });
 });
 
+// 10, 20, 30 followed by two blanks. Excel divides by 3 and counts 3.
+const withBlanks = (formula: string): SheetData => ({
+  name: "S",
+  data: [[{ v: 10 }, { v: formula }], [{ v: 20 }], [{ v: 30 }], [{ v: "" }], [{ v: null } as unknown as SpreadsheetCell]],
+});
+
+const calculateWithBlanks = (formula: string): unknown => cellAt(new SpreadsheetEngine().calculate(withBlanks(formula)).data, 0, 1);
+
 // The same distinction driven through the engine: an aggregate over a range
 // with blanks must count only the real values.
 describe("blank cells are not values in an aggregate (#2358)", () => {
-  // 10, 20, 30 followed by two blanks. Excel divides by 3 and counts 3.
-  const withBlanks = (formula: string): SheetData => ({
-    name: "S",
-    data: [[{ v: 10 }, { v: formula }], [{ v: 20 }], [{ v: 30 }], [{ v: "" }], [{ v: null } as unknown as SpreadsheetCell]],
-  });
-  const run = (formula: string): unknown => cellAt(new SpreadsheetEngine().calculate(withBlanks(formula)).data, 0, 1);
-
   it("excludes blanks from AVERAGE's denominator", () => {
-    assert.equal(run("=AVERAGE(A1:A5)"), 20, "not 15, which counts the two blanks as 0");
+    assert.equal(calculateWithBlanks("=AVERAGE(A1:A5)"), 20, "not 15, which counts the two blanks as 0");
   });
 
   it("excludes blanks from COUNT", () => {
-    assert.equal(run("=COUNT(A1:A5)"), 3, "not 4");
+    assert.equal(calculateWithBlanks("=COUNT(A1:A5)"), 3, "not 4");
   });
 
   // A blank would have read as 0, and 0 does not change a sum — so SUM is the
   // one aggregate the old behaviour got right, and it must stay right.
   it("leaves SUM unchanged", () => {
-    assert.equal(run("=SUM(A1:A5)"), 60);
+    assert.equal(calculateWithBlanks("=SUM(A1:A5)"), 60);
   });
 
   it("does not disturb MAX or MIN", () => {
-    assert.equal(run("=MAX(A1:A5)"), 30);
-    assert.equal(run("=MIN(A1:A5)"), 10);
+    assert.equal(calculateWithBlanks("=MAX(A1:A5)"), 30);
+    assert.equal(calculateWithBlanks("=MIN(A1:A5)"), 10);
   });
 
   // The line the fix walks: a stored 0 is a value and must still count, even

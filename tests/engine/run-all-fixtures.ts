@@ -22,17 +22,12 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { fileURLToPath } from "url";
 import { calculateSheet } from "../../src/engine/calculator";
 import { toStringArray, expectSheetOutput } from "./test-utils";
 import "../../src/engine/functions"; // Load all functions
 
-// Get current file's directory
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // Define fixture directories
-const FIXTURES_DIR = path.join(__dirname, "fixtures");
+const FIXTURES_DIR = path.join(import.meta.dirname, "fixtures");
 const INPUT_DIR = path.join(FIXTURES_DIR, "input");
 const EXPECTED_DIR = path.join(FIXTURES_DIR, "expected");
 
@@ -190,7 +185,7 @@ for (const inputFile of inputFiles) {
           const actualCell = actualRow[j] !== undefined ? String(actualRow[j]) : undefined;
 
           if (expectedCell !== actualCell) {
-            differences.push(`  Row ${i + 1}, Col ${j + 1}:\n` + `    Expected: "${expectedCell}"\n` + `    Actual:   "${actualCell}"`);
+            differences.push(`  Row ${i + 1}, Col ${j + 1}:\n    Expected: "${expectedCell}"\n    Actual:   "${actualCell}"`);
           }
         }
       }
