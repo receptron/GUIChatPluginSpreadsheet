@@ -3338,10 +3338,10 @@ sass-lookup@^6.1.2:
     commander "^12.1.0"
     enhanced-resolve "^5.20.0"
 
-scoria@^0.4.0:
-  version "0.4.0"
-  resolved "https://registry.yarnpkg.com/scoria/-/scoria-0.4.0.tgz#928eb92cd66770aa0b6748ce1a694a4606d48fce"
-  integrity sha512-SZQwvEDFSPUdLqv3G0zcE7qYPfnS/zVFybFFFwsPwuYWxBrPcGjRQs2i9C3+fFEHQa3xD1G0kjkiiiKDUOyEOg==
+scoria@^0.4.1:
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/scoria/-/scoria-0.4.1.tgz#32b03e3a65105af833b0dd6b62bae30f9d525282"
+  integrity sha512-2a9qSesLg67sn2JU+yjHQm5ltPsbwwEQqt/1+8g5yj3eL3X997PRShRNt5srYWIePZ4ry54HrGg6nc40Nqya5A==
   dependencies:
     jscpd "^4.0.5"
     knip "^6.35.1"
