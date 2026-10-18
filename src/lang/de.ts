@@ -16,6 +16,8 @@ const de: Messages = {
   saveFailed: (error) => `Speichern der Tabelle fehlgeschlagen: ${error}`,
   fileChangedElsewhere:
     "Diese Tabelle wurde an anderer Stelle geändert. Ihre Änderungen unter Edit Spreadsheet Data sind noch nicht übernommen; wenn Sie sie übernehmen, ersetzen sie diese Änderung.",
+  cellEditorClosedByChange:
+    "Diese Tabelle wurde an anderer Stelle geändert, daher wurde der Zelleditor geschlossen. Klicken Sie erneut auf die Zelle, um sie zu bearbeiten.",
   invalidJsonAlert: (error) => `Ungültiges JSON-Format: ${error}`,
   unknownError: "Unbekannter Fehler",
   update: "Aktualisieren",

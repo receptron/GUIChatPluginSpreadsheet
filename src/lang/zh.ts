@@ -15,6 +15,7 @@ const zh: Messages = {
   loadFailed: (error) => `加载电子表格失败: ${error}`,
   saveFailed: (error) => `保存电子表格失败: ${error}`,
   fileChangedElsewhere: "此表格已在其他地方被修改。Edit Spreadsheet Data 中的编辑尚未应用；应用后将覆盖该修改。",
+  cellEditorClosedByChange: "此表格已在其他地方被修改，因此已关闭单元格编辑器。请再次点击单元格进行编辑。",
   invalidJsonAlert: (error) => `无效的 JSON 格式: ${error}`,
   unknownError: "未知错误",
   update: "更新",

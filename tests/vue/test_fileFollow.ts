@@ -23,6 +23,12 @@ describe("fileChangeAction", () => {
     assert.equal(fileChangeAction(sheet(2), sheet(1), true), "hold");
   });
 
+  it("treats a save this View has sent but not seen finish as its own echo", () => {
+    assert.equal(fileChangeAction(sheet(2), sheet(1), true, [sheet(2)]), "same");
+    assert.equal(fileChangeAction(sheet(3), sheet(1), true, [sheet(2)]), "hold");
+    assert.equal(fileChangeAction(sheet(3), sheet(1), false, [sheet(2)]), "apply");
+  });
+
   it("treats a renamed sheet or an added row as a change", () => {
     assert.equal(fileChangeAction([{ name: "T", data: [[{ v: 1 }]] }], sheet(1), false), "apply");
     assert.equal(fileChangeAction([{ name: "S", data: [[{ v: 1 }], [{ v: 2 }]] }], sheet(1), false), "apply");

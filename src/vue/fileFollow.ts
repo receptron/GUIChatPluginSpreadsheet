@@ -9,7 +9,15 @@ import type { SpreadsheetSheet } from "../core/types";
  *  editor holds edits not yet applied, and replacing them would lose them. */
 export type FileChangeAction = "same" | "apply" | "hold";
 
-export function fileChangeAction(onDisk: SpreadsheetSheet[], shown: SpreadsheetSheet[], hasUnappliedEdits: boolean): FileChangeAction {
-  if (JSON.stringify(onDisk) === JSON.stringify(shown)) return "same";
+export function fileChangeAction(
+  onDisk: SpreadsheetSheet[],
+  shown: SpreadsheetSheet[],
+  hasUnappliedEdits: boolean,
+  savesInFlight: readonly SpreadsheetSheet[][] = [],
+): FileChangeAction {
+  const onDiskText = JSON.stringify(onDisk);
+  // A save this View has sent but not yet seen finish is its own echo too: the
+  // shown sheets catch up only when the save resolves.
+  if ([shown, ...savesInFlight].some((sheets) => JSON.stringify(sheets) === onDiskText)) return "same";
   return hasUnappliedEdits ? "hold" : "apply";
 }

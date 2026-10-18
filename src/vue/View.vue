@@ -224,7 +224,7 @@ const fileChangedNotice = ref("");
 async function refreshFromFile(path: string): Promise<void> {
   const outcome = await session.load(path);
   if (outcome?.kind !== "sheets" || props.selectedResult.data?.sheets !== path) return;
-  const action = fileChangeAction(outcome.sheets, resolvedSheets.value, hasChanges.value);
+  const action = fileChangeAction(outcome.sheets, resolvedSheets.value, hasChanges.value, savesInFlight);
   if (action === "same") return;
   if (action === "hold") {
     fileChangedNotice.value = t.value.fileChangedElsewhere;
@@ -232,8 +232,16 @@ async function refreshFromFile(path: string): Promise<void> {
   }
   resolvedSheets.value = outcome.sheets;
   editableData.value = JSON.stringify(outcome.sheets, null, 2);
-  fileChangedNotice.value = "";
+  // An open cell editor holds the old cell; its Update would write that over the
+  // change. It is closed, and the user told why, rather than left pointing at it.
+  const editorWasOpen = miniEditorOpen.value;
+  if (editorWasOpen) closeMiniEditor();
+  fileChangedNotice.value = editorWasOpen ? t.value.cellEditorClosedByChange : "";
 }
+
+/** The sheets of saves sent but not yet finished, so their own file notification
+ *  is recognised as this View's echo. */
+const savesInFlight: SpreadsheetSheet[][] = [];
 
 const fileSubscription: { stop: (() => void) | null } = { stop: null };
 
@@ -255,14 +263,19 @@ async function persistSheets(sheets: SpreadsheetSheet[]): Promise<void> {
   const raw = props.selectedResult.data?.sheets;
   const filePath = isSpreadsheetArtifactPath(raw) ? raw : null;
   if (filePath) {
+    savesInFlight.push(sheets);
     try {
       await session.save(filePath, sheets);
     } catch (error) {
       errorMessage.value = t.value.saveFailed(formatErrorMessage(error, t.value.unknownError));
       return;
+    } finally {
+      savesInFlight.splice(savesInFlight.indexOf(sheets), 1);
     }
     // The file is saved either way; only the result still on screen may take the edit.
     if (props.selectedResult.data?.sheets !== raw) return;
+    // What is saved is what is shown now, so a notice about an earlier version is stale.
+    fileChangedNotice.value = "";
   }
 
   resolvedSheets.value = sheets;
