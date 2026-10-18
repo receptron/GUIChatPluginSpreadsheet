@@ -11,7 +11,7 @@
  */
 
 import type { SpreadsheetCell } from "./types.js";
-import { isCallableName } from "./registry.js";
+import { FUNCTION_NAME_SOURCE, isCallableName } from "./registry.js";
 // Registers the functions, so isCallableName knows LOG10 before any sheet is calculated.
 import "./functions/index.js";
 
@@ -32,7 +32,7 @@ export interface MiniEditorInput {
 // Anchored at the start of the input (after optional unary +/-) so we
 // only treat expressions that clearly begin with a function call as
 // formulas. Unanchored would match "abc FOO(" inside ordinary text.
-const FORMULA_FUNCTION_CALL = /^[-+]?\s*([A-Z][A-Z0-9]*)\s*\(/i;
+const FORMULA_FUNCTION_CALL = new RegExp(`^[-+]?\\s*(${FUNCTION_NAME_SOURCE})\\s*\\(`, "i");
 
 const startsWithFunctionCall = (input: string): boolean => {
   const name = input.match(FORMULA_FUNCTION_CALL)?.[1];
