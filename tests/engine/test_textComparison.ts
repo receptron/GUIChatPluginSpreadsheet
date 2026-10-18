@@ -249,9 +249,11 @@ describe("comparisons through the engine", () => {
     assert.equal(calc('="x"=1/0'), "#DIV/0!");
   });
 
-  it("leaves IF's own condition reading alone", () => {
+  it("compares an IF condition the same way", () => {
     assert.equal(calc('=IF(A1&B1="12","y","n")'), "y");
-    assert.equal(calc('=IF(C1="x","y","n")'), "y");
+    assert.equal(calc('=IF(C1="X","y","n")'), "y");
+    assert.equal(calc('=IF(1="1","y","n")'), "n", "a number is not equal to its text");
+    assert.equal(calc('=IF(A1<>B1,"y","n")'), "y");
   });
 
   it("still reads a formula that is one literal as its text", () => {
