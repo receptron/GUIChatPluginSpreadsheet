@@ -4,7 +4,7 @@
 
 Node.js 22 is supported again. 4.0.0 raised `engines` to `node >=24`, which made Yarn v1 refuse to install the package on Node 22; only the development tooling needed Node 24.
 
-- **`engines: node >=22`** (#64): the published package needs nothing newer than Node 22. CI now also builds and runs the full test suite on Node 22 (Linux). The main matrix stays on Node 24 / 26 because installing the dev tooling (scoria) requires Node 24.
+- **`engines: node >=22`** (#65, #64): the published package needs nothing newer than Node 22. CI stays on Node 24 / 26, because installing the dev tooling (scoria) requires Node 24; the package's build and test suite were also run once on Node 22 (in #64) and passed, but there is no standing Node 22 job.
 - **Docs** (#62): `docs/ChangeLog.md` records 4.0.1.
 
 📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.0.2`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.0.2)
