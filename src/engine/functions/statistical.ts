@@ -68,7 +68,7 @@ const collectArgumentValues = (args: string[], context: FunctionContext, readRan
   return collected;
 };
 
-const collectNumericValues = (args: string[], context: FunctionContext): number[] =>
+export const collectNumericValues = (args: string[], context: FunctionContext): number[] =>
   collectArgumentValues(args, context, context.getRangeValues).map(({ value }) => toNumber(value));
 
 // Same walk as `collectNumericValues`, but keeping each cell as it is: COUNTA
