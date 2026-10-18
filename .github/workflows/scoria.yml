@@ -14,7 +14,7 @@ jobs:
   # The project's code runs only in the workflow's read-only job; see the workflow for how the
   # write permissions below are split between its upload and badge jobs.
   scoria:
-    uses: isamu/lab/.github/workflows/scoria-measure.yml@8e8a2ebe9b1a1909c894359cc0a33b168bbb4116
+    uses: isamu/lab/.github/workflows/scoria-measure.yml@776e7bf844fbf93545fec617d177e64e58a49a7b
     permissions:
       contents: write
       security-events: write
