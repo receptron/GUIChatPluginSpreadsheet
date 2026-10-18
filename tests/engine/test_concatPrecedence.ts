@@ -5,7 +5,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
-import { concatToSum } from "../../src/engine/concatPrecedence.ts";
+import { concatOperands, concatToSum } from "../../src/engine/concatPrecedence.ts";
 import { cellAt } from "./cellAccess.ts";
 
 // A1 = 2, B1 = 3, C1 = TRUE (a formula), formula in D1.
@@ -62,11 +62,31 @@ describe("& joins as text whatever the operands are", () => {
   });
 });
 
+describe("an arithmetic operand answers like an expression of its own", () => {
+  it("gives #DIV/0! instead of joining Infinity", () => {
+    assert.equal(evaluate('="a"&1/0'), "#DIV/0!");
+    assert.equal(evaluate("=A1&1/0"), "#DIV/0!");
+    assert.equal(evaluate('="a"&("b"&A1/0)'), "#DIV/0!");
+  });
+
+  it("still joins an operand that divides cleanly", () => {
+    assert.equal(evaluate('="a"&A1/4'), "a0.5");
+  });
+});
+
 describe("a comparison with & is not read as addition", () => {
   // Excel compares the joined text "23" with 5, which is FALSE; adding would say TRUE.
   it("does not answer TRUE by adding the operands", () => {
     assert.notEqual(evaluate("=A1&B1=5"), true);
     assert.notEqual(evaluate("=A1&B1=5"), "TRUE");
+  });
+});
+
+describe("concatOperands", () => {
+  it("lists the operands of every & level, nested groups included", () => {
+    assert.deepEqual(concatOperands('"a"&1/0'), ['"a"', "1/0"]);
+    assert.deepEqual(concatOperands('"a"&("b"&2/0)'), ['"a"', '("b"&2/0)', '"b"', "2/0"]);
+    assert.deepEqual(concatOperands("(1+2)*3"), []);
   });
 });
 

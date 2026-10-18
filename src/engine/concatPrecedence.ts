@@ -51,12 +51,17 @@ interface Assembly {
   cursor: number;
 }
 
-/** `expr` with the inside of every top-level `( … )` group translated too. */
-function translateGroups(expr: string): string {
+/** Where each top-level `( … )` group of `expr` opens and closes. */
+function topLevelGroups(expr: string): { open: number; close: number }[] {
   const places = placesOf(expr);
   const opens = places.flatMap((place, index) => (place.depth === 0 && isOperator(place, "(") ? [index] : []));
   const closeOf = (open: number): number => places.findIndex((place, index) => index > open && place.depth === 0 && isOperator(place, ")"));
-  const groups = opens.map((open) => ({ open, close: closeOf(open) })).filter(({ close }) => close > 0);
+  return opens.map((open) => ({ open, close: closeOf(open) })).filter(({ close }) => close > 0);
+}
+
+/** `expr` with the inside of every top-level `( … )` group translated too. */
+function translateGroups(expr: string): string {
+  const groups = topLevelGroups(expr);
   const start: Assembly = { pieces: [], cursor: 0 };
   const { pieces, cursor } = groups.reduce<Assembly>(
     (built, { open, close }) => ({
@@ -107,4 +112,13 @@ export function concatToSum(expr: string): string {
   const operands = topLevelOperands(expr);
   if (operands.length > 1 && operands.some((operand) => operand.trim() === "")) return replaceConcatOperator(expr);
   return translate(expr);
+}
+
+/** Every operand of every `&` in `expr`, nested groups included, so the evaluator
+ *  can check each one the way it checks an expression without `&`: joined as text,
+ *  `1/0` would read "Infinity" where Excel answers #DIV/0!. */
+export function concatOperands(expr: string): string[] {
+  const operands = topLevelOperands(expr);
+  const nested = operands.flatMap((operand) => topLevelGroups(operand).flatMap(({ open, close }) => concatOperands(operand.slice(open + 1, close))));
+  return operands.length > 1 ? [...operands, ...nested] : nested;
 }

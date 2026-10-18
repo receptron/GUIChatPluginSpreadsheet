@@ -7,7 +7,7 @@
 import { functionRegistry, isCallableName, tooFewArgumentsError } from "./registry";
 import type { CellValue } from "./types";
 import { parseDate } from "./date-parser";
-import { concatToSum } from "./concatPrecedence";
+import { concatOperands, concatToSum } from "./concatPrecedence";
 import { isEscapedAt } from "./escapes";
 import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison } from "./translateFormula";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
@@ -466,6 +466,8 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
   if (hasStringConcat) {
     const result = concatToSum(expr);
     if (isSafeConcatExpression(result)) {
+      // An arithmetic operand answers like an expression of its own: 1/0 is #DIV/0!.
+      concatOperands(expr).filter(isSafeArithmetic).forEach(evalValidatedExpression);
       return evalValidatedExpression(result);
     }
   }
