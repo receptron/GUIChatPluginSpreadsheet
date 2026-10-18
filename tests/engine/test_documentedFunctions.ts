@@ -11,7 +11,10 @@ import { SYSTEM_PROMPT, TOOL_DEFINITION } from "../../src/core/definition.ts";
 import { samples } from "../../src/core/samples.ts";
 
 const README_PATH = path.join(import.meta.dirname, "../../README.md");
-const FUNCTION_CALL = /\b([A-Z][A-Z0-9]*)\(/g;
+// Formulas start at "=" and end at the quote, backtick or line that closes them.
+const FORMULA = /=[^"`\n]*/g;
+// The engine upper-cases a name before looking it up, so match any case.
+const FUNCTION_CALL = /\b([A-Za-z][A-Za-z0-9]*)\(/g;
 
 /** `### Category` → the backticked names under it, within the README's "Supported Functions" section. */
 const readmeFunctionsByCategory = (readme: string): Map<string, string[]> => {
@@ -33,7 +36,17 @@ const readmeFunctionsByCategory = (readme: string): Map<string, string[]> => {
 const registeredByCategory = (): Map<string, string[]> =>
   new Map([...functionRegistry.getFunctionsByCategory()].map(([category, definitions]) => [category, definitions.map((definition) => definition.name).sort()]));
 
-const calledFunctions = (text: string): string[] => [...text.matchAll(FUNCTION_CALL)].map((match) => match[1] ?? "");
+const functionsIn = (formula: string): string[] => [...formula.matchAll(FUNCTION_CALL)].map((match) => match[1] ?? "");
+
+const calledFunctions = (text: string): string[] => [...text.matchAll(FORMULA)].flatMap((formula) => functionsIn(formula[0]));
+
+/** Every string value starting with "=" anywhere inside `value`. */
+const formulasIn = (value: unknown): string[] => {
+  if (typeof value === "string") return value.startsWith("=") ? [value] : [];
+  if (Array.isArray(value)) return value.flatMap(formulasIn);
+  if (typeof value === "object" && value !== null) return Object.values(value).flatMap(formulasIn);
+  return [];
+};
 
 /** The names in prose lists such as "functions (SUM, AVERAGE, IF, etc.)", which are not written as calls. */
 const listedFunctions = (text: string): string[] =>
@@ -61,7 +74,7 @@ describe("documented functions match the registry", () => {
   });
 
   it("the bundled samples only call registered functions", () => {
-    const called = calledFunctions(JSON.stringify(samples));
+    const called = formulasIn(samples).flatMap(functionsIn);
     assert.ok(called.length > 0, "the samples contain formulas");
     assert.deepEqual(
       called.filter((name) => !isRegistered(name)),
