@@ -160,21 +160,20 @@ export const locateSubstring = (find: string, within: string, start: number, opt
   return index === -1 ? VALUE_ERROR : index + 1; // 1-indexed position
 };
 
-const findHandler: FunctionHandler = (args, context) => {
-  const findText = toString(context.evaluateFormula(requiredArg(context, args, 0)));
-  const withinText = toString(context.evaluateFormula(requiredArg(context, args, 1)));
-  const startPos = args.length === 3 ? Number(context.evaluateFormula(requiredArg(context, args, 2))) - 1 : 0;
+// FIND and SEARCH differ only in whether case is ignored.
+const makeLocateHandler =
+  (caseInsensitive: boolean): FunctionHandler =>
+  (args, context) => {
+    const findText = toString(context.evaluateFormula(requiredArg(context, args, 0)));
+    const withinText = toString(context.evaluateFormula(requiredArg(context, args, 1)));
+    const startPos = args.length === 3 ? Number(context.evaluateFormula(requiredArg(context, args, 2))) - 1 : 0;
 
-  return locateSubstring(findText, withinText, startPos, { caseInsensitive: false });
-};
+    return locateSubstring(findText, withinText, startPos, { caseInsensitive });
+  };
 
-const searchHandler: FunctionHandler = (args, context) => {
-  const findText = toString(context.evaluateFormula(requiredArg(context, args, 0)));
-  const withinText = toString(context.evaluateFormula(requiredArg(context, args, 1)));
-  const startPos = args.length === 3 ? Number(context.evaluateFormula(requiredArg(context, args, 2))) - 1 : 0;
+const findHandler: FunctionHandler = makeLocateHandler(false);
 
-  return locateSubstring(findText, withinText, startPos, { caseInsensitive: true });
-};
+const searchHandler: FunctionHandler = makeLocateHandler(true);
 
 // A format code written as a literal still carries its quotes when it reaches
 // the handler.

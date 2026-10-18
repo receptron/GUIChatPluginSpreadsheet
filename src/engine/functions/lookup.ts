@@ -33,6 +33,11 @@ const lastIndexWhile = (values: CellValue[], keepGoing: (value: CellValue) => bo
   return (stop === -1 ? values.length : stop) - 1;
 };
 
+const compare = (a: CellValue, b: CellValue) => {
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a).localeCompare(String(b));
+};
+
 // Helper to find match index
 const findMatchIndex = (
   lookupValue: CellValue,
@@ -40,11 +45,6 @@ const findMatchIndex = (
   matchType: number = 1, // 1 = less than (sorted asc), 0 = exact, -1 = greater than (sorted desc)
   searchMode: number = 1, // 1 = first to last, -1 = last to first (for XLOOKUP)
 ): number => {
-  const compare = (a: CellValue, b: CellValue) => {
-    if (typeof a === "number" && typeof b === "number") return a - b;
-    return String(a).localeCompare(String(b));
-  };
-
   // Exact match
   if (matchType === 0) {
     // Handle wildcards for strings if it's an exact match request.
