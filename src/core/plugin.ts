@@ -26,7 +26,9 @@ function parseSheets(sheets: SpreadsheetArgs["sheets"] | string): SpreadsheetShe
     console.warn("Sheets was provided as a string and has been parsed to an array");
     return parsed;
   } catch (error) {
-    throw new Error(`Invalid sheets format: sheets must be an array, not a string. Parse error: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Invalid sheets format: sheets must be an array, not a string. Parse error: ${error instanceof Error ? error.message : String(error)}`, {
+      cause: error,
+    });
   }
 }
 

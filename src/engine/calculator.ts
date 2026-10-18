@@ -311,7 +311,7 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     return getRawValue(gridRow[col], isCurrentSheet ? { cells: gridRow, row, col } : undefined);
   };
 
-  const collectRangeValues = (range: string, options: { numericOnly: boolean }): CellValue[] => {
+  const collectRangeValues = (range: string, rangeOptions: { numericOnly: boolean }): CellValue[] => {
     const resolved = resolveSheetData(range);
     if (!resolved) return []; // Sheet not found → empty range
     const { sheetData, ref: rangeRef, isCurrentSheet } = resolved;
@@ -327,7 +327,7 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
         // Pass the position only if current sheet (for recursive evaluation)
         const rawValue = getRawValue(cell, isCurrentSheet ? { cells: gridRow, row, col } : undefined);
 
-        if (options.numericOnly) {
+        if (rangeOptions.numericOnly) {
           // A blank cell is not a value. Dropping it from the NUMERIC list keeps
           // SUM unchanged (a blank read as 0) while stopping it from inflating
           // AVERAGE's denominator and COUNT's tally (#2358). The raw list keeps

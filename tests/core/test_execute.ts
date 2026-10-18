@@ -67,6 +67,12 @@ describe("executeSpreadsheet without files.artifacts", () => {
     ["sheet without name", [{ data: [[{ v: 1 }]] }]],
     ["sheet without rows", [{ name: "S", data: [] }]],
   ];
+  it("keeps the JSON parse error as the cause of an unparseable string", async () => {
+    const args = { title: "T", sheets };
+    Object.assign(args, { sheets: "not json" });
+    await assert.rejects(executeSpreadsheet({}, args), (error: unknown) => error instanceof Error && error.cause instanceof SyntaxError);
+  });
+
   invalid.forEach(([label, value]) => {
     it(`throws for ${label}`, async () => {
       const args = { title: "T", sheets };

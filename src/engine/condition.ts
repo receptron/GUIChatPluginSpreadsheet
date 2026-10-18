@@ -21,6 +21,26 @@ export interface Comparison {
   right: string;
 }
 
+/** The positions of `text` outside any quoted string, skipping the quote
+ *  characters themselves and backslash-escaped characters inside a quote. */
+function* unquotedIndices(text: string): Generator<number> {
+  let quote: string | null = null;
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index];
+    if (quote !== null) {
+      if (char === "\\")
+        index++; // skip the escaped character
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    yield index;
+  }
+}
+
 /** Remove parentheses that wrap the WHOLE expression, repeatedly. `(1>0)` is
  *  the same condition as `1>0`, but `(A)=(B)` is not `A)=(B` — the leading `(`
  *  closes before the end, so it wraps only its own operand and must stay.
@@ -29,20 +49,9 @@ export function stripOuterParens(condition: string): string {
   let text = condition.trim();
   while (text.startsWith("(") && text.endsWith(")")) {
     let depth = 0;
-    let quote: string | null = null;
     let wrapsAll = true;
-    for (let index = 0; index < text.length; index++) {
+    for (const index of unquotedIndices(text)) {
       const char = text[index];
-      if (quote !== null) {
-        if (char === "\\")
-          index++; // skip the escaped character
-        else if (char === quote) quote = null;
-        continue;
-      }
-      if (char === '"' || char === "'") {
-        quote = char;
-        continue;
-      }
       if (char === "(") depth++;
       else if (char === ")") {
         depth--;
@@ -69,19 +78,7 @@ export function stripOuterParens(condition: string): string {
  *  of one string literal. */
 export function splitComparison(condition: string): Comparison | null {
   const text = stripOuterParens(condition);
-  let quote: string | null = null;
-  for (let index = 0; index < text.length; index++) {
-    const char = text[index];
-    if (quote !== null) {
-      if (char === "\\")
-        index++; // skip the escaped character
-      else if (char === quote) quote = null;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
+  for (const index of unquotedIndices(text)) {
     for (const operator of OPERATORS) {
       if (!text.startsWith(operator, index)) continue;
       return { left: text.slice(0, index).trim(), operator, right: text.slice(index + operator.length).trim() };
