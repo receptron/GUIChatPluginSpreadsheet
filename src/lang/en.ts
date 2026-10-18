@@ -14,6 +14,9 @@ const en: Messages = {
   dataMustBeArray: "Data must be an array of sheets",
   loadFailed: (error) => `Failed to load spreadsheet: ${error}`,
   saveFailed: (error) => `Failed to save spreadsheet: ${error}`,
+  fileChangedElsewhere:
+    "This spreadsheet was changed elsewhere. Your edits in Edit Spreadsheet Data are not applied yet; applying them will replace that change.",
+  cellEditorClosedByChange: "This spreadsheet was changed elsewhere, so the cell editor was closed. Click the cell again to edit it.",
   invalidJsonAlert: (error) => `Invalid JSON format: ${error}`,
   unknownError: "Unknown error",
   update: "Update",

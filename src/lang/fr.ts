@@ -14,6 +14,9 @@ const fr: Messages = {
   dataMustBeArray: "Les données doivent être un tableau de feuilles",
   loadFailed: (error) => `Échec du chargement du tableur : ${error}`,
   saveFailed: (error) => `Échec de l'enregistrement du tableur : ${error}`,
+  fileChangedElsewhere:
+    "Ce tableur a été modifié ailleurs. Vos modifications dans Edit Spreadsheet Data ne sont pas encore appliquées ; les appliquer remplacera cette modification.",
+  cellEditorClosedByChange: "Ce tableur a été modifié ailleurs, l’éditeur de cellule a donc été fermé. Cliquez à nouveau sur la cellule pour la modifier.",
   invalidJsonAlert: (error) => `Format JSON non valide : ${error}`,
   unknownError: "Erreur inconnue",
   update: "Mettre à jour",

@@ -25,6 +25,8 @@
             </button>
           </div>
 
+          <div v-if="fileChangedNotice" class="mb-2 rounded bg-amber-50 px-3 py-2 text-sm text-amber-800">{{ fileChangedNotice }}</div>
+
           <!-- Sheet tabs (if multiple sheets) -->
           <div v-if="resolvedSheets.length > 1" class="sheet-tabs">
             <button
@@ -114,6 +116,7 @@ import { getArrowKeyOffset, isWithinSheetBounds } from "./keyboardNav";
 import { escapeHtml, isCrossOriginHttpUrl } from "./htmlText";
 import { useT } from "../lang";
 import { createSheetSession, type LoadOutcome } from "./sheetSession";
+import { fileChangeAction } from "./fileFollow";
 
 // Import all spreadsheet functions to populate the function registry
 import "../engine/functions";
@@ -213,19 +216,66 @@ async function fetchSheets(resetActiveSheet: boolean): Promise<void> {
   if (resetActiveSheet) activeSheetIndex.value = 0;
 }
 
+const fileChangedNotice = ref("");
+
+/** Read the workbook again after the host said it changed on disk — an agent, or
+ *  another View, wrote it. Without this, this View kept the old sheets, and its
+ *  next edit saved them over the newer file. */
+async function refreshFromFile(path: string): Promise<void> {
+  const outcome = await session.load(path);
+  if (outcome?.kind !== "sheets" || props.selectedResult.data?.sheets !== path) return;
+  const action = fileChangeAction(outcome.sheets, resolvedSheets.value, hasChanges.value, savesInFlight);
+  if (action === "same") return;
+  if (action === "hold") {
+    fileChangedNotice.value = t.value.fileChangedElsewhere;
+    return;
+  }
+  resolvedSheets.value = outcome.sheets;
+  editableData.value = JSON.stringify(outcome.sheets, null, 2);
+  // An open cell editor holds the old cell; its Update would write that over the
+  // change. It is closed, and the user told why, rather than left pointing at it.
+  const editorWasOpen = miniEditorOpen.value;
+  if (editorWasOpen) closeMiniEditor();
+  fileChangedNotice.value = editorWasOpen ? t.value.cellEditorClosedByChange : "";
+}
+
+/** The sheets of saves sent but not yet finished, so their own file notification
+ *  is recognised as this View's echo. */
+const savesInFlight: SpreadsheetSheet[][] = [];
+
+const fileSubscription: { stop: (() => void) | null } = { stop: null };
+
+function stopFollowingFile(): void {
+  fileSubscription.stop?.();
+  fileSubscription.stop = null;
+}
+
+/** Subscribe to the workbook's file channel, replacing any earlier subscription. */
+function followFile(raw: unknown): void {
+  stopFollowingFile();
+  fileChangedNotice.value = "";
+  if (!runtime || !isSpreadsheetArtifactPath(raw)) return;
+  fileSubscription.stop = runtime.pubsub.subscribe(`file:${raw}`, () => void refreshFromFile(raw));
+}
+
 /** Persist edited sheets to disk when file-backed, and emit updateResult. */
 async function persistSheets(sheets: SpreadsheetSheet[]): Promise<void> {
   const raw = props.selectedResult.data?.sheets;
   const filePath = isSpreadsheetArtifactPath(raw) ? raw : null;
   if (filePath) {
+    savesInFlight.push(sheets);
     try {
       await session.save(filePath, sheets);
     } catch (error) {
       errorMessage.value = t.value.saveFailed(formatErrorMessage(error, t.value.unknownError));
       return;
+    } finally {
+      savesInFlight.splice(savesInFlight.indexOf(sheets), 1);
     }
     // The file is saved either way; only the result still on screen may take the edit.
     if (props.selectedResult.data?.sheets !== raw) return;
+    // What is saved is what is shown now, so a notice about an earlier version is stale.
+    fileChangedNotice.value = "";
   }
 
   resolvedSheets.value = sheets;
@@ -243,6 +293,7 @@ async function persistSheets(sheets: SpreadsheetSheet[]): Promise<void> {
 const activeSheetIndex = ref(0);
 
 void fetchSheets(false);
+followFile(props.selectedResult.data?.sheets);
 
 const editorTextarea = ref<HTMLTextAreaElement | null>(null);
 const editorDetails = ref<HTMLDetailsElement | null>(null);
@@ -571,8 +622,9 @@ async function applyChanges() {
 // Watch for external changes to selectedResult
 watch(
   () => props.selectedResult.data?.sheets,
-  () => {
+  (sheets) => {
     void fetchSheets(true);
+    followFile(sheets);
   },
 );
 
@@ -631,6 +683,7 @@ onMounted(() => {
 // Remove keyboard event listener on unmount
 onUnmounted(() => {
   document.removeEventListener("keydown", handleKeyboardNavigation);
+  stopFollowingFile();
 });
 </script>
 
