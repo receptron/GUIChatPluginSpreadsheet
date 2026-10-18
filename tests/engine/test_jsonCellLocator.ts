@@ -76,6 +76,14 @@ describe("findCellJsonPosition", () => {
     assert.ok(tricky.substring(pos).includes(`"v": "second"`));
   });
 
+  // JSON writes a value ending in a backslash as `"a\\"`: the closing quote follows
+  // an escaped backslash and does close the string.
+  it("finds the next cell after a value ending in a backslash", () => {
+    const text = JSON.stringify([{ name: "Sheet1", data: [[{ v: "a\\" }, { v: "second" }]] }], null, 2);
+    const secondCell = text.lastIndexOf("{", text.indexOf('"second"'));
+    assert.equal(findCellJsonPosition(text, "Sheet1", 0, 1), secondCell);
+  });
+
   it("picks the correct row when an earlier row contains '[' inside a string", () => {
     // Row 0 cell 0 contains a literal '[' — the naive counter would
     // treat that as an extra row opener and shift all subsequent

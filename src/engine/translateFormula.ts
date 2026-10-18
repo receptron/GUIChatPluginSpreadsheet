@@ -8,6 +8,8 @@
  * captured — every function here is input → output only.
  */
 
+import { isEscapedAt } from "./escapes";
+
 /** Excel `^` exponentiation → JS `**`.
  *
  * Excel's `^` is left-associative (`2^3^2` = `(2^3)^2` = 64); JS `**` is
@@ -33,8 +35,7 @@ export function replaceConcatOperator(expr: string): string {
   const out: string[] = [];
   let openQuote = "";
   chars.forEach((char, index) => {
-    const escaped = index > 0 && chars[index - 1] === "\\";
-    if (!escaped && (char === '"' || char === "'")) {
+    if ((char === '"' || char === "'") && !isEscapedAt(expr, index)) {
       openQuote = toggleQuote(openQuote, char);
     }
     out.push(char === "&" && openQuote === "" ? "+" : char);

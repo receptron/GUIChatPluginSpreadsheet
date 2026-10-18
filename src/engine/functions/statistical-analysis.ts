@@ -4,7 +4,7 @@
  * analysis-math.ts; this file reads the ranges and registers the names.
  */
 
-import { functionRegistry, parseCriteria, rawRangeReader, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
+import { criteriaArg, functionRegistry, rawRangeReader, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
 import { collectNumericValues } from "./statistical";
 import {
   correlation,
@@ -24,7 +24,7 @@ import {
   type RangeCondition,
 } from "./analysis-math";
 import { holdsNumber, toScalarNumber } from "../numericCoercion";
-import { DIV_ZERO_ERROR, type SpreadsheetError } from "../spreadsheet-errors";
+import { DIV_ZERO_ERROR, isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
 import type { CellValue } from "../types";
 
 const MAX_AGGREGATE_ARGS = 255;
@@ -62,21 +62,24 @@ const rankHandler: FunctionHandler = (args, context) => {
   return rankOf(target, collectNumericValues([requiredArg(context, args, 1)], context), order !== 0);
 };
 
-/** The `range, criteria` pairs starting at `first`. A range without its
- *  criteria is an arity error, raised by `requiredArg`. */
-const conditionsFrom = (args: string[], context: FunctionContext, first: number): RangeCondition[] => {
+/** The `range, criteria` pairs starting at `first`, or the first error a
+ *  criteria evaluated to. A range without its criteria is an arity error,
+ *  raised by `requiredArg`. */
+const conditionsFrom = (args: string[], context: FunctionContext, first: number): RangeCondition[] | SpreadsheetError => {
   const readRaw = rawRangeReader(context);
   const pairStarts = Array.from({ length: Math.ceil((args.length - first) / 2) }, (_, index) => first + index * 2);
-  return pairStarts.map((start) => ({
-    range: readRaw(requiredArg(context, args, start)),
-    matches: parseCriteria(requiredArg(context, args, start + 1).trim()),
-  }));
+  const conditions = pairStarts.map((start) => ({ range: readRaw(requiredArg(context, args, start)), matches: criteriaArg(context, args, start + 1) }));
+  const firstError = conditions.map(({ matches }) => matches).find(isSpreadsheetErrorValue);
+  if (firstError) return firstError;
+  return conditions.flatMap(({ range, matches }) => (typeof matches === "function" ? [{ range, matches }] : []));
 };
 
 /** The rows of the value range (argument 0) that meet every condition after it. */
 const matchedValues = (args: string[], context: FunctionContext): CellValue[] | SpreadsheetError => {
   const values = rawRangeReader(context)(requiredArg(context, args, 0));
-  const matched = rowsMeetingAll(values.length, conditionsFrom(args, context, 1));
+  const conditions = conditionsFrom(args, context, 1);
+  if (!Array.isArray(conditions)) return conditions;
+  const matched = rowsMeetingAll(values.length, conditions);
   return Array.isArray(matched) ? values.filter((_, row) => matched[row]) : matched;
 };
 
@@ -96,6 +99,7 @@ const averageifsHandler: FunctionHandler = (args, context) => {
 
 const countifsHandler: FunctionHandler = (args, context) => {
   const conditions = conditionsFrom(args, context, 0);
+  if (!Array.isArray(conditions)) return conditions;
   const matched = rowsMeetingAll(conditions[0]?.range.length ?? 0, conditions);
   return Array.isArray(matched) ? matched.filter(Boolean).length : matched;
 };
