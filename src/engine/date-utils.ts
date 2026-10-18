@@ -3,12 +3,15 @@
  *
  * Shared utilities for converting between JavaScript Date objects and Excel serial numbers.
  * Excel stores dates as sequential serial numbers so they can be used in calculations.
- * January 1, 1900 is serial number 1.
+ *
+ * Serial 0 is 1899-12-30 and the calendar is the real one, as in LibreOffice and Google
+ * Sheets: Excel's serial 60 is a 1900-02-29 that never existed, so its serials 1–59 sit
+ * one day later than these. From 1900-03-01 (serial 61) on, the two agree.
  */
 
 // Constants
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-// Excel base date: Dec 30, 1899 (to handle the 1900 leap year bug correctly)
+// Two days before 1900-01-01, so serials from 1900-03-01 on match Excel's without its phantom leap day.
 const EXCEL_BASE_DATE = new Date(Date.UTC(1899, 11, 30));
 
 /**
