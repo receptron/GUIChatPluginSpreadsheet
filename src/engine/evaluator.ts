@@ -13,6 +13,7 @@ import { parseDate } from "./date-parser";
 import { concatOperands, concatToSum } from "./concatPrecedence";
 import { isEscapedAt } from "./escapes";
 import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison } from "./translateFormula";
+import { foldComparisons, splitTopLevelComparisons } from "./textComparison";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
 
@@ -245,6 +246,38 @@ function evalValidatedExpression(jsExpr: string): CellValue {
   throw unknownError();
 }
 
+/** A `&` expression joined with Excel's precedence, or null when it holds no `&` or its structure
+ *  is not safe to run. The STRUCTURE is validated with literals masked — a literal may hold any
+ *  character, so masking is what lets `=A1&"!"` and escaped operands through while still
+ *  rejecting a genuinely unsafe expression. Numbers and booleans join too (`=A1&B1` with two
+ *  numbers is "23", not 5), so a `&` is enough; the expression need not hold a quoted string. */
+function evaluateConcat(expr: string): CellValue | null {
+  if (!expr.includes("&")) return null;
+  const result = concatToSum(expr);
+  if (!isSafeConcatExpression(result)) return null;
+  // An arithmetic operand answers like an expression of its own: 1/0 is #DIV/0!.
+  concatOperands(expr).filter(isSafeArithmetic).forEach(evalValidatedExpression);
+  return evalValidatedExpression(result);
+}
+
+const BOOLEAN_OPERAND = /^\(*\s*(true|false)\s*\)*$/i;
+
+/** Whether `operand` is one string literal and nothing else. */
+const isLoneLiteral = (operand: string): boolean => (operand.startsWith('"') || operand.startsWith("'")) && endOfStringLiteral(operand, 0) === operand.length;
+
+/** One side of a comparison as a value, or null when it is not one this evaluator can read — the
+ *  whole formula then comes back as its text, as it did before comparisons took text. */
+function comparisonOperandValue(operand: string): CellValue | null {
+  const booleanWord = BOOLEAN_OPERAND.exec(operand)?.[1];
+  if (booleanWord !== undefined) return booleanWord.toLowerCase() === "true";
+  const joined = evaluateConcat(operand);
+  if (joined !== null) return joined;
+  if (isSafeArithmetic(operand) || isLoneLiteral(operand)) return evalValidatedExpression(operand);
+  return null;
+}
+
+const isCellValue = (value: CellValue | null): value is CellValue => value !== null;
+
 /**
  * Evaluate a formula string
  *
@@ -263,13 +296,10 @@ function evalValidatedExpression(jsExpr: string): CellValue {
  * @returns Evaluated result (number or string)
  */
 export function evaluateFormula(formula: string, context: EvaluatorContext): CellValue {
-  // Handle string literals - remove surrounding quotes
-  // But NOT string concatenations (which contain & operators)
+  // A formula that is one string literal is its text. Only one: `"a"="b"` also
+  // starts and ends with a quote, and is a comparison.
   const trimmed = formula.trim();
-  if (
-    ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) &&
-    !trimmed.includes("&") // Exclude string concatenations
-  ) {
+  if (isLoneLiteral(trimmed)) {
     const stringValue = trimmed.slice(1, -1); // Remove first and last character (quotes)
 
     // Auto-parse date strings to serial numbers for compatibility with date arithmetic
@@ -456,24 +486,16 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
   // Replace ^ with ** for exponentiation
   expr = caretToPow(expr);
 
-  const hasStringConcat = expr.includes("&");
-
-  // If it contains string concatenation, handle it specially. Convert & to +
-  // for JS concatenation (leaving any & inside a literal untouched), then
-  // validate the STRUCTURE with literals masked — a literal may hold any
-  // character, so masking is what lets `=A1&"!"` and escaped operands through
-  // while still rejecting a genuinely unsafe expression. A non-safe structure
-  // falls through to the paths below rather than erroring.
-  // Numbers and booleans join too (`=A1&B1` with two numbers is "23", not 5),
-  // so a `&` is enough; the expression need not hold a quoted string.
-  if (hasStringConcat) {
-    const result = concatToSum(expr);
-    if (isSafeConcatExpression(result)) {
-      // An arithmetic operand answers like an expression of its own: 1/0 is #DIV/0!.
-      concatOperands(expr).filter(isSafeArithmetic).forEach(evalValidatedExpression);
-      return evalValidatedExpression(result);
-    }
+  // A top-level comparison compares each side's value the way Excel does: text,
+  // booleans and a `&` on a side included, `<>` included, a chain left to right.
+  const comparison = splitTopLevelComparisons(expr);
+  if (comparison) {
+    const values = comparison.operands.map(comparisonOperandValue);
+    if (values.every(isCellValue)) return foldComparisons(values, comparison.operators);
   }
+
+  const joined = evaluateConcat(expr);
+  if (joined !== null) return joined;
 
   // Safely evaluate comparison expressions (e.g., 5=6, (5)>(6)). The allowlist
   // (numbers, `= != < > <= >=`, parens, whitespace) gates the evaluation. It is
