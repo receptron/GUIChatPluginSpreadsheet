@@ -178,3 +178,13 @@ describe("a function name containing a digit", () => {
     assert.equal(evalFormula("=log10(1000)"), 3);
   });
 });
+
+// A call written inside a string literal is text: the scan for calls skips
+// literals, as the argument parser already does.
+describe("function-looking text inside a string literal", () => {
+  it("is concatenated as text, not evaluated", () => {
+    assert.equal(evalFormula('="x"&"SUM(1,2)"'), "xSUM(1,2)");
+    assert.equal(evalFormula('="x"&"LOG10(100)"'), "xLOG10(100)");
+    assert.equal(evalFormula('=LEN("ABS(-3)")'), 7);
+  });
+});
