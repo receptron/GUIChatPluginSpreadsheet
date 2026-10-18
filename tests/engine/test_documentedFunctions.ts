@@ -11,9 +11,10 @@ import { SYSTEM_PROMPT, TOOL_DEFINITION } from "../../src/core/definition.ts";
 import { samples } from "../../src/core/samples.ts";
 
 const README_PATH = path.join(import.meta.dirname, "../../README.md");
-// Formulas start at "=" and end at the quote, backtick or line that closes them.
-const FORMULA = /=[^"`\n]*/g;
-// The engine upper-cases a name before looking it up, so match any case.
+// The engine upper-cases a name before looking it up, so match any case. The
+// whole text is scanned rather than just the formulas in it, so a prose word
+// written directly before "(" fails the check too — deliberately, as a false
+// alarm is cheaper than a missed call.
 const FUNCTION_CALL = /\b([A-Za-z][A-Za-z0-9]*)\(/g;
 
 /** `### Category` → the backticked names under it, within the README's "Supported Functions" section. */
@@ -22,23 +23,22 @@ const readmeFunctionsByCategory = (readme: string): Map<string, string[]> => {
   assert.notEqual(start, -1, "README has a Supported Functions section");
   const end = readme.indexOf("\n## ", start + 1);
   const section = readme.slice(start, end === -1 ? undefined : end);
-  return new Map(
-    section
-      .split("\n### ")
-      .slice(1)
-      .map((block) => {
-        const [heading = "", ...lines] = block.split("\n");
-        return [heading.trim(), [...lines.join("\n").matchAll(/`([A-Z][A-Z0-9]*)`/g)].map((match) => match[1] ?? "").sort()];
-      }),
-  );
+  const entries = section
+    .split("\n### ")
+    .slice(1)
+    .map((block): [string, string[]] => {
+      const [heading = "", ...lines] = block.split("\n");
+      return [heading.trim(), [...lines.join("\n").matchAll(/`([A-Za-z][A-Za-z0-9]*)`/g)].map((match) => match[1] ?? "").sort()];
+    });
+  const headings = entries.map(([heading]) => heading);
+  assert.deepEqual(headings, [...new Set(headings)], "each category appears once");
+  return new Map(entries);
 };
 
 const registeredByCategory = (): Map<string, string[]> =>
   new Map([...functionRegistry.getFunctionsByCategory()].map(([category, definitions]) => [category, definitions.map((definition) => definition.name).sort()]));
 
 const functionsIn = (formula: string): string[] => [...formula.matchAll(FUNCTION_CALL)].map((match) => match[1] ?? "");
-
-const calledFunctions = (text: string): string[] => [...text.matchAll(FORMULA)].flatMap((formula) => functionsIn(formula[0]));
 
 /** Every string value starting with "=" anywhere inside `value`. */
 const formulasIn = (value: unknown): string[] => {
@@ -65,7 +65,7 @@ describe("documented functions match the registry", () => {
 
   it("the model guidance only calls registered functions", () => {
     const guidance = `${SYSTEM_PROMPT}\n${JSON.stringify(TOOL_DEFINITION)}`;
-    const called = [...calledFunctions(guidance), ...listedFunctions(guidance)];
+    const called = [...functionsIn(guidance), ...listedFunctions(guidance)];
     assert.ok(listedFunctions(guidance).length > 0, "the guidance lists functions");
     assert.deepEqual(
       called.filter((name) => !isRegistered(name)),
