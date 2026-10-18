@@ -76,10 +76,10 @@ describe("isSafeConcatExpression", () => {
   });
 });
 
-describe("string concatenation through the engine (#2376)", () => {
-  const concat = (cellValue: string): unknown =>
-    cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: cellValue }, { v: '=A1&"!"' }]] } satisfies SheetData).data, 0, 1);
+const concat = (cellValue: string): unknown =>
+  cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: cellValue }, { v: '=A1&"!"' }]] } satisfies SheetData).data, 0, 1);
 
+describe("string concatenation through the engine (#2376)", () => {
   // The plain case that was already broken: a `!` in the appended string made
   // the whole concat fail the allowlist and return the raw formula text.
   it("appends a literal to a plain string", () => {

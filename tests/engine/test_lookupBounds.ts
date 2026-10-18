@@ -97,16 +97,16 @@ describe("an out-of-range index outranks a missing key", () => {
   });
 });
 
-describe("single-line tables still reject index 0", () => {
-  // A one-column table is where INDEX's whole-line `0` would have slipped through.
-  const oneColumn = (formula: string): unknown => {
-    const sheet: SheetData = {
-      name: "S",
-      data: [[{ v: "a" }, { v: formula }], [{ v: "b" }]],
-    };
-    return cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 1);
+// A one-column table is where INDEX's whole-line `0` would have slipped through.
+const oneColumn = (formula: string): unknown => {
+  const sheet: SheetData = {
+    name: "S",
+    data: [[{ v: "a" }, { v: formula }], [{ v: "b" }]],
   };
+  return cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 1);
+};
 
+describe("single-line tables still reject index 0", () => {
   it("is #REF! for VLOOKUP with index 0 on a single-column table", () => {
     assert.equal(oneColumn('=VLOOKUP("a",A1:A2,0,FALSE)'), "#REF!");
   });

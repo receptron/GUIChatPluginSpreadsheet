@@ -1,0 +1,4 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["tests/**/test_*.ts", "tests/engine/run-*.ts", "tests/engine/test-functions.ts"]
+}

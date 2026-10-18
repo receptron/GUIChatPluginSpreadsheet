@@ -51,10 +51,10 @@ describe("coerceToBoolean", () => {
   });
 });
 
-describe("IF and AND/OR/NOT agree on the same value", () => {
-  const evalFormula = (formula: string): unknown =>
-    cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: formula }]] } satisfies SheetData).data, 0, 0);
+const evalFormula = (formula: string): unknown =>
+  cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: formula }]] } satisfies SheetData).data, 0, 0);
 
+describe("IF and AND/OR/NOT agree on the same value", () => {
   // Each value should send IF down the false branch exactly when AND/OR/NOT read
   // it as false. Previously IF("0") returned 1 while AND("0") returned false.
   for (const [literal, truthy] of [

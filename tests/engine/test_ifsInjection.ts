@@ -124,19 +124,19 @@ describe("IFS — absolute and mixed references resolve", () => {
   });
 });
 
-describe("IFS — a cell value ending in a backslash substitutes intact", () => {
-  // CodeQL js/double-escaping. `renderConditionOperand` escapes the backslash so
-  // a trailing `\` cannot escape the closing quote and corrupt the literal;
-  // substituting by position (not a regex) keeps it exactly once. A cell value
-  // `a\` is the sharp case — an unescaped one turns `"a\"` into an open literal.
-  const trailingBackslashSheet = (other: string): SheetData => ({
-    name: "S",
-    data: [
-      [{ v: "a\\" }, { v: '=IFS(A1=A2, "eq", TRUE, "ne")' }],
-      [{ v: other }, { v: 0 }],
-    ],
-  });
+// CodeQL js/double-escaping. `renderConditionOperand` escapes the backslash so
+// a trailing `\` cannot escape the closing quote and corrupt the literal;
+// substituting by position (not a regex) keeps it exactly once. A cell value
+// `a\` is the sharp case — an unescaped one turns `"a\"` into an open literal.
+const trailingBackslashSheet = (other: string): SheetData => ({
+  name: "S",
+  data: [
+    [{ v: "a\\" }, { v: '=IFS(A1=A2, "eq", TRUE, "ne")' }],
+    [{ v: other }, { v: 0 }],
+  ],
+});
 
+describe("IFS — a cell value ending in a backslash substitutes intact", () => {
   it("matches two cells that both end in a backslash", () => {
     assert.equal(cellAt(new SpreadsheetEngine().calculate(trailingBackslashSheet("a\\")).data, 0, 1), "eq");
   });

@@ -72,14 +72,14 @@ describe("parseCriteria — numbers and operators", () => {
   });
 });
 
-describe("COUNTIF through the engine", () => {
-  const countif = (values: string[], criteria: string): unknown => {
-    const rows = values.map((value) => [{ v: value }]);
-    rows.push([{ v: `=COUNTIF(A1:A${values.length}, "${criteria}")` }]);
-    const sheet: SheetData = { name: "S", data: rows };
-    return cellAt(new SpreadsheetEngine().calculate(sheet).data, values.length, 0);
-  };
+const countif = (values: string[], criteria: string): unknown => {
+  const rows = values.map((value) => [{ v: value }]);
+  rows.push([{ v: `=COUNTIF(A1:A${values.length}, "${criteria}")` }]);
+  const sheet: SheetData = { name: "S", data: rows };
+  return cellAt(new SpreadsheetEngine().calculate(sheet).data, values.length, 0);
+};
 
+describe("COUNTIF through the engine", () => {
   it("counts a case-differing match", () => {
     assert.equal(countif(["Yes", "no"], "yes"), 1);
   });

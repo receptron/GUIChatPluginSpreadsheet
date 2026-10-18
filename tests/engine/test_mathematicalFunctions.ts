@@ -135,10 +135,10 @@ describe("logWithBase — number and base domain", () => {
   });
 });
 
-describe("the handlers surface the errors end-to-end", () => {
-  const evalFormula = (formula: string): unknown =>
-    cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: formula }]] } satisfies SheetData).data, 0, 0);
+const evalFormula = (formula: string): unknown =>
+  cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: formula }]] } satisfies SheetData).data, 0, 0);
 
+describe("the handlers surface the errors end-to-end", () => {
   it("displays the Excel error codes through the engine", () => {
     assert.equal(evalFormula("=FLOOR(-2.5, 2)"), "#NUM!");
     assert.equal(evalFormula("=FLOOR(3, 0)"), "#DIV/0!");

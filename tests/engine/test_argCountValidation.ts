@@ -66,17 +66,17 @@ describe("#2397 removed handler guards — arity now enforced by the evaluator",
   });
 });
 
-describe("#2397 SUMIF / AVERAGEIF — arity fully expressed by registry [2,3], enforced by evaluator", () => {
-  // Formula in C1 so it never self-references the A/B ranges it reads.
-  const withData = (formula: string): SheetData => ({
-    name: "S",
-    data: [
-      [{ v: 1 }, { v: 10 }, { v: formula }],
-      [{ v: 2 }, { v: 20 }],
-      [{ v: 3 }, { v: 30 }],
-    ],
-  });
+// Formula in C1 so it never self-references the A/B ranges it reads.
+const withData = (formula: string): SheetData => ({
+  name: "S",
+  data: [
+    [{ v: 1 }, { v: 10 }, { v: formula }],
+    [{ v: 2 }, { v: 20 }],
+    [{ v: 3 }, { v: 30 }],
+  ],
+});
 
+describe("#2397 SUMIF / AVERAGEIF — arity fully expressed by registry [2,3], enforced by evaluator", () => {
   it("SUMIF with 1 arg is rejected with the consistent 'at least 2' message", () => {
     const { value, message } = cellResult(withData("=SUMIF(A1:A3)"), 0, 2);
     assert.equal(value, "#ERROR!");

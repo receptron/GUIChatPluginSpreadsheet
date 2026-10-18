@@ -64,10 +64,10 @@ describe("date order reaches the cell", () => {
   });
 });
 
-describe("date order reaches formulas", () => {
-  const formulaResult = (cells: string[], preferDDMMYYYY: boolean): unknown =>
-    rowAt(new SpreadsheetEngine({ preferDDMMYYYY }).calculate({ name: "S", data: [cells.map((cell) => ({ v: cell }))] }).data, 0).at(-1);
+const formulaResult = (cells: string[], preferDDMMYYYY: boolean): unknown =>
+  rowAt(new SpreadsheetEngine({ preferDDMMYYYY }).calculate({ name: "S", data: [cells.map((cell) => ({ v: cell }))] }).data, 0).at(-1);
 
+describe("date order reaches formulas", () => {
   // `DAY()` reads the serial, so it reports which number the parser took as the
   // day — the clearest observable difference between the two settings.
   it("applies the setting to a date held in a cell", () => {
