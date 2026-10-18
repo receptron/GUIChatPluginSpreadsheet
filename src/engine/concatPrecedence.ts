@@ -8,6 +8,7 @@
  * string concatenation whatever the operands are (`5&6` is `56`, not 11).
  */
 
+import { isEscapedAt } from "./escapes";
 import { replaceConcatOperator } from "./translateFormula";
 
 interface Place {
@@ -22,8 +23,8 @@ const isQuote = (char: string): boolean => char === '"' || char === "'";
 /** Each character with whether it sits in a string literal and how deeply it is nested. */
 function placesOf(expr: string): Place[] {
   const state = { quote: "", depth: 0 };
-  return [...expr].map((char, index, chars) => {
-    const escaped = index > 0 && chars[index - 1] === "\\";
+  return [...expr].map((char, index) => {
+    const escaped = isEscapedAt(expr, index);
     const opensOrCloses = !escaped && isQuote(char) && (state.quote === "" || state.quote === char);
     const inLiteral = state.quote !== "" || opensOrCloses;
     if (opensOrCloses) state.quote = state.quote === "" ? char : "";
@@ -70,7 +71,18 @@ function translateGroups(expr: string): string {
 // as text, Excel writes it TRUE / FALSE.
 const BOOLEAN_TEXT: Readonly<Record<string, string>> = { true: '"TRUE"', false: '"FALSE"' };
 
-const asConcatOperand = (operand: string): string => BOOLEAN_TEXT[operand.trim()] ?? operand;
+/** `operand` without the parentheses that wrap all of it: `((true))` → `true`. */
+function unwrapped(operand: string): string {
+  const trimmed = operand.trim();
+  const places = placesOf(trimmed);
+  const wrapsAll =
+    trimmed.startsWith("(") && places.findIndex((place, index) => index > 0 && place.depth === 0 && isOperator(place, ")")) === trimmed.length - 1;
+  return wrapsAll ? unwrapped(trimmed.slice(1, -1)) : trimmed;
+}
+
+// A function result or a cell can arrive wrapped, `(true)`, so the wrapper is
+// looked through before deciding the operand is a boolean.
+const asConcatOperand = (operand: string): string => BOOLEAN_TEXT[unwrapped(operand)] ?? operand;
 
 function translate(expr: string): string {
   const operands = topLevelOperands(expr).map(translateGroups);

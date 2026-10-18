@@ -44,6 +44,13 @@ describe("& joins as text whatever the operands are", () => {
     assert.equal(evaluate("=A1&C1"), "2TRUE");
   });
 
+  it("writes a boolean in parentheses, or returned by a function, as TRUE / FALSE", () => {
+    assert.equal(evaluate("=A1&(C1)"), "2TRUE");
+    assert.equal(evaluate("=A1&((C1))"), "2TRUE");
+    assert.equal(evaluate("=A1&NOT(1=2)"), "2TRUE");
+    assert.equal(evaluate('=AND(1=1,1=2)&"x"'), "FALSEx");
+  });
+
   it("leaves an & inside a literal alone", () => {
     assert.equal(evaluate('="x&y"&"z"'), "x&yz");
   });

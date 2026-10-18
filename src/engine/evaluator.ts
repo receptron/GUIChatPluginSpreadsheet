@@ -8,6 +8,7 @@ import { functionRegistry, isCallableName, tooFewArgumentsError } from "./regist
 import type { CellValue } from "./types";
 import { parseDate } from "./date-parser";
 import { concatToSum } from "./concatPrecedence";
+import { isEscapedAt } from "./escapes";
 import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison } from "./translateFormula";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
@@ -184,10 +185,8 @@ export function parseFunctionArgs(argsStr: string): string[] {
 
   for (let i = 0; i < argsStr.length; i++) {
     const char = argsStr[i];
-    const prevChar = i > 0 ? argsStr[i - 1] : "";
-
     // Handle string boundaries
-    if ((char === '"' || char === "'") && prevChar !== "\\") {
+    if ((char === '"' || char === "'") && !isEscapedAt(argsStr, i)) {
       if (!inString) {
         inString = true;
         stringChar = char;
@@ -371,10 +370,8 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
 
     while (argsEndIndex < expr.length && depth > 0) {
       const char = expr[argsEndIndex];
-      const prevChar = argsEndIndex > 0 ? expr[argsEndIndex - 1] : "";
-
       // Track string boundaries
-      if ((char === '"' || char === "'") && prevChar !== "\\") {
+      if ((char === '"' || char === "'") && !isEscapedAt(expr, argsEndIndex)) {
         if (!inString) {
           inString = true;
           stringChar = char;
@@ -400,8 +397,10 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
       // Only the error VALUE counts: text that merely spells an error (CONCAT)
       // is an ordinary operand.
       if (isSpreadsheetErrorValue(result)) throw propagatedError(result.code);
-      // For string results, wrap in quotes; for numbers, wrap in parentheses
-      const replacement = typeof result === "string" ? `"${result}"` : `(${result})`;
+      // A string result is rendered like a cell's text, escapes included — wrapped
+      // in bare quotes, a result holding `"` or ending in `\` broke the expression.
+      // Numbers and booleans are wrapped in parentheses.
+      const replacement = typeof result === "string" ? renderOperand(result) : `(${result})`;
       expr = expr.substring(0, funcStartIndex) + replacement + expr.substring(argsEndIndex);
       // Continue from after the replacement
       searchIndex = funcStartIndex + replacement.length;
