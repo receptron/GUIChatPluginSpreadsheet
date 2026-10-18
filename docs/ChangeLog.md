@@ -1,5 +1,14 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@4.0.2 — 2026-10-18
+
+Node.js 22 is supported again. 4.0.0 raised `engines` to `node >=24`, which made Yarn v1 refuse to install the package on Node 22; only the development tooling needed Node 24.
+
+- **`engines: node >=22`** (#64): the published package needs nothing newer than Node 22. CI now also builds and runs the full test suite on Node 22 (Linux). The main matrix stays on Node 24 / 26 because installing the dev tooling (scoria) requires Node 24.
+- **Docs** (#62): `docs/ChangeLog.md` records 4.0.1.
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.0.2`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.0.2)
+
 ## @gui-chat-plugin/spreadsheet@4.0.1 — 2026-10-18
 
 Bug-fix release. `LOG10` now calculates, function-looking text inside a string literal is no longer evaluated, and the README lists exactly the functions the engine provides.
