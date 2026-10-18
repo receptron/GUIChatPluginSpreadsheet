@@ -104,7 +104,12 @@ export const functionRegistry = new FunctionRegistry();
 /** Whether `name` written before "(" is a function call. A letters-only name is,
  *  registered or not (an unknown one reports #NAME?). A name with digits is only
  *  when registered: LOG10 is also shaped like a cell reference, so `A1(2)` is not. */
-export const isCallableName = (name: string): boolean => /^[A-Z]+$/i.test(name) || functionRegistry.hasFunction(name);
+/** A function name as a formula spells it: letters and digits, with `.`-joined
+ *  parts for the names current Excel uses (`PERCENTILE.INC`, `STDEV.S`). Used as
+ *  a regex SOURCE by every place that looks for a call. */
+export const FUNCTION_NAME_SOURCE = "[A-Z][A-Z0-9]*(?:\\.[A-Z][A-Z0-9]*)*";
+
+export const isCallableName = (name: string): boolean => /^[A-Z]+(?:\.[A-Z]+)*$/i.test(name) || functionRegistry.hasFunction(name);
 
 /**
  * Lenient numeric coercion for range aggregation: anything unreadable is 0.

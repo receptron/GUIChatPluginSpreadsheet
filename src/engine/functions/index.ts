@@ -13,5 +13,8 @@ import "./text";
 import "./financial";
 import "./lookup";
 import "./date";
+import "./calendar";
+// After every function it renames.
+import "./aliases";
 
 export { functionRegistry } from "../registry";
