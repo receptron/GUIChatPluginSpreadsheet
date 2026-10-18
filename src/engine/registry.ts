@@ -7,6 +7,7 @@
 
 import type { CellValue } from "./types";
 import { parseNumericString } from "./numericCoercion";
+import { isSpreadsheetErrorValue, type SpreadsheetError } from "./spreadsheet-errors";
 export type { CellValue };
 export type CellGetter = (ref: string) => CellValue;
 export type RangeGetter = (range: string) => CellValue[];
@@ -198,4 +199,14 @@ function matchesTextOrNumber(criteria: string): (value: CellValue) => boolean {
   const numCriteria = parseFloat(criteria);
   const hasNumber = !isNaN(numCriteria);
   return (value) => matchesText(String(value)) || (hasNumber && toNumber(value) === numCriteria);
+}
+
+/** The matcher for the criteria argument at `index`, or the error it evaluated to.
+ *
+ *  A criteria is an expression like any other argument: `">=2"`, `C1`, `">="&C1`. Reading its
+ *  source text instead matched `C1` against the letters "C1", so a criteria held in a cell or
+ *  built with `&` matched nothing and the function answered a silent 0. */
+export function criteriaArg(context: FunctionContext, args: string[], index: number): ((value: CellValue) => boolean) | SpreadsheetError {
+  const criteria = context.evaluateFormula(requiredArg(context, args, index));
+  return isSpreadsheetErrorValue(criteria) ? criteria : parseCriteria(String(criteria));
 }

@@ -7,7 +7,7 @@ import {
   rawRangeReader,
   requiredArg,
   toNumber,
-  parseCriteria,
+  criteriaArg,
   type FunctionContext,
   type FunctionHandler,
   type RangeGetter,
@@ -124,7 +124,8 @@ const countaHandler: FunctionHandler = (args, context) => {
 
 const countifHandler: FunctionHandler = (args, context) => {
   const values = rawRangeReader(context)(requiredArg(context, args, 0));
-  return values.filter(parseCriteria(requiredArg(context, args, 1).trim())).length;
+  const matches = criteriaArg(context, args, 1);
+  return typeof matches === "function" ? values.filter(matches).length : matches;
 };
 
 /** The criteria range, the matcher and the value range SUMIF and AVERAGEIF both
@@ -138,7 +139,7 @@ const readConditionalRanges = (args: string[], context: FunctionContext) => {
   return {
     criteriaRange: readRaw(criteriaRef),
     valueRange: readRaw(valueRef),
-    matches: parseCriteria(requiredArg(context, args, 1).trim()),
+    matches: criteriaArg(context, args, 1),
   };
 };
 
@@ -152,11 +153,13 @@ const aggregateMatchedRows = (criteriaRange: CellValue[], valueRange: CellValue[
 
 const sumifHandler: FunctionHandler = (args, context) => {
   const { criteriaRange, valueRange, matches } = readConditionalRanges(args, context);
+  if (typeof matches !== "function") return matches;
   return aggregateMatchedRows(criteriaRange, valueRange, matches).sum;
 };
 
 const averageifHandler: FunctionHandler = (args, context) => {
   const { criteriaRange, valueRange, matches } = readConditionalRanges(args, context);
+  if (typeof matches !== "function") return matches;
   const { sum, count } = aggregateMatchedRows(criteriaRange, valueRange, matches);
   // Excel returns #DIV/0! when no cell matches (the average of nothing is
   // undefined), rather than a silent 0.
