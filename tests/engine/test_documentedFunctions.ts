@@ -1,0 +1,70 @@
+// What the README, the model guidance and the bundled samples say a formula can
+// call must be exactly what the engine registers: a documented name the engine
+// lacks evaluates to #NAME?, and a registered one the README omits is invisible.
+
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { functionRegistry } from "../../src/engine/functions/index.ts";
+import { SYSTEM_PROMPT, TOOL_DEFINITION } from "../../src/core/definition.ts";
+import { samples } from "../../src/core/samples.ts";
+
+const README_PATH = path.join(import.meta.dirname, "../../README.md");
+const FUNCTION_CALL = /\b([A-Z][A-Z0-9]*)\(/g;
+
+/** `### Category` → the backticked names under it, within the README's "Supported Functions" section. */
+const readmeFunctionsByCategory = (readme: string): Map<string, string[]> => {
+  const start = readme.indexOf("## Supported Functions\n");
+  assert.notEqual(start, -1, "README has a Supported Functions section");
+  const end = readme.indexOf("\n## ", start + 1);
+  const section = readme.slice(start, end === -1 ? undefined : end);
+  return new Map(
+    section
+      .split("\n### ")
+      .slice(1)
+      .map((block) => {
+        const [heading = "", ...lines] = block.split("\n");
+        return [heading.trim(), [...lines.join("\n").matchAll(/`([A-Z][A-Z0-9]*)`/g)].map((match) => match[1] ?? "").sort()];
+      }),
+  );
+};
+
+const registeredByCategory = (): Map<string, string[]> =>
+  new Map([...functionRegistry.getFunctionsByCategory()].map(([category, definitions]) => [category, definitions.map((definition) => definition.name).sort()]));
+
+const calledFunctions = (text: string): string[] => [...text.matchAll(FUNCTION_CALL)].map((match) => match[1] ?? "");
+
+/** The names in prose lists such as "functions (SUM, AVERAGE, IF, etc.)", which are not written as calls. */
+const listedFunctions = (text: string): string[] =>
+  [...text.matchAll(/functions \(([^)]*)\)/g)]
+    .flatMap((match) => (match[1] ?? "").split(",").map((item) => item.trim()))
+    .filter((item) => /^[A-Z][A-Z0-9]*$/.test(item));
+
+const isRegistered = (name: string): boolean => functionRegistry.hasFunction(name);
+
+describe("documented functions match the registry", () => {
+  it("the README lists every registered function under its category, and nothing else", () => {
+    const documented = readmeFunctionsByCategory(fs.readFileSync(README_PATH, "utf8"));
+    assert.deepEqual(Object.fromEntries(documented), Object.fromEntries(registeredByCategory()));
+  });
+
+  it("the model guidance only calls registered functions", () => {
+    const guidance = `${SYSTEM_PROMPT}\n${JSON.stringify(TOOL_DEFINITION)}`;
+    const called = [...calledFunctions(guidance), ...listedFunctions(guidance)];
+    assert.ok(listedFunctions(guidance).length > 0, "the guidance lists functions");
+    assert.deepEqual(
+      called.filter((name) => !isRegistered(name)),
+      [],
+    );
+  });
+
+  it("the bundled samples only call registered functions", () => {
+    const called = calledFunctions(JSON.stringify(samples));
+    assert.ok(called.length > 0, "the samples contain formulas");
+    assert.deepEqual(
+      called.filter((name) => !isRegistered(name)),
+      [],
+    );
+  });
+});
