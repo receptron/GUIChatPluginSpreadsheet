@@ -1,8 +1,7 @@
 // Excel-formula → JS-expression translation. These are the pure string
 // transforms the evaluator runs on an already-substituted expression before
 // handing it to `new Function`. A mistranslated operator can still produce a
-// plausible wrong NUMBER (`=2^3^2` = 512, not 64 — the associativity gap tracked
-// by the sibling issues). What #2359 fixed: a formula that reaches `new Function`
+// plausible wrong NUMBER. What #2359 fixed: a formula that reaches `new Function`
 // as invalid JS (`=5<>6`) no longer comes back as its raw text — it surfaces as
 // an #ERROR!. This suite pins both the remaining known-wrong number cases and the
 // post-#2359 error surfacing.
@@ -27,16 +26,50 @@ describe("caretToPow", () => {
 
   it("rewrites every caret in the expression", () => {
     assert.equal(caretToPow("2^3+4^5"), "2**3+4**5");
-    assert.equal(caretToPow("A^B^C"), "A**B**C");
   });
 
   // Excel's `^` is LEFT-associative (`2^3^2` = `(2^3)^2` = 64); JS `**` is
-  // RIGHT-associative (`2**3**2` = `2**(3**2)` = 512). This transform is a plain
-  // substitution and does NOT bridge that difference — a chained caret keeps
-  // producing the JS answer. Pinned as a known limitation (#2359).
-  it("does not correct the left-vs-right associativity of chained carets", () => {
-    assert.equal(caretToPow("2^3^2"), "2**3**2");
-    assert.equal(new Function("return (2**3**2)")(), 512, "JS is right-associative, so 512 not 64");
+  // right-associative, so a chain is bracketed from the left.
+  it("brackets a chain of carets from the left", () => {
+    assert.equal(caretToPow("2^3^2"), "(2**3)**2");
+    assert.equal(caretToPow("A^B^C"), "(A**B)**C");
+    assert.equal(new Function(`return (${caretToPow("2^3^2")})`)(), 64);
+  });
+
+  // JS rejects `-2**2`; Excel negates first, so a signed base is bracketed.
+  it("brackets a signed base or exponent", () => {
+    assert.equal(caretToPow("-2^2"), "(-2)**2");
+    assert.equal(caretToPow("2^-2"), "2**(-2)");
+    assert.equal(caretToPow("--2^2"), "(- -2)**2");
+    assert.equal(caretToPow("-(1+1)^2"), "(-(1+1))**2");
+  });
+
+  it("treats a minus after an operand as binary", () => {
+    assert.equal(caretToPow("1-2^2"), "1-2**2");
+    assert.equal(caretToPow("1 - 2 ^ 2"), "1 - 2**2");
+  });
+
+  it("rewrites carets inside brackets", () => {
+    assert.equal(caretToPow("(2^3)"), "(2**3)");
+    assert.equal(caretToPow("(1+(2^3^2))*2"), "(1+((2**3)**2))*2");
+  });
+
+  it("leaves a caret inside a string literal alone", () => {
+    assert.equal(caretToPow('"a^b"'), '"a^b"');
+    assert.equal(caretToPow('"a\\\\"^2'), '"a\\\\"**2', "an escaped backslash does not escape the closing quote");
+    assert.equal(caretToPow('"a\\"^2'), '"a\\"^2', "an escaped quote keeps the literal open");
+  });
+
+  it("keeps a caret with no operand after it as **", () => {
+    assert.equal(caretToPow("2^"), "2**");
+    assert.equal(caretToPow("^2"), "**2");
+  });
+
+  it("leaves text outside a chain as it was written", () => {
+    assert.equal(caretToPow("1--2"), "1--2");
+    assert.equal(caretToPow("- -2 + (1"), "- -2 + (1");
+    assert.equal(caretToPow("--2"), "--2", "signs outside a chain keep their spelling");
+    assert.equal(caretToPow("- 2*3"), "- 2*3");
   });
 
   it("leaves an expression with no caret unchanged", () => {
@@ -169,9 +202,9 @@ const calc = (formula: string): unknown => cellAt(new SpreadsheetEngine().calcul
 // to the exact behaviour observed before the extraction. Includes the
 // intentionally-wrong cases so the eventual #2359 fix shows up as a diff here.
 describe("translation through the engine (characterization)", () => {
-  it("exponentiates (and keeps the JS-associativity quirk)", () => {
+  it("exponentiates, reading a chain left to right", () => {
     assert.equal(calc("=2^3"), 8);
-    assert.equal(calc("=2^3^2"), 512);
+    assert.equal(calc("=2^3^2"), 64);
   });
 
   it("evaluates equality and the ordering comparisons", () => {
