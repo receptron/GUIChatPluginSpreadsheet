@@ -2,8 +2,8 @@
 // transforms the evaluator runs on an already-substituted expression before
 // handing it to `new Function`. A mistranslated operator can still produce a
 // plausible wrong NUMBER. What #2359 fixed: a formula that reaches `new Function`
-// as invalid JS (`=5<>6`) no longer comes back as its raw text — it surfaces as
-// an #ERROR!. This suite pins both the remaining known-wrong number cases and the
+// as invalid JS no longer comes back as its raw text — it surfaces as an
+// #ERROR!. This suite pins both the remaining known-wrong number cases and the
 // post-#2359 error surfacing.
 
 import { describe, it } from "node:test";
@@ -214,11 +214,11 @@ describe("translation through the engine (characterization)", () => {
     assert.equal(calc("=5>=6"), false);
   });
 
-  // `<>` is Excel's not-equal; it is not translated, so it reaches `new Function`
-  // as invalid JS and throws. Post-#2359 that throw surfaces as #ERROR! rather
-  // than the raw formula text (translating `<>` itself is a sibling issue).
-  it("surfaces the untranslated <> operator as #ERROR!, not raw text", () => {
-    assert.equal(calc("=5<>6"), "#ERROR!");
+  // `<>` is Excel's not-equal. A top-level comparison is compared by the
+  // evaluator itself, so `<>` no longer reaches `new Function` untranslated.
+  it("evaluates the <> operator", () => {
+    assert.equal(calc("=5<>6"), true);
+    assert.equal(calc("=5<>5"), false);
   });
 
   it("concatenates strings and mixed operands", () => {

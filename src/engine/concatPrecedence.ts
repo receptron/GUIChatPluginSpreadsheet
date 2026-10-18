@@ -11,7 +11,7 @@
 import { isEscapedAt } from "./escapes";
 import { replaceConcatOperator } from "./translateFormula";
 
-interface Place {
+export interface Place {
   char: string;
   inLiteral: boolean;
   /** Paren nesting outside literals; a `(` or `)` counts at its outer level. */
@@ -21,7 +21,7 @@ interface Place {
 const isQuote = (char: string): boolean => char === '"' || char === "'";
 
 /** Each character with whether it sits in a string literal and how deeply it is nested. */
-function placesOf(expr: string): Place[] {
+export function placesOf(expr: string): Place[] {
   const state = { quote: "", depth: 0 };
   // UTF-16 units, not code points: every index here is handed to slice() and
   // isEscapedAt(), which count units, so an emoji before `&` must not shift them.
