@@ -1,7 +1,7 @@
 /**
  * Date and Time Functions
  * Excel stores dates as sequential serial numbers so they can be used in calculations.
- * January 1, 1900 is serial number 1.
+ * Serial 0 is 1899-12-30 on the real calendar, so 1900-01-01 is serial 2 (see date-utils.ts).
  */
 
 import { functionRegistry, requiredArg, toNumber, toString, type FunctionHandler } from "../registry";
