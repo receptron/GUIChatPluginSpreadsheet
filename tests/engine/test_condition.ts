@@ -283,3 +283,29 @@ describe("renderConditionOperand", () => {
     assert.equal(evaluateCondition(`${renderConditionOperand("a\\b")}=${renderConditionOperand("a/b")}`), false);
   });
 });
+
+// Both functions skip what is inside a quoted string, honouring a backslash
+// escape there. Each case breaks if the quote, the escape, or the early exit is
+// handled differently.
+describe("quoted text inside a condition", () => {
+  it("does not split on an operator inside quotes", () => {
+    assert.deepEqual(splitComparison('"a>b"=c'), { left: '"a>b"', operator: "=", right: "c" });
+    assert.deepEqual(splitComparison("'a<b'<>c"), { left: "'a<b'", operator: "<>", right: "c" });
+    assert.equal(splitComparison('"x=y"'), null);
+  });
+
+  it("keeps an escaped quote inside the string", () => {
+    assert.deepEqual(splitComparison('"a\\"=b"=c'), { left: '"a\\"=b"', operator: "=", right: "c" });
+  });
+
+  it("ignores parentheses inside quotes when stripping", () => {
+    assert.equal(stripOuterParens('("(")'), '"("');
+    assert.equal(stripOuterParens('(")")=(1)'), '(")")=(1)');
+    assert.equal(stripOuterParens('("\\")")'), '"\\")"');
+  });
+
+  it("stops at the first closing parenthesis that ends the group early", () => {
+    assert.equal(stripOuterParens("(a)=(b)"), "(a)=(b)");
+    assert.equal(stripOuterParens("((a))"), "a");
+  });
+});
