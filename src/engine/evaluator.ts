@@ -262,8 +262,10 @@ function evaluateConcat(expr: string): CellValue | null {
 
 const BOOLEAN_OPERAND = /^\(*\s*(true|false)\s*\)*$/i;
 
-/** Whether `operand` is one string literal and nothing else. */
-const isLoneLiteral = (operand: string): boolean => (operand.startsWith('"') || operand.startsWith("'")) && endOfStringLiteral(operand, 0) === operand.length;
+/** Whether `operand` is one string literal and nothing else. It must end on the quote it opened
+ *  with: an unclosed `"abc` also runs to the end, and taken as a literal it lost its last letter. */
+const isLoneLiteral = (operand: string): boolean =>
+  (operand.startsWith('"') || operand.startsWith("'")) && operand.endsWith(operand[0] ?? "") && endOfStringLiteral(operand, 0) === operand.length;
 
 /** One side of a comparison as a value, or null when it is not one this evaluator can read — the
  *  whole formula then comes back as its text, as it did before comparisons took text. */

@@ -261,6 +261,14 @@ describe("comparisons through the engine", () => {
     assert.equal(calc('="a=b"'), "a=b");
   });
 
+  it("leaves a literal that is never closed as it was", () => {
+    assert.equal(calc('="abc'), '"abc');
+    assert.equal(calc("='abc"), "'abc");
+    assert.equal(calc(`="abc'`), `"abc'`, "closed by the other quote is not closed");
+    assert.equal(calc('="abc="x"'), 'abc="x', "read as before, not as a comparison");
+    assert.equal(calc('=1="abc'), '1="abc', "an unclosed side is not read, so the formula comes back as its text");
+  });
+
   it("returns the text of a comparison it cannot read, as before", () => {
     assert.equal(typeof calc('="a"=foo'), "string");
   });
