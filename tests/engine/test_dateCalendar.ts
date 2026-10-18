@@ -99,31 +99,32 @@ describe("addWorkdays and countWorkdays", () => {
   });
 });
 
-describe("through the engine", () => {
-  const evaluate = (formula: string): unknown => {
-    const sheet: SheetData = {
-      name: "S",
-      data: [
-        [{ v: 1 }, { v: 2 }, { v: 3 }, { v: 4 }, { v: formula }],
-        [{ v: "=DATE(2008,11,26)" }, { v: "=DATE(2008,12,4)" }, { v: "=DATE(2009,1,21)" }],
-      ],
-    };
-    return cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 4);
+// A1:D1 = 1..4, A2:C2 = three holidays, the formula in E1.
+const evaluateInSheet = (formula: string): unknown => {
+  const sheet: SheetData = {
+    name: "S",
+    data: [
+      [{ v: 1 }, { v: 2 }, { v: 3 }, { v: 4 }, { v: formula }],
+      [{ v: "=DATE(2008,11,26)" }, { v: "=DATE(2008,12,4)" }, { v: "=DATE(2009,1,21)" }],
+    ],
   };
+  return cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 4);
+};
 
+describe("through the engine", () => {
   it("reads holidays from a range or a single date", () => {
-    assert.equal(evaluate("=WORKDAY(DATE(2008,10,1),151,A2:C2)"), "05/05/2009");
-    assert.equal(evaluate("=NETWORKDAYS(DATE(2012,10,1),DATE(2013,3,1),DATE(2012,11,22))"), 109);
+    assert.equal(evaluateInSheet("=WORKDAY(DATE(2008,10,1),151,A2:C2)"), "05/05/2009");
+    assert.equal(evaluateInSheet("=NETWORKDAYS(DATE(2012,10,1),DATE(2013,3,1),DATE(2012,11,22))"), 109);
   });
 
   it("calls the names current Excel writes, in any case", () => {
-    assert.equal(evaluate("=PERCENTILE.INC(A1:D1,0.5)"), 2.5);
-    assert.equal(evaluate("=1+QUARTILE.INC(A1:D1,1)"), 2.75);
-    assert.equal(evaluate("=stdev.p(A1:D1)"), Math.sqrt(1.25));
-    assert.equal(evaluate("=RANK.EQ(3,A1:D1)"), 2);
+    assert.equal(evaluateInSheet("=PERCENTILE.INC(A1:D1,0.5)"), 2.5);
+    assert.equal(evaluateInSheet("=1+QUARTILE.INC(A1:D1,1)"), 2.75);
+    assert.equal(evaluateInSheet("=stdev.p(A1:D1)"), Math.sqrt(1.25));
+    assert.equal(evaluateInSheet("=RANK.EQ(3,A1:D1)"), 2);
   });
 
   it("answers #NAME? for an unknown dotted name", () => {
-    assert.equal(evaluate("=FOO.BAR(1)"), "#NAME?");
+    assert.equal(evaluateInSheet("=FOO.BAR(1)"), "#NAME?");
   });
 });
