@@ -7,6 +7,7 @@
 
 import type { CellValue } from "./types";
 import { parseNumericString } from "./numericCoercion";
+import { parseDate } from "./date-parser";
 import { isSpreadsheetErrorValue, type SpreadsheetError } from "./spreadsheet-errors";
 export type { CellValue };
 export type CellGetter = (ref: string) => CellValue;
@@ -21,6 +22,8 @@ export interface FunctionContext {
   getRangeValues: RangeGetter;
   getRangeValuesRaw?: RawRangeGetter | undefined;
   evaluateFormula: (formula: string) => CellValue;
+  /** Read an ambiguous `01/02/2020` as day-first, as the sheet's own dates are. */
+  preferDDMMYYYY?: boolean | undefined;
 }
 
 /** The too-few-arguments error, raised by the evaluator from the registry's
@@ -161,7 +164,7 @@ function textMatcher(pattern: string): (text: string) => boolean {
  * Helper to parse criteria for conditional functions like COUNTIF, SUMIF
  * Returns a comparison function that tests if a value matches the criteria
  */
-export function parseCriteria(criteria: string): (value: CellValue) => boolean {
+export function parseCriteria(criteria: string, preferDDMMYYYY = false): (value: CellValue) => boolean {
   // eslint-disable -- sonarjs/anchor-precedence
   const trimmedCriteria = criteria.trim().replace(/^["']|["']$/g, "");
 
@@ -169,11 +172,11 @@ export function parseCriteria(criteria: string): (value: CellValue) => boolean {
   // eslint-disable -- sonarjs/slow-regex
   const [, op, value] = trimmedCriteria.match(/^([><=!]+)(.+)$/) ?? [];
   if (op !== undefined && value !== undefined) {
-    const numValue = parseFloat(value);
+    const numValue = criteriaNumber(value, preferDDMMYYYY);
 
     // `=` / `<>` compare like the bare criteria does — case-insensitive text
     // with wildcards, or the number. `<>` is exactly its negation.
-    const equals = matchesTextOrNumber(value);
+    const equals = matchesTextOrNumber(value, preferDDMMYYYY);
     switch (op) {
       case ">":
         return (v) => toNumber(v) > numValue;
@@ -194,14 +197,20 @@ export function parseCriteria(criteria: string): (value: CellValue) => boolean {
     }
   }
 
-  return matchesTextOrNumber(trimmedCriteria);
+  return matchesTextOrNumber(trimmedCriteria, preferDDMMYYYY);
+}
+
+/** The number a criteria compares against: a date's serial (cells hold dates as serials), else
+ *  what `parseFloat` reads — which took only the `1` of `1/2/2020`. */
+function criteriaNumber(text: string, preferDDMMYYYY: boolean): number {
+  return parseDate(text, preferDDMMYYYY) ?? parseFloat(text);
 }
 
 /** A value matches when its text matches the criteria (case-insensitively, with
  *  wildcards) or, for a numeric criteria, when its number is equal. */
-function matchesTextOrNumber(criteria: string): (value: CellValue) => boolean {
+function matchesTextOrNumber(criteria: string, preferDDMMYYYY: boolean): (value: CellValue) => boolean {
   const matchesText = textMatcher(criteria);
-  const numCriteria = parseFloat(criteria);
+  const numCriteria = criteriaNumber(criteria, preferDDMMYYYY);
   const hasNumber = !isNaN(numCriteria);
   return (value) => matchesText(String(value)) || (hasNumber && toNumber(value) === numCriteria);
 }
@@ -213,5 +222,5 @@ function matchesTextOrNumber(criteria: string): (value: CellValue) => boolean {
  *  built with `&` matched nothing and the function answered a silent 0. */
 export function criteriaArg(context: FunctionContext, args: string[], index: number): ((value: CellValue) => boolean) | SpreadsheetError {
   const criteria = context.evaluateFormula(requiredArg(context, args, index));
-  return isSpreadsheetErrorValue(criteria) ? criteria : parseCriteria(String(criteria));
+  return isSpreadsheetErrorValue(criteria) ? criteria : parseCriteria(String(criteria), context.preferDDMMYYYY);
 }
