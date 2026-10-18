@@ -45,7 +45,8 @@ const isRegistered = (name: string): boolean => functionRegistry.hasFunction(nam
 
 describe("documented functions match the registry", () => {
   it("the README lists every registered function under its category, and nothing else", () => {
-    const documented = readmeFunctionsByCategory(fs.readFileSync(README_PATH, "utf8"));
+    // A Windows checkout gives the README CRLF line endings.
+    const documented = readmeFunctionsByCategory(fs.readFileSync(README_PATH, "utf8").replaceAll("\r\n", "\n"));
     assert.deepEqual(Object.fromEntries(documented), Object.fromEntries(registeredByCategory()));
   });
 
