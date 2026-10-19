@@ -10,6 +10,7 @@ import type { SpreadsheetToolData, SpreadsheetArgs, SpreadsheetDispatchArgs, Spr
 import { TOOL_DEFINITION, SYSTEM_PROMPT } from "./definition";
 import { artifactsFileOps, executeSpreadsheetDispatch, isSpreadsheetDispatchArgs } from "./dispatch";
 import { spreadsheetArtifactPath } from "./paths";
+import { loadCustomFunctions } from "../engine/customFunctions";
 
 // Re-export for convenience
 export { TOOL_NAME, TOOL_DEFINITION, SYSTEM_PROMPT } from "./definition";
@@ -43,6 +44,15 @@ function validateSheets(sheets: SpreadsheetSheet[]): void {
   });
 }
 
+/** What the agent is told about functions it defined that cannot be used, so it can fix them;
+ *  a formula calling one shows #NAME? otherwise, with nothing saying why. */
+async function unusableFunctionsNote(sheets: SpreadsheetSheet[]): Promise<string> {
+  const functions = await loadCustomFunctions(sheets);
+  functions.dispose();
+  if (functions.problems.length === 0) return "";
+  return ` These functions could not be used and calls to them show #NAME?: ${functions.problems.map(({ name, reason }) => `${name} (${reason})`).join("; ")}.`;
+}
+
 /**
  * Create a spreadsheet. With the host's `files.artifacts`, the workbook is
  * saved and `data.sheets` carries its path; without it, the workbook itself.
@@ -53,14 +63,15 @@ export const executeSpreadsheet = async (context: ToolContext, args: Spreadsheet
   validateSheets(sheets);
 
   const instructions = "Acknowledge that the spreadsheet has been created and is displayed to the user.";
+  const functionNote = await unusableFunctionsNote(sheets);
   const artifacts = artifactsFileOps(context);
   if (!artifacts) {
-    return { message: `Created spreadsheet: ${title}`, title, data: { sheets }, instructions };
+    return { message: `Created spreadsheet: ${title}${functionNote}`, title, data: { sheets }, instructions };
   }
   const { relPath, filePath } = spreadsheetArtifactPath();
   await artifacts.write(relPath, JSON.stringify(sheets));
   return {
-    message: `Created spreadsheet: ${title}. Saved to ${filePath}; the user can edit cells there, so read that file for the current values.`,
+    message: `Created spreadsheet: ${title}. Saved to ${filePath}; the user can edit cells there, so read that file for the current values.${functionNote}`,
     title,
     data: { sheets: filePath },
     instructions,

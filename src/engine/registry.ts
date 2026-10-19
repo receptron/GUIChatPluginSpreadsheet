@@ -80,17 +80,39 @@ export interface FunctionDefinition {
 
 class FunctionRegistry {
   private functions = new Map<string, FunctionDefinition>();
+  // A workbook's own functions, visible only while that workbook is being calculated. The
+  // registry is one for the whole app, and two open workbooks must not see each other's.
+  private overlay: ReadonlyMap<string, FunctionDefinition> | null = null;
 
   register(def: FunctionDefinition): void {
     this.functions.set(def.name.toUpperCase(), def);
   }
 
   get(name: string): FunctionDefinition | undefined {
-    return this.functions.get(name.toUpperCase());
+    const key = name.toUpperCase();
+    return this.functions.get(key) ?? this.overlay?.get(key);
   }
 
   hasFunction(name: string): boolean {
+    const key = name.toUpperCase();
+    return this.functions.has(key) || (this.overlay?.has(key) ?? false);
+  }
+
+  /** Whether `name` is one of the engine's own functions, which a workbook may not redefine. */
+  isBuiltIn(name: string): boolean {
     return this.functions.has(name.toUpperCase());
+  }
+
+  /** Run `calculate` with `functions` (keyed by upper-case name) visible as well. Only for a
+   *  synchronous calculation: nothing else can run between setting the overlay and taking it off. */
+  withOverlay<T>(functions: ReadonlyMap<string, FunctionDefinition>, calculate: () => T): T {
+    const previous = this.overlay;
+    this.overlay = functions;
+    try {
+      return calculate();
+    } finally {
+      this.overlay = previous;
+    }
   }
 
   getAllFunctions(): FunctionDefinition[] {
