@@ -27,14 +27,14 @@ import { NUM_ERROR, VALUE_ERROR, isSpreadsheetErrorValue, type SpreadsheetError 
 import type { CellValue } from "./types";
 
 /** One call may run this long before it is stopped (#NUM!). */
-export const CALL_LIMIT_MS = 50;
+const CALL_LIMIT_MS = 50;
 /** All the calls of one calculation together may run this long. */
-export const CALCULATION_LIMIT_MS = 2000;
+const CALCULATION_LIMIT_MS = 2000;
 /** The memory a workbook's functions may use between them. */
-export const MEMORY_LIMIT_BYTES = 16 * 1024 * 1024;
+const MEMORY_LIMIT_BYTES = 16 * 1024 * 1024;
 const STACK_LIMIT_BYTES = 1024 * 1024;
 /** The most cells one argument may hand a function. */
-export const MAX_ARGUMENT_CELLS = 100_000;
+const MAX_ARGUMENT_CELLS = 100_000;
 
 // `fn(...JSON.parse(args))`: every argument crosses as one JSON string, so no value is built
 // handle by handle on this side.

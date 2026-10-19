@@ -39,7 +39,7 @@ const isSpec = (entry: unknown): entry is CustomFunctionSpec =>
 /** The specs a sheet's `functions` holds, skipping anything not shaped like one. */
 export function specsOf(functions: unknown): CustomFunctionSpec[] {
   if (!Array.isArray(functions)) return [];
-  return functions.filter(isSpec).map(({ name, params, body, description }) => ({ name, params, body, ...(description === undefined ? {} : { description }) }));
+  return functions.filter(isSpec);
 }
 
 /** Why `spec` cannot be used, or null when it can. `isBuiltIn` says whether a name is the engine's own. */
