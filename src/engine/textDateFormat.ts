@@ -7,6 +7,7 @@
  */
 
 import { serialToDate, MONTH_NAMES_SHORT, MONTH_NAMES_FULL, DAY_NAMES_SHORT, DAY_NAMES_FULL, type NameList } from "./date-utils";
+import { LAST_SERIAL } from "./date-calendar";
 
 type PartKind = "year" | "month" | "day" | "hour" | "minute" | "second";
 
@@ -146,6 +147,16 @@ const renderToken = (token: DateToken, date: Date, twelveHour: boolean): string 
   if (token.kind === "literal") return token.text;
   if (token.kind === "meridiem") return renderMeridiem(date, token.lowercase, token.letterOnly);
   return PART_RENDERERS[token.kind](date, token.width, twelveHour);
+};
+
+const SECONDS_PER_DAY = 24 * 60 * 60;
+
+/** Whether `serial` falls on a date Excel has, once its time is rounded to the
+ *  second as `serialToDate` does (9999-12-31 23:59:59.9 is the next day). */
+export const isRenderableSerial = (serial: number): boolean => {
+  const days = Math.floor(serial);
+  const roundedSeconds = Math.round((serial - days) * SECONDS_PER_DAY);
+  return days >= 0 && days + roundedSeconds / SECONDS_PER_DAY < LAST_SERIAL + 1;
 };
 
 /** Render a date serial with the tokens `parseDatePattern` read. */

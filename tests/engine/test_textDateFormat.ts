@@ -85,7 +85,7 @@ describe("TEXT date codes — what is not a date code", () => {
   });
 
   it("answers #VALUE! for a serial before the first or after the last date, as Excel does", () => {
-    const results = readBeside("", ['=TEXT(-1,"yyyy")', '=TEXT(2958466,"yyyy")', '=TEXT(1E+300,"yyyy")']);
+    const results = readBeside("", ['=TEXT(-1,"yyyy")', '=TEXT(2958466,"yyyy")', '=TEXT(1E+300,"yyyy")', '=TEXT(2958465.999999,"yyyy")']);
     results.forEach((result) => assert.ok(isSpreadsheetErrorValue(result) && result.code === "#VALUE!", String(result)));
   });
 
