@@ -157,10 +157,9 @@ export function toNumber(value: CellValue): number {
   return parseNumericString(String(value)) ?? 0;
 }
 
-/**
- * Helper function to convert a value to a string
- */
+/** A value as text, as Excel writes it: a logical value is TRUE or FALSE. */
 export function toString(value: CellValue): string {
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
   return String(value);
 }
 

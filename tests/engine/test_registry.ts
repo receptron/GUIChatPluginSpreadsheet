@@ -104,8 +104,8 @@ describe("toString", () => {
   it("stringifies every shape `CellValue` allows", () => {
     assert.equal(toString(42), "42");
     assert.equal(toString("text"), "text");
-    assert.equal(toString(true), "true");
-    assert.equal(toString(false), "false");
+    assert.equal(toString(true), "TRUE", "as Excel writes a logical value");
+    assert.equal(toString(false), "FALSE");
     assert.equal(toString(""), "");
     assert.equal(toString(0), "0");
   });
