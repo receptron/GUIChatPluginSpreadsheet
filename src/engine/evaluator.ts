@@ -14,6 +14,7 @@ import { concatOperands, concatToSum } from "./concatPrecedence";
 import { isEscapedAt } from "./escapes";
 import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison, separateRepeatedSigns } from "./translateFormula";
 import { foldComparisons, splitTopLevelComparisons } from "./textComparison";
+import { standsAloneInConcat } from "./concatOperand";
 import { stripOuterParens } from "./condition";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
@@ -30,6 +31,9 @@ export interface EvaluatorContext {
   evaluateFormula: (formula: string) => CellValue;
   /** Reading order for an ambiguous slash date; see engine/date-locale.ts. */
   preferDDMMYYYY?: boolean | undefined;
+  /** Whether the referenced cell holds nothing. `getCellValue` reads such a cell as 0, which
+   *  is right for arithmetic and wrong for `&`, where a blank cell joins as "". */
+  isCellEmpty?: ((ref: string) => boolean) | undefined;
 }
 
 /** Render a cell's value as the text that stands in for it inside an
@@ -173,8 +177,8 @@ export function findCellRefs(expr: string): CellRefSpan[] {
  *  string replace rewrote every occurrence of the shorter reference first, so
  *  `=A1+A10` had its `A10` broken into `<A1's value>0` and produced a plausible
  *  wrong number (#2357). */
-export function substituteCellRefs(expr: string, cellRefs: CellRefSpan[], render: (ref: string) => string): string {
-  return [...cellRefs].reverse().reduce((text, { ref, start }) => text.slice(0, start) + render(ref) + text.slice(start + ref.length), expr);
+export function substituteCellRefs(expr: string, cellRefs: CellRefSpan[], render: (ref: string, start: number) => string): string {
+  return [...cellRefs].reverse().reduce((text, { ref, start }) => text.slice(0, start) + render(ref, start) + text.slice(start + ref.length), expr);
 }
 
 /**
@@ -470,7 +474,9 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
     }
   }
 
-  expr = substituteCellRefs(expr, cellRefs, (ref) => {
+  const expressionWithRefs = expr;
+  expr = substituteCellRefs(expr, cellRefs, (ref, start) => {
+    if (standsAloneInConcat(expressionWithRefs, start, start + ref.length) && context.isCellEmpty?.(ref)) return '""';
     const value = context.getCellValue(ref);
     // A referenced cell holding an error poisons the whole expression:
     // rendering it would produce `"#DIV/0!"+1` garbage, so propagate the error

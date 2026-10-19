@@ -10,8 +10,8 @@ import { evaluateFormula as evaluateFormulaFn } from "./evaluator";
 import { expandRangeOrCell, parseSingleCellRef } from "./formulaRefs";
 import { parseDate, getDefaultDateFormat } from "./date-parser";
 import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaInfo, SpreadsheetCell, CalculateOptions } from "./types";
-import { isObj } from "./guards";
-import { isEmptyCell } from "./cellEmpty";
+import { isObj, isRecord } from "./guards";
+import { isBlankCell, isEmptyCell } from "./cellEmpty";
 import { isRangeNumber } from "./numericCoercion";
 import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
@@ -312,22 +312,40 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     return { sheetData: targetResult.data, ref: innerRef, isCurrentSheet: false };
   };
 
-  // Helper to get cell value by reference (e.g., "B2", "$B$2", or "'Sheet1'!B2")
-  const getCellValue = (ref: string): CellValue => {
+  /** The grid cell a reference names, with its position; null outside the sheet's grid. */
+  const locateCell = (ref: string): { cell: unknown; position: CellPosition | undefined } | null => {
     const resolved = resolveSheetData(ref);
     if (!resolved) throw invalidRefError(ref); // Sheet not found → #REF!
     const { sheetData, ref: cellRef, isCurrentSheet } = resolved;
 
     // `$` symbols and the A1 shape are parsed by the shared single-cell reader.
     const coord = parseSingleCellRef(cellRef);
-    if (!coord) return 0;
+    if (!coord) return null;
 
     const { row, col } = coord;
     const gridRow = row >= 0 ? sheetData[row] : undefined;
-    if (!gridRow || col < 0 || col >= gridRow.length) return 0;
+    if (!gridRow || col < 0 || col >= gridRow.length) return null;
 
     // Pass the position only if this is the current sheet (for recursive evaluation)
-    return getRawValue(gridRow[col], isCurrentSheet ? { cells: gridRow, row, col } : undefined);
+    return { cell: gridRow[col], position: isCurrentSheet ? { cells: gridRow, row, col } : undefined };
+  };
+
+  // Helper to get cell value by reference (e.g., "B2", "$B$2", or "'Sheet1'!B2")
+  const getCellValue = (ref: string): CellValue => {
+    const located = locateCell(ref);
+    return located ? getRawValue(located.cell, located.position) : 0;
+  };
+
+  /** Whether a reference names a cell that holds nothing — outside the grid included. A formula
+   *  cell is judged by what it answers, calculated here if it has not been yet: judged by its
+   *  source it read as not empty only until it was calculated, so the answer depended on order. */
+  const isCellEmpty = (ref: string): boolean => {
+    const located = locateCell(ref);
+    if (located === null) return true;
+    const { cell, position } = located;
+    const source = isRecord(cell) ? cell["v"] : undefined;
+    const isFormula = typeof source === "string" && source.startsWith("=");
+    return isBlankCell(isFormula ? getRawValue(cell, position) : cell);
   };
 
   const collectRangeValues = (range: string, rangeOptions: { numericOnly: boolean; keepBlanks?: boolean }): CellValue[] => {
@@ -403,6 +421,7 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
       countFilledCells,
       evaluateFormula,
       preferDDMMYYYY,
+      isCellEmpty,
     });
   };
 
