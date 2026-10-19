@@ -87,7 +87,9 @@ describe(`parseNumericString over generated numbers (NUMBERS_SEED=${SEED})`, () 
   });
 
   it("reads none of them with text after it", () => {
-    const read = samples.flatMap((n) => ["abc", "-01", " kg", ",x", "%x"].map((tail) => `${n}${tail}`)).filter((text) => parseNumericString(text) !== null);
-    assert.deepEqual(read.slice(0, 5), [], `seed ${SEED}`);
+    const readAsNumbers = samples
+      .flatMap((n) => ["abc", "-01", " kg", ",x", "%x"].map((tail) => `${n}${tail}`))
+      .filter((text) => parseNumericString(text) !== null);
+    assert.deepEqual(readAsNumbers.slice(0, 5), [], `seed ${SEED}`);
   });
 });
