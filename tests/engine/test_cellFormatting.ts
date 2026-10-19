@@ -37,37 +37,45 @@ describe("isLikelyDateSerial", () => {
 
 describe("formatCellForDisplay — passthrough", () => {
   it("returns the value unchanged when the original is not a cell", () => {
-    assert.equal(formatCellForDisplay(5, 5, false), 5);
-    assert.equal(formatCellForDisplay(null, 7, false), 7);
+    assert.equal(formatCellForDisplay(5, 5, false, false), 5);
+    assert.equal(formatCellForDisplay(null, 7, false, false), 7);
   });
 
   it("leaves text untouched", () => {
-    assert.equal(formatCellForDisplay({ v: "hello" }, "hello", false), "hello");
+    assert.equal(formatCellForDisplay({ v: "hello" }, "hello", false, false), "hello");
   });
 
   it("leaves a plain formula number that is not a date serial", () => {
-    assert.equal(formatCellForDisplay({ v: "=A1+A2" }, 100, false), 100);
+    assert.equal(formatCellForDisplay({ v: "=A1+A2" }, 100, false, false), 100);
   });
 
   it("leaves an empty cell's zero as a number", () => {
-    assert.equal(formatCellForDisplay({ v: "" }, 0, false), 0);
+    assert.equal(formatCellForDisplay({ v: "" }, 0, false, false), 0);
   });
 });
 
 describe("formatCellForDisplay — formatting", () => {
   it("applies an explicit currency format", () => {
-    assert.equal(formatCellForDisplay({ v: 1234.5, f: "$#,##0.00" }, 1234.5, false), "$1,234.50");
+    assert.equal(formatCellForDisplay({ v: 1234.5, f: "$#,##0.00" }, 1234.5, false, false), "$1,234.50");
   });
 
   it("auto-formats a formula's date serial (month-first by default)", () => {
-    assert.equal(formatCellForDisplay({ v: "=A1" }, serial2025Mar4, false), "03/04/2025");
+    assert.equal(formatCellForDisplay({ v: "=A1" }, serial2025Mar4, false, true), "03/04/2025");
   });
 
   it("honours day-first preference for the auto date format", () => {
-    assert.equal(formatCellForDisplay({ v: "=A1" }, serial2025Mar4, true), "04/03/2025");
+    assert.equal(formatCellForDisplay({ v: "=A1" }, serial2025Mar4, true, true), "04/03/2025");
+  });
+
+  it("leaves a formula's number in the date window alone when it is not a date by origin", () => {
+    assert.equal(formatCellForDisplay({ v: "=SUM(B2:B13)" }, 52345, false, false), 52345);
+  });
+
+  it("leaves a date-origin number outside the date window as a number", () => {
+    assert.equal(formatCellForDisplay({ v: "=A1-A2" }, 31, false, true), 31);
   });
 
   it("does NOT auto-format a non-formula date serial (only formulas opt in)", () => {
-    assert.equal(formatCellForDisplay({ v: serial2025Mar4 }, serial2025Mar4, false), serial2025Mar4);
+    assert.equal(formatCellForDisplay({ v: serial2025Mar4 }, serial2025Mar4, false, false), serial2025Mar4);
   });
 });

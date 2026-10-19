@@ -9,7 +9,7 @@ import { serialToDate, MONTH_NAMES_SHORT, MONTH_NAMES_FULL, DAY_NAMES_SHORT, DAY
 /**
  * Check if a format code is for dates
  */
-function isDateFormat(format: string): boolean {
+export function isDateFormat(format: string): boolean {
   // Date formats contain date/time tokens: Y, M, D, h, m, s
   // But not percentage (which also has 'm' in format like #,##0)
   // Look for specific date patterns
