@@ -41,7 +41,7 @@ const MAX_ARGUMENT_CELLS = 100_000;
 const CALLER_SOURCE = "(fn, args) => fn(...JSON.parse(args))";
 
 // An optional sheet before a reference: `Data!`, `'My data'!`.
-const SHEET = "(?:(?:'[^']+'|[^!'\"(),]+)!)?";
+const SHEET = "(?:(?:'(?:[^']|'')+'|[^!'\"(),]+)!)?";
 // A range: `$B$2:$C$9`, `Data!B2:B9`. A single cell (`B2`) is a value, not a range.
 const RANGE = new RegExp(`^${SHEET}\\$?[A-Z]+\\$?\\d+:\\$?[A-Z]+\\$?\\d+$`, "i");
 const SINGLE_CELL = new RegExp(`^${SHEET}\\$?[A-Z]+\\$?\\d+$`, "i");

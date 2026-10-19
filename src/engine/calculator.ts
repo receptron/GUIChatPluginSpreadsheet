@@ -13,6 +13,7 @@ import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaIn
 import { isObj, isRecord } from "./guards";
 import { isBlankCell, isEmptyCell } from "./cellEmpty";
 import { isRangeNumber } from "./numericCoercion";
+import { splitSheetReference } from "./sheetReference";
 import { boundWholeReferences, type SheetExtent } from "./wholeReferences";
 import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
@@ -48,9 +49,9 @@ interface CellPosition {
  *  the format they were typed in). A reference names its sheet, or is on `sheet`. */
 function sheetsDateSource(sheets: SheetData[]): DateSource {
   return (ref, sheet) => {
-    const [, quoted, plain, inner] = /^(?:'([^']+)'|([^!]+))!(.+)$/.exec(ref) ?? [undefined, undefined, undefined, ref];
-    const target = quoted ?? plain ?? sheet;
-    const coord = inner === undefined ? null : parseSingleCellRef(inner);
+    const qualified = splitSheetReference(ref);
+    const target = qualified?.sheetName ?? sheet;
+    const coord = parseSingleCellRef(qualified?.ref ?? ref);
     const cell = coord ? sheets.find((candidate) => candidate.name === target)?.data[coord.row]?.[coord.col] : undefined;
     if (!isObj(cell)) return null;
     const formula = typeof cell.v === "string" && cell.v.startsWith("=") ? cell.v : null;
@@ -147,9 +148,6 @@ type SheetCalculateOptions = CalculateOptions & { skipFormatting?: boolean };
  * @param allSheets - All sheets for cross-sheet references
  * @returns Calculated sheet with formulas evaluated
  */
-// `Sheet1!A1` or `'My Sheet'!A1:B2`: the sheet name (quoted or plain), then the reference.
-const SHEET_QUALIFIED_REF = /^(?:'([^']+)'|([^!]+))!(.+)$/;
-
 export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], options: SheetCalculateOptions = {}): CalculatedSheet {
   const preferDDMMYYYY = options.preferDDMMYYYY ?? false;
   const skipFormatting = options.skipFormatting ?? false;
@@ -286,15 +284,9 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
   // a single cell, [] for a range). The two-stage cache seed (raw copy published
   // BEFORE recursing, real result after) is the cross-sheet infinite-loop guard.
   const resolveSheetData = (fullRef: string): ResolvedSheetRef | null => {
-    const sheetMatch = fullRef.match(SHEET_QUALIFIED_REF);
-    if (!sheetMatch) return { sheetData: calculated, ref: fullRef, isCurrentSheet: true };
-
-    // Exactly one of the two name branches participates; the reference part
-    // always does. A shortfall would mean the pattern and this read disagree, so
-    // it lands on the caller's "sheet not found" path rather than a guess.
-    const [, quotedName, plainName, innerRef] = sheetMatch;
-    const targetSheetName = quotedName ?? plainName;
-    if (targetSheetName === undefined || innerRef === undefined) return null;
+    const qualified = splitSheetReference(fullRef);
+    if (!qualified) return { sheetData: calculated, ref: fullRef, isCurrentSheet: true };
+    const { sheetName: targetSheetName, ref: innerRef } = qualified;
 
     // Check cache first to prevent infinite loops
     const cached = sheetsCache.get(targetSheetName);
@@ -403,8 +395,7 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     const resolved = resolveSheetData(range);
     const coords = resolved ? expandRangeOrCell(resolved.ref) : null;
     if (!resolved || !coords) return 0;
-    const sheetMatch = range.match(SHEET_QUALIFIED_REF);
-    const sourceName = sheetMatch ? (sheetMatch[1] ?? sheetMatch[2]) : sheetName;
+    const sourceName = splitSheetReference(range)?.sheetName ?? sheetName;
     const source = sourceName === sheetName ? data : processedAllSheets?.find((s) => s.name === sourceName)?.data;
     if (!source) return 0;
     return coords.filter(({ row, col }) => {
