@@ -11,6 +11,7 @@ import { parseDate, getDefaultDateFormat } from "./date-parser";
 import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaInfo, SpreadsheetCell, CalculateOptions } from "./types";
 import { isObj } from "./guards";
 import { isEmptyCell } from "./cellEmpty";
+import { isRangeNumber } from "./numericCoercion";
 import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
 import { isSpreadsheetErrorValue, spreadsheetError } from "./spreadsheet-errors";
@@ -130,6 +131,9 @@ type SheetCalculateOptions = CalculateOptions & { skipFormatting?: boolean };
  * @param allSheets - All sheets for cross-sheet references
  * @returns Calculated sheet with formulas evaluated
  */
+// `Sheet1!A1` or `'My Sheet'!A1:B2`: the sheet name (quoted or plain), then the reference.
+const SHEET_QUALIFIED_REF = /^(?:'([^']+)'|([^!]+))!(.+)$/;
+
 export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], options: SheetCalculateOptions = {}): CalculatedSheet {
   const preferDDMMYYYY = options.preferDDMMYYYY ?? false;
   const skipFormatting = options.skipFormatting ?? false;
@@ -265,7 +269,7 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
   // a single cell, [] for a range). The two-stage cache seed (raw copy published
   // BEFORE recursing, real result after) is the cross-sheet infinite-loop guard.
   const resolveSheetData = (fullRef: string): ResolvedSheetRef | null => {
-    const sheetMatch = fullRef.match(/^(?:'([^']+)'|([^!]+))!(.+)$/);
+    const sheetMatch = fullRef.match(SHEET_QUALIFIED_REF);
     if (!sheetMatch) return { sheetData: calculated, ref: fullRef, isCurrentSheet: true };
 
     // Exactly one of the two name branches participates; the reference part
@@ -311,7 +315,7 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     return getRawValue(gridRow[col], isCurrentSheet ? { cells: gridRow, row, col } : undefined);
   };
 
-  const collectRangeValues = (range: string, rangeOptions: { numericOnly: boolean }): CellValue[] => {
+  const collectRangeValues = (range: string, rangeOptions: { numericOnly: boolean; keepBlanks?: boolean }): CellValue[] => {
     const resolved = resolveSheetData(range);
     if (!resolved) return []; // Sheet not found → empty range
     const { sheetData, ref: rangeRef, isCurrentSheet } = resolved;
@@ -334,11 +338,13 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
           // every cell so SUMIF/AVERAGEIF's criteria and value ranges stay
           // row-aligned; dropping there would shift indexes and aggregate the
           // wrong rows (Codex review).
-          if (!isEmptyCell(cell) && !isNaN(rawValue as number)) {
+          if (!isEmptyCell(cell) && isRangeNumber(rawValue)) {
             values.push(rawValue);
           }
         } else {
-          values.push(rawValue);
+          // A calculated error has no `v`, so isEmptyCell would call it blank; it is a value.
+          const isBlank = isEmptyCell(cell) && !isSpreadsheetErrorValue(cell);
+          values.push(rangeOptions.keepBlanks && isBlank ? "" : rawValue);
         }
       }
     }
@@ -351,12 +357,35 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
   // Helper to get raw range values including text
   const getRangeValuesRaw = (range: string): CellValue[] => collectRangeValues(range, { numericOnly: false });
 
+  // Every cell, with a blank one as "" — the raw read gives a blank 0, which a
+  // criteria or a pairing cannot tell from a stored 0.
+  const getRangeValuesKeepingBlanks = (range: string): CellValue[] => collectRangeValues(range, { numericOnly: false, keepBlanks: true });
+
+  // The cells of a range that hold something — a value or a formula, even one answering "" —
+  // which is what COUNTA counts. It reads the cells as written: in the calculated grid a
+  // formula that answered "" already looks blank.
+  const countFilledCells = (range: string): number => {
+    const resolved = resolveSheetData(range);
+    const coords = resolved ? expandRangeOrCell(resolved.ref) : null;
+    if (!resolved || !coords) return 0;
+    const sheetMatch = range.match(SHEET_QUALIFIED_REF);
+    const sourceName = sheetMatch ? (sheetMatch[1] ?? sheetMatch[2]) : sheetName;
+    const source = sourceName === sheetName ? data : processedAllSheets?.find((s) => s.name === sourceName)?.data;
+    if (!source) return 0;
+    return coords.filter(({ row, col }) => {
+      const cell = source[row]?.[col];
+      return cell !== undefined && !isEmptyCell(cell);
+    }).length;
+  };
+
   // Evaluate a formula with context
   const evaluateFormula = (formula: string): CellValue => {
     return evaluateFormulaFn(formula, {
       getCellValue,
       getRangeValues,
       getRangeValuesRaw,
+      getRangeValuesKeepingBlanks,
+      countFilledCells,
       evaluateFormula,
       preferDDMMYYYY,
     });
