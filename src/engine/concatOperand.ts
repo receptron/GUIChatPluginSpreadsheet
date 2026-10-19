@@ -18,11 +18,12 @@ function operatorAfter(expr: string, index: number): string {
   return position.at >= expr.length ? "" : (expr[position.at] ?? "");
 }
 
+const isJoinOrEdge = (char: string): boolean => char === "" || char === "&";
+
 /** Whether `expr.slice(start, end)` is a whole operand of a `&`: only brackets and spaces
  *  between it and a `&` on one side, and a `&` or the end of the expression on the other. */
 export function standsAloneInConcat(expr: string, start: number, end: number): boolean {
   const before = operatorBefore(expr, start);
   const after = operatorAfter(expr, end);
-  const isJoinOrEdge = (char: string): boolean => char === "" || char === "&";
   return isJoinOrEdge(before) && isJoinOrEdge(after) && (before === "&" || after === "&");
 }
