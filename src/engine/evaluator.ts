@@ -18,6 +18,7 @@ import { standsAloneInConcat } from "./concatOperand";
 import { stripOuterParens } from "./condition";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
+import { endOfQuotedSheetName } from "./sheetReference";
 
 /**
  * Evaluation context for formulas
@@ -113,11 +114,11 @@ export function endOfStringLiteral(expr: string, start: number): number {
 /** A `'Sheet Name'!A1` reference beginning at `start` (a `'`), or null when the
  *  quotes open a plain string literal rather than a sheet-qualified reference. */
 function matchQuotedSheetRef(expr: string, start: number): string | null {
-  const endQuote = expr.indexOf("'", start + 1);
-  if (endQuote === -1 || expr[endQuote + 1] !== "!") return null;
-  const cellPart = expr.substring(endQuote + 2).match(/^(\$?[A-Z]+\$?\d+)/);
+  const afterName = endOfQuotedSheetName(expr, start);
+  if (afterName === -1 || expr[afterName] !== "!") return null;
+  const cellPart = expr.substring(afterName + 1).match(/^(\$?[A-Z]+\$?\d+)/);
   if (!cellPart) return null;
-  return expr.substring(start, endQuote + 2 + cellPart[0].length);
+  return expr.substring(start, afterName + 1 + cellPart[0].length);
 }
 
 /** A `Sheet!A1` or bare `A1` / `$A$1` reference beginning at `start`, or null. */
