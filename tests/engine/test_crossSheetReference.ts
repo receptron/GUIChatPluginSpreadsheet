@@ -7,7 +7,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
+import { SpreadsheetEngine, calculateSheet, type SheetData } from "../../src/engine/index.ts";
 import { rowAt } from "./cellAccess.ts";
 
 const engine = new SpreadsheetEngine();
@@ -69,18 +69,31 @@ describe("cross-sheet range aggregation stays numeric", () => {
 // shared. The two-stage seed is the cross-sheet infinite-loop guard: a cyclic
 // reference must terminate with an error, not hang. If it hung, these tests would
 // never return and the whole suite would time out.
+// A cell that depends on itself through other sheets is a circular reference like one within a sheet:
+// it reads 0 and is reported as circular. (Before #130 it read "#ERROR!", because the other sheet was
+// read mid-calculation, its formula still text.)
 describe("cyclic cross-sheet references terminate instead of hanging", () => {
-  it("a 2-sheet cycle (A!A1=B!A1, B!A1=A!A1) resolves to an error", () => {
+  it("a 2-sheet cycle (A!A1=B!A1, B!A1=A!A1) is a circular reference", () => {
     const sheetA: SheetData = { name: "A", data: [[{ v: "=B!A1" }]] };
     const sheetB: SheetData = { name: "B", data: [[{ v: "=A!A1" }]] };
-    assert.equal(String(calcRow(sheetA, [sheetA, sheetB])[0]), "#ERROR!");
+    const result = calculateSheet(sheetA, [sheetA, sheetB]);
+    assert.equal(result.data[0]?.[0], 0);
+    assert.deepEqual(
+      result.errors.map((error) => error.type),
+      ["circular"],
+    );
   });
 
-  it("a 3-sheet cycle (A->B->C->A) also terminates with an error", () => {
+  it("a 3-sheet cycle (A->B->C->A) is a circular reference too", () => {
     const sheetA: SheetData = { name: "A", data: [[{ v: "=B!A1" }]] };
     const sheetB: SheetData = { name: "B", data: [[{ v: "=C!A1" }]] };
     const sheetC: SheetData = { name: "C", data: [[{ v: "=A!A1" }]] };
-    assert.equal(String(calcRow(sheetA, [sheetA, sheetB, sheetC])[0]), "#ERROR!");
+    const result = calculateSheet(sheetA, [sheetA, sheetB, sheetC]);
+    assert.equal(result.data[0]?.[0], 0);
+    assert.deepEqual(
+      result.errors.map((error) => error.type),
+      ["circular"],
+    );
   });
 
   it("a valid cross-sheet reference next to the cycle still resolves", () => {
