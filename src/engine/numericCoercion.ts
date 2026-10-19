@@ -80,5 +80,5 @@ export function toScalarNumber(value: CellValue): number | SpreadsheetError {
  */
 export function isRangeNumber(value: CellValue): boolean {
   if (typeof value === "number") return !isNaN(value);
-  return typeof value === "string" && value.trim() !== "" && !isNaN(Number(value));
+  return typeof value === "string" && parseNumericString(value) !== null;
 }

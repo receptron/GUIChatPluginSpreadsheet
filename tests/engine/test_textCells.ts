@@ -23,18 +23,28 @@ describe("a text cell read by a formula (#140)", () => {
     assert.deepEqual(read("2023-01", ["=VALUE(RIGHT(A1,2))", "=VALUE(LEFT(A1,4))"]), [1, 2023]);
   });
 
+  it("is counted by COUNT exactly when SUM adds it, whatever a formula returns", () => {
+    const returned = ['"12"', '"1,200"', '"25%"', '"0x1F"', '"Infinity"', '"12abc"', '""'];
+    const sheet: SheetData = {
+      name: "S",
+      data: [...returned.map((text) => [{ v: `=${text}` }]), [{ v: `=SUM(A1:A${returned.length})` }, { v: `=COUNT(A1:A${returned.length})` }]],
+    };
+    assert.deepEqual(calculateSheet(sheet, [sheet], { skipFormatting: true }).data[returned.length], [12 + 1200 + 0.25, 3]);
+  });
+
   it("is #VALUE! in arithmetic and left out of a sum, as text is", () => {
     assert.deepEqual(read("12abc", ["=A1+1", "=SUM(A1:A1)", "=COUNT(A1:A1)"]).map(String), ["#VALUE!", "0", "0"]);
   });
 
   it("still reads a number typed with separators, a percentage or a currency sign", () => {
-    for (const [text, number] of [
+    const typed: [string, number][] = [
       ["1,200", 1200],
       ["25%", 0.25],
       ["$1,000", 1000],
       ["-$5", -5],
       [" 42 ", 42],
-    ] as const) {
+    ];
+    for (const [text, number] of typed) {
       assert.deepEqual(read(text, ["=A1", "=A1+0"]), [number, number], text);
     }
   });
