@@ -12,7 +12,7 @@ import type { CellValue } from "./types";
 import { parseDate } from "./date-parser";
 import { concatOperands, concatToSum } from "./concatPrecedence";
 import { isEscapedAt } from "./escapes";
-import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison } from "./translateFormula";
+import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison, separateRepeatedSigns } from "./translateFormula";
 import { foldComparisons, splitTopLevelComparisons } from "./textComparison";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
@@ -234,7 +234,7 @@ function evalValidatedExpression(jsExpr: string): CellValue {
   let result: unknown;
   try {
     // eslint-disable -- sonarjs/code-eval
-    result = new Function(`return (${jsExpr})`)();
+    result = new Function(`return (${separateRepeatedSigns(jsExpr)})`)();
   } catch {
     throw unknownError();
   }
