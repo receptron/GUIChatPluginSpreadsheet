@@ -54,6 +54,16 @@ describe("a sheet named with an apostrophe", () => {
     },
   ];
 
+  it("shows a date read from it as a date", () => {
+    const dated: SheetData[] = [
+      { name: "It's", data: [[{ v: "2025-03-04" }]] },
+      { name: "F", data: [[{ v: "='It''s'!A1+1" }]] },
+    ];
+    const calculated = new SpreadsheetEngine().calculateWorkbook(dated)[1];
+    assert.ok(calculated);
+    assert.equal(cellAt(calculated.data, 0, 0), "03/05/2025");
+  });
+
   it("answers the issue's formulas as Excel does", () => {
     const calculated = new SpreadsheetEngine().calculateWorkbook(sheets)[1];
     assert.ok(calculated);

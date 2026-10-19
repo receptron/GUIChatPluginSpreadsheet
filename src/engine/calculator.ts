@@ -48,9 +48,9 @@ interface CellPosition {
  *  the format they were typed in). A reference names its sheet, or is on `sheet`. */
 function sheetsDateSource(sheets: SheetData[]): DateSource {
   return (ref, sheet) => {
-    const [, quoted, plain, inner] = /^(?:'([^']+)'|([^!]+))!(.+)$/.exec(ref) ?? [undefined, undefined, undefined, ref];
-    const target = quoted ?? plain ?? sheet;
-    const coord = inner === undefined ? null : parseSingleCellRef(inner);
+    const qualified = splitSheetReference(ref);
+    const target = qualified?.sheetName ?? sheet;
+    const coord = parseSingleCellRef(qualified?.ref ?? ref);
     const cell = coord ? sheets.find((candidate) => candidate.name === target)?.data[coord.row]?.[coord.col] : undefined;
     if (!isObj(cell)) return null;
     const formula = typeof cell.v === "string" && cell.v.startsWith("=") ? cell.v : null;

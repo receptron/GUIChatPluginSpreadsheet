@@ -135,6 +135,11 @@ describe("calling a workbook's functions", () => {
     );
   });
 
+  it("hands a range on a sheet whose name holds an apostrophe", () => {
+    const other: SheetData = { name: "It's", data: [[{ v: 1 }, { v: 2 }]] };
+    assert.equal(cellAt(calculate([[{ v: "=SHAPE('It''s'!A1:B1)" }]], [other]), 0, 0), "1x2:[[1,2]]");
+  });
+
   it("hands a range as rows of cells, a blank as null", () => {
     const rows: SheetData["data"] = [
       [{ v: 1 }, { v: "a" }, { v: "=SHAPE(A1:B2)" }],
