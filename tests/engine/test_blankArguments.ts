@@ -54,7 +54,14 @@ describe("a blank cell", () => {
   });
 
   it('is "" in a text function', () => {
-    assert.deepEqual(valuesOf(['=UPPER(A1)&"|"', "=LEFT(A1,2)", '=EXACT(A1,"")', '=SUBSTITUTE(A1,"a","b")', '=TRIM(A1)&"|"']), ["|", "", true, "", "|"]);
+    assert.deepEqual(valuesOf(['=UPPER(A1)&"|"', "=LEFT(A1,2)", '=EXACT(A1,"")', '=TEXT(1.5,A1)=TEXT(1.5,"")', '=SUBSTITUTE(A1,"a","b")', '=TRIM(A1)&"|"']), [
+      "|",
+      "",
+      true,
+      true,
+      "",
+      "|",
+    ]);
   });
 
   it("stays 0 on its own, in arithmetic, and where a number is read", () => {
@@ -93,6 +100,7 @@ const TEXT_FUNCTIONS: ((x: string) => string)[] = [
   (x) => `=LEFT(${x},1)&"|"`,
   (x) => `=EXACT(${x},"")`,
   (x) => `=TRIM(${x})&"|"`,
+  (x) => `=TEXT(1.5,${x})&"|"`,
 ];
 
 describe(`a blank beside every kind of value (seed ${baseSeed})`, () => {

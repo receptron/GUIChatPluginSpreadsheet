@@ -186,7 +186,7 @@ const stripSurroundingQuotes = (text: string): string => text.replace(/^["']/, "
 
 const textHandler: FunctionHandler = (args, context) => {
   const value = context.evaluateFormula(requiredArg(context, args, 0));
-  const format = stripSurroundingQuotes(toString(context.evaluateFormula(requiredArg(context, args, 1))));
+  const format = stripSurroundingQuotes(textArg(context, args, 1));
   if (typeof value !== "number") return toString(value);
   return formatWithPattern(value, format) ?? toString(value);
 };
