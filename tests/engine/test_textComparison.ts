@@ -78,6 +78,13 @@ describe("compareCellValues", () => {
     assert.ok(compareCellValues("", "a") < 0);
   });
 
+  it("orders text by language, not by character code", () => {
+    assert.ok(compareCellValues("_", "1") < 0, "punctuation before digits");
+    assert.ok(compareCellValues("e", "é") < 0 && compareCellValues("é", "f") < 0, "é between e and f");
+    assert.notEqual(compareCellValues("é", "e"), 0, "accents count");
+    assert.equal(compareCellValues("É", "é"), 0, "case does not");
+  });
+
   it("never finds a number equal to its own text", () => {
     assert.notEqual(compareCellValues(12, "12"), 0);
     assert.notEqual(compareCellValues(true, "TRUE"), 0);

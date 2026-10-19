@@ -2,13 +2,14 @@
  * Excel comparison (`=` `<>` `<` `>` `<=` `>=`) over values of any type.
  *
  * Comparison binds looser than `&`, so `A1&B1="12"` compares the joined text.
- * Excel orders numbers before text before booleans, compares text without regard
- * to case, and never finds a number equal to text (`"12"=12` is FALSE). A chain
- * reads left to right: `1=1=TRUE` is `(1=1)=TRUE`.
+ * Excel orders numbers before text before booleans, compares text by language order
+ * without regard to case (accents count), and never finds a number equal to text
+ * (`"12"=12` is FALSE). A chain reads left to right: `1=1=TRUE` is `(1=1)=TRUE`.
  */
 
 import type { CellValue } from "./types";
 import { placesOf } from "./concatPrecedence";
+import { compareText } from "./textCollation";
 
 export type ExcelComparisonOperator = "=" | "<>" | "<" | ">" | "<=" | ">=";
 
@@ -67,10 +68,7 @@ export function compareCellValues(left: CellValue, right: CellValue): number {
   if (rankGap !== 0) return rankGap;
   if (typeof left === "number" && typeof right === "number") return left - right;
   if (typeof left === "boolean" && typeof right === "boolean") return Number(left) - Number(right);
-  const leftText = String(left).toLowerCase();
-  const rightText = String(right).toLowerCase();
-  if (leftText === rightText) return 0;
-  return leftText < rightText ? -1 : 1;
+  return compareText(String(left), String(right));
 }
 
 const OUTCOME: Readonly<Record<ExcelComparisonOperator, (ordering: number) => boolean>> = {
