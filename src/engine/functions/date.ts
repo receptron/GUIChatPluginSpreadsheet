@@ -5,7 +5,7 @@
  */
 
 import { functionRegistry, requiredArg, toNumber, toString, type FunctionContext, type FunctionHandler } from "../registry";
-import { toScalarNumber } from "../numericCoercion";
+import { dateArgument } from "../dateText";
 import { isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
 import { computeDatedif } from "../datedif";
 import { dateToSerial, serialToDate } from "../date-utils";
@@ -54,10 +54,10 @@ const timeHandler: FunctionHandler = (args, context) => {
   return (totalSeconds % secondsPerDay) / secondsPerDay;
 };
 
-// A date argument is read as Excel reads it: a date written as text has already become a serial
-// by the time it is evaluated, so text that is still text (`2023-01`) is #VALUE!, not serial 0.
+// A date argument is read as Excel reads it: a date written as text (`2025-01`) is that date, and
+// other text is #VALUE!, not serial 0.
 const serialArg = (args: string[], context: FunctionContext, index: number): number | SpreadsheetError =>
-  toScalarNumber(context.evaluateFormula(requiredArg(context, args, index)));
+  dateArgument(context.evaluateFormula(requiredArg(context, args, index)), context.preferDDMMYYYY);
 
 const fromSerial =
   (read: (serial: number) => number): FunctionHandler =>

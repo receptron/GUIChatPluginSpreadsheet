@@ -2,18 +2,22 @@
  * Calendar functions: WEEKDAY, DAYS, EDATE, EOMONTH, WORKDAY, NETWORKDAYS. The
  * rules live in date-calendar.ts; this file reads the arguments.
  *
- * Arguments are read strictly, as Excel does: a date given as text has already
- * become a serial when the argument is evaluated, so text that is still text is
- * #VALUE!, and an error in an argument is the function's answer.
+ * Arguments are read as Excel reads them: a date written as text (`2025-01`) is
+ * that date (dateText.ts), other text is #VALUE!, and an error in an argument is
+ * the function's answer.
  */
 
 import { functionRegistry, rawRangeReader, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
 import { addMonths, addWorkdays, countWorkdays, daysBetween, endOfMonth, weekdayOf } from "../date-calendar";
 import { holdsNumber, toScalarNumber } from "../numericCoercion";
+import { dateArgument } from "../dateText";
 import { isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
 
-const numberArg = (args: string[], context: FunctionContext, index: number): number | SpreadsheetError =>
-  toScalarNumber(context.evaluateFormula(requiredArg(context, args, index)));
+type ArgumentReader = (args: string[], context: FunctionContext, index: number) => number | SpreadsheetError;
+
+// A date (`2025-01` as text is that date) and a count or a code (`2025-01` there is #VALUE!).
+const dateArg: ArgumentReader = (args, context, index) => dateArgument(context.evaluateFormula(requiredArg(context, args, index)), context.preferDDMMYYYY);
+const numberArg: ArgumentReader = (args, context, index) => toScalarNumber(context.evaluateFormula(requiredArg(context, args, index)));
 
 /** The numbers, or the first error among them. */
 const numbersOrError = (values: (number | SpreadsheetError)[]): number[] | SpreadsheetError =>
@@ -24,30 +28,30 @@ const numbersOrError = (values: (number | SpreadsheetError)[]): number[] | Sprea
 function holidaysArg(args: string[], context: FunctionContext, index: number): number[] | SpreadsheetError {
   if (args.length <= index) return [];
   const cells = rawRangeReader(context)(requiredArg(context, args, index));
-  if (cells.length === 0) return numbersOrError([numberArg(args, context, index)]);
+  if (cells.length === 0) return numbersOrError([dateArg(args, context, index)]);
   return cells.find(isSpreadsheetErrorValue) ?? cells.filter(holdsNumber).map(toNumber);
 }
 
 const weekdayHandler: FunctionHandler = (args, context) => {
-  const values = numbersOrError([numberArg(args, context, 0), args.length > 1 ? numberArg(args, context, 1) : 1]);
+  const values = numbersOrError([dateArg(args, context, 0), args.length > 1 ? numberArg(args, context, 1) : 1]);
   if (isSpreadsheetErrorValue(values)) return values;
   const [serial = 0, returnType = 1] = values;
   return weekdayOf(serial, returnType);
 };
 
 const pairHandler =
-  (rule: (first: number, second: number) => number | SpreadsheetError): FunctionHandler =>
+  (rule: (first: number, second: number) => number | SpreadsheetError, readSecond: ArgumentReader): FunctionHandler =>
   (args, context) => {
-    const values = numbersOrError([numberArg(args, context, 0), numberArg(args, context, 1)]);
+    const values = numbersOrError([dateArg(args, context, 0), readSecond(args, context, 1)]);
     if (isSpreadsheetErrorValue(values)) return values;
     const [first = 0, second = 0] = values;
     return rule(first, second);
   };
 
 const withHolidays =
-  (rule: (first: number, second: number, holidays: number[]) => number | SpreadsheetError): FunctionHandler =>
+  (rule: (first: number, second: number, holidays: number[]) => number | SpreadsheetError, readSecond: ArgumentReader): FunctionHandler =>
   (args, context) => {
-    const values = numbersOrError([numberArg(args, context, 0), numberArg(args, context, 1)]);
+    const values = numbersOrError([dateArg(args, context, 0), readSecond(args, context, 1)]);
     if (isSpreadsheetErrorValue(values)) return values;
     const holidays = holidaysArg(args, context, 2);
     if (isSpreadsheetErrorValue(holidays)) return holidays;
@@ -66,7 +70,7 @@ const CALENDAR_FUNCTIONS = [
   },
   {
     name: "DAYS",
-    handler: pairHandler(daysBetween),
+    handler: pairHandler(daysBetween, dateArg),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the number of days between two dates",
@@ -74,7 +78,7 @@ const CALENDAR_FUNCTIONS = [
   },
   {
     name: "EDATE",
-    handler: pairHandler(addMonths),
+    handler: pairHandler(addMonths, numberArg),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the date a number of months before or after a date",
@@ -82,7 +86,7 @@ const CALENDAR_FUNCTIONS = [
   },
   {
     name: "EOMONTH",
-    handler: pairHandler(endOfMonth),
+    handler: pairHandler(endOfMonth, numberArg),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the last day of the month a number of months away",
@@ -90,7 +94,7 @@ const CALENDAR_FUNCTIONS = [
   },
   {
     name: "WORKDAY",
-    handler: withHolidays(addWorkdays),
+    handler: withHolidays(addWorkdays, numberArg),
     minArgs: 2,
     maxArgs: 3,
     description: "Returns the date a number of working days away, skipping weekends and holidays",
@@ -98,7 +102,7 @@ const CALENDAR_FUNCTIONS = [
   },
   {
     name: "NETWORKDAYS",
-    handler: withHolidays(countWorkdays),
+    handler: withHolidays(countWorkdays, dateArg),
     minArgs: 2,
     maxArgs: 3,
     description: "Returns the number of working days between two dates, both included",

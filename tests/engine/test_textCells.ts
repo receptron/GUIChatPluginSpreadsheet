@@ -5,12 +5,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { calculateSheet, type SheetData } from "../../src/engine/index.ts";
+import { readBeside, seededRandom } from "./textCellRead.ts";
 import { parseNumericString } from "../../src/engine/numericCoercion.ts";
 
-const read = (text: string, formulas: string[]): unknown[] => {
-  const sheet: SheetData = { name: "S", data: [[text, ...formulas].map((v) => ({ v }))] };
-  return calculateSheet(sheet, [sheet], { skipFormatting: true }).data[0]?.slice(1) ?? [];
-};
+const read = readBeside;
 
 describe("a text cell read by a formula (#140)", () => {
   for (const text of ["2023-01", "12abc", "Tokyo, Japan", "5% off", "$5 each", "1,2,3"]) {
@@ -36,9 +34,9 @@ describe("a text cell read by a formula (#140)", () => {
     assert.deepEqual(read("12abc", ["=A1+1", "=SUM(A1:A1)", "=COUNT(A1:A1)"]).map(String), ["#VALUE!", "0", "0"]);
   });
 
-  it("is #VALUE! to a date function rather than serial 0, as calendar functions already answer", () => {
+  it("is #VALUE! to a date function rather than serial 0, when it is not a date either", () => {
     assert.deepEqual(
-      read("2023-01", ["=YEAR(A1)", "=MONTH(A1)", "=DAY(A1)", "=HOUR(A1)", '=DATEDIF(A1,45000,"D")', "=WEEKDAY(A1)"]).map(String),
+      read("12abc", ["=YEAR(A1)", "=MONTH(A1)", "=DAY(A1)", "=HOUR(A1)", '=DATEDIF(A1,45000,"D")', "=WEEKDAY(A1)"]).map(String),
       Array(6).fill("#VALUE!"),
     );
   });
@@ -64,10 +62,7 @@ const grouped = (n: number): string => {
   return `${n < 0 ? "-" : ""}${whole.replace(/\B(?=(\d{3})+$)/g, ",")}.${fraction}`;
 };
 describe(`parseNumericString over generated numbers (NUMBERS_SEED=${SEED})`, () => {
-  const random = (() => {
-    let state = SEED;
-    return (): number => (state = (state * 1103515245 + 12345) % 2147483648) / 2147483648;
-  })();
+  const random = seededRandom(SEED);
   const ROUNDS = 2000;
   const samples = Array.from({ length: ROUNDS }, () => Math.round((random() - 0.5) * 10 ** (1 + Math.floor(random() * 8)) * 100) / 100);
 
