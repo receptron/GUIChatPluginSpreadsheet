@@ -5,7 +5,7 @@
  * #NUM! — and registers the names.
  */
 
-import { functionRegistry, rawRangeReader, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
+import { blankAwareRangeReader, functionRegistry, rawRangeReader, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
 import { coerceToBoolean } from "../coerce-boolean";
 import { toScalarNumber } from "../numericCoercion";
 import { DIV_ZERO_ERROR, isSpreadsheetErrorValue, NUM_ERROR, type SpreadsheetError } from "../spreadsheet-errors";
@@ -105,9 +105,10 @@ const PAIRED = 1;
 const EQUAL_VARIANCE = 2;
 const UNEQUAL_VARIANCE = 3;
 
-/** The paired t: the rows where both ranges hold a number, differenced. */
+/** The paired t: the rows where both ranges hold a number, differenced. A blank reads as "", not
+ *  0, so its row drops out as it does from CORREL. */
 function pairedStatistic(args: string[], context: FunctionContext): TStatistic | SpreadsheetError {
-  const readRaw = rawRangeReader(context);
+  const readRaw = blankAwareRangeReader(context);
   const pairs = numericPairs(readRaw(requiredArg(context, args, 0)), readRaw(requiredArg(context, args, 1)));
   return "ys" in pairs ? pairedT(pairs.ys.map((y, index) => y - (pairs.xs[index] ?? 0))) : pairs;
 }

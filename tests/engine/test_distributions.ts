@@ -277,6 +277,24 @@ describe("T.TEST arguments", () => {
     assert.equal(typeof withGaps, "number");
     assert.notEqual(withGaps, compact, "row 4 has no pair, so it drops out of the paired test");
   });
+
+  it('drops a row whose cell holds nothing or answers "", as CORREL does', () => {
+    // Rows 2-4 each lose their B cell a different way; D:E hold the rows that remain.
+    const data: SheetData["data"] = [
+      [{ v: 1 }, { v: 2 }, { v: "" }, { v: 1 }, { v: 2 }],
+      [{ v: 5 }, { v: null }],
+      [{ v: 6 }, {}],
+      [{ v: 7 }, { v: '=IF(TRUE,"",1)' }],
+      [{ v: 3 }, { v: 4 }, { v: "" }, { v: 3 }, { v: 4 }],
+      [{ v: 4 }, { v: 9 }, { v: "" }, { v: 4 }, { v: 9 }],
+      [{ v: "=T.TEST(A1:A6,B1:B6,2,1)" }, { v: "=T.TEST(D1:D6,E1:E6,2,1)" }, { v: "=CORREL(A1:A6,B1:B6)" }, { v: "=CORREL(D1:D6,E1:E6)" }],
+    ];
+    const grid = new SpreadsheetEngine().calculate({ name: "S", data } satisfies SheetData).data;
+    const [gapped, compact, gappedCorrel, compactCorrel] = [0, 1, 2, 3].map((col) => cellAt(grid, 6, col));
+    assert.equal(typeof compact, "number");
+    assert.equal(gapped, compact);
+    assert.equal(gappedCorrel, compactCorrel, "the pairing CORREL uses");
+  });
 });
 
 describe("argument rules", () => {
