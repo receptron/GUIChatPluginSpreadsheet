@@ -76,11 +76,28 @@ export const firstArgumentError = (args: string[], context: FunctionContext): Sp
     .map(({ value }) => value)
     .find(isSpreadsheetErrorValue);
 
-/** The handler, answering the first error in its arguments before it computes anything. */
+/** The context with each formula evaluated at most once, so a second read of an argument — NOW()
+ *  or a workbook function included — answers what the first one did and costs nothing. */
+const evaluatingEachOnce = (context: FunctionContext): FunctionContext => {
+  const evaluated = new Map<string, CellValue>();
+  const evaluateFormula = (formula: string): CellValue => {
+    const known = evaluated.get(formula);
+    if (known !== undefined) return known;
+    const value = context.evaluateFormula(formula);
+    evaluated.set(formula, value);
+    return value;
+  };
+  return { ...context, evaluateFormula };
+};
+
+/** The handler, answering the first error in its arguments before it computes anything. Both
+ *  passes read the arguments through one context, so each is evaluated once. */
 export const answeringArgumentErrors =
   (handler: FunctionHandler): FunctionHandler =>
-  (args, context) =>
-    firstArgumentError(args, context) ?? handler(args, context);
+  (args, context) => {
+    const once = evaluatingEachOnce(context);
+    return firstArgumentError(args, once) ?? handler(args, once);
+  };
 
 export const collectNumericValues = (args: string[], context: FunctionContext): number[] =>
   collectArgumentValues(args, context, context.getRangeValues).map(({ value }) => toNumber(value));

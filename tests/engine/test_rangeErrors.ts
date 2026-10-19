@@ -6,6 +6,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
+import { functionRegistry, type FunctionContext } from "../../src/engine/registry.ts";
 import type { SpreadsheetCell } from "../../src/engine/types.ts";
 import { cellAt } from "./cellAccess.ts";
 import { pick, seededRandom } from "./seededRandom.ts";
@@ -65,6 +66,30 @@ describe("an error in an aggregate's arguments", () => {
 
   it("leaves an aggregate over values without an error as it was", () => {
     assert.deepEqual(valuesOf(DATA, ["=SUM(A2:C2)", "=AVERAGE(A2:C2,B1)", "=MAX(B1:B2)", "=CORREL(A2:C2,A2:C2)"]), [6, 2, 2, 1]);
+  });
+});
+
+/** A context over fixed ranges whose evaluator counts how often each formula is evaluated. */
+function countingContext(values: Record<string, number>): { context: FunctionContext; counts: Map<string, number> } {
+  const counts = new Map<string, number>();
+  const evaluateFormula = (formula: string): number => {
+    counts.set(formula, (counts.get(formula) ?? 0) + 1);
+    return values[formula] ?? 0;
+  };
+  const range = (): number[] => [1, 2];
+  return { context: { functionName: "SUM", getCellValue: () => 0, getRangeValues: range, getRangeValuesRaw: range, evaluateFormula }, counts };
+}
+
+describe("looking for an error first", () => {
+  it("evaluates each argument once, so a second read cannot answer differently", () => {
+    ["SUM", "AVERAGE", "MAX", "STDEVP", "CORREL", "LARGE"].forEach((name) => {
+      const definition = functionRegistry.get(name);
+      assert.ok(definition, name);
+      const { context, counts } = countingContext({ "NOW()": 45000, "2": 2 });
+      const args = name === "CORREL" ? ["A1:A2", "B1:B2"] : name === "LARGE" ? ["A1:A2", "2"] : ["NOW()", "A1:A2", "NOW()"];
+      definition.handler(args, { ...context, functionName: name });
+      counts.forEach((count, formula) => assert.equal(count, 1, `${name}: ${formula} evaluated ${count} times`));
+    });
   });
 });
 
