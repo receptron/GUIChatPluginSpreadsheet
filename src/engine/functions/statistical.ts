@@ -71,13 +71,29 @@ export const collectArgumentValues = (args: string[], context: FunctionContext, 
 /** The numbers an aggregate reads from its arguments, or the first error among them in argument
  *  order — an error cell in a range, or an argument that evaluated to one — read in one pass, so
  *  no argument is read or evaluated twice. A range keeps only the cells that hold a number, as the
- *  numeric read does; a host without the blank-aware read gets the numeric read, without errors. */
+ *  numeric read does. */
 export const collectNumbersOrError = (args: string[], context: FunctionContext): number[] | SpreadsheetError => {
-  const collected = collectArgumentValues(args, context, context.getRangeValuesKeepingBlanks ?? context.getRangeValues);
+  if (!context.getRangeValuesKeepingBlanks) return numbersOrErrorWithoutBlankRead(args, context);
+  const collected = collectArgumentValues(args, context, context.getRangeValuesKeepingBlanks);
   const firstError = collected.map(({ value }) => value).find(isSpreadsheetErrorValue);
   if (firstError) return firstError;
   return collected.filter(({ value, isScalar }) => isScalar || isRangeNumber(value)).map(({ value }) => toNumber(value));
 };
+
+/** A host without the blank-aware read cannot tell a blank from a 0 in one read, so its errors
+ *  come from the raw read and its numbers from the numeric read — two reads, for that host only. */
+function numbersOrErrorWithoutBlankRead(args: string[], context: FunctionContext): number[] | SpreadsheetError {
+  const perArgument = args
+    .map((rawArg) => rawArg?.trim() ?? "")
+    .filter((arg) => arg !== "")
+    .map((arg): { error?: SpreadsheetError; numbers: number[] } => {
+      if (isReference(arg))
+        return { error: context.getRangeValuesRaw?.(arg).find(isSpreadsheetErrorValue), numbers: context.getRangeValues(arg).map(toNumber) };
+      const value = context.evaluateFormula(arg);
+      return isSpreadsheetErrorValue(value) ? { error: value, numbers: [] } : { numbers: [toNumber(value)] };
+    });
+  return perArgument.find(({ error }) => error)?.error ?? perArgument.flatMap(({ numbers }) => numbers);
+}
 
 /** The cells of a range read blank-aware that hold a number, as numbers — what the numeric read keeps. */
 export const rangeNumbers = (values: CellValue[]): number[] => values.filter(isRangeNumber).map(toNumber);
