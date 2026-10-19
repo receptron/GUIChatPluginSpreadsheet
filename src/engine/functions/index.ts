@@ -7,6 +7,7 @@
 
 import "./statistical";
 import "./statistical-analysis";
+import "./regression";
 import "./distributions";
 import "./shape";
 import "./mathematical";

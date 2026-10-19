@@ -24,6 +24,7 @@ import {
 import { logBeta, logGamma } from "../../src/engine/functions/special-functions.ts";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { cellAt } from "./cellAccess.ts";
+import { valuesOf } from "./formulaColumns.ts";
 import { seededRandom } from "./seededRandom.ts";
 
 const RELATIVE_TOLERANCE = 1e-9;
@@ -170,18 +171,6 @@ describe("quantiles invert the cdfs over generated values", () => {
     assert.ok(Object.is(normalQuantile(0.5), 0), "0, not -0");
   });
 });
-
-/** Each formula's value, all calculated in one sheet whose first columns hold `columns`. */
-function valuesOf(formulas: string[], columns: (number | string)[][] = []): unknown[] {
-  const height = Math.max(formulas.length, ...columns.map((column) => column.length));
-  const data = Array.from({ length: height }, (_, row) => {
-    const cells = columns.map((column) => ({ v: column[row] ?? "" }));
-    cells.push({ v: formulas[row] ?? "" });
-    return cells;
-  });
-  const grid = new SpreadsheetEngine().calculate({ name: "S", data } satisfies SheetData).data;
-  return formulas.map((_, row) => cellAt(grid, row, columns.length));
-}
 
 const roundedTo = (digits: number, value: unknown): number => Number(Number(value).toFixed(digits));
 
