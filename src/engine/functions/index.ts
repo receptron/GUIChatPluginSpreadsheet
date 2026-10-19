@@ -7,6 +7,7 @@
 
 import "./statistical";
 import "./statistical-analysis";
+import "./distributions";
 import "./mathematical";
 import "./logical";
 import "./text";
