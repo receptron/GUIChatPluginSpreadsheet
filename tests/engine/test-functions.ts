@@ -285,11 +285,12 @@ console.log("─".repeat(50));
 
 const finContext = createMockContext();
 
-// Note: Financial functions have been tested and work correctly
-// The actual values may differ slightly from Excel due to different calculation methods
-runTest("Finance", "FV(0.05/12, 12, -100, -1000, 1)", "FV", ["0.05/12", "12", "-100", "-1000", "1"], 3467.15, finContext, 1);
-runTest("Finance", "PV(0.08/12, 12*20, 500)", "PV", ["0.08/12", "12*20", "500"], -3768.04, finContext, 1);
-runTest("Finance", "PMT(0.06/12, 30*12, 250000)", "PMT", ["0.06/12", "30*12", "250000"], -18162.23, finContext, 1);
+// Microsoft's documented examples. The mock evaluator does no arithmetic, so each argument is
+// passed already worked out (0.06/12 as 0.005); the old expectations had been computed from
+// "0.05/12" read as 0.05.
+runTest("Finance", "FV(0.06/12, 10, -200, -500, 1)", "FV", ["0.005", "10", "-200", "-500", "1"], 2581.4, finContext, 0.01);
+runTest("Finance", "PV(0.08/12, 12*20, 500)", "PV", [String(0.08 / 12), "240", "500"], -59777.15, finContext, 0.01);
+runTest("Finance", "PMT(0.08/12, 10, 10000)", "PMT", [String(0.08 / 12), "10", "10000"], -1037.03, finContext, 0.01);
 runTest("Finance", "NPV(0.1, -10000, 3000, 4200, 6800)", "NPV", ["0.1", "-10000", "3000", "4200", "6800"], 1188.44, finContext, 0.01);
 
 // Test IRR with a range
