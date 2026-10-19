@@ -25,6 +25,8 @@ const atExcelPrecision = (value: number): number => Number(value.toPrecision(EXC
  *  nothing to round: it is returned as it is, so an exact integer above 15 digits keeps
  *  its digits and 1e300 at 20 decimals does not overflow to Infinity. */
 const roundMagnitude = (value: number, digits: number, step: (scaled: number) => number): number => {
+  // So many negative digits that 10^digits underflows: every finite value is nearer 0 than one unit.
+  if (scale(digits) === 0) return 0;
   const scaled = Math.abs(value) * scale(digits);
   if (!Number.isFinite(scaled) || (Number.isInteger(scaled) && scaled !== 0)) return value;
   return (Math.sign(value) * step(atExcelPrecision(scaled))) / scale(digits);
@@ -45,7 +47,9 @@ export function roundTo(value: number, digits: number): number {
 }
 
 /** Excel ROUNDUP: away from zero. */
-export function roundUpTo(value: number, digits: number): number {
+export function roundUpTo(value: number, digits: number): number | SpreadsheetError {
+  // Away from zero, one such unit is 10^-digits, past the largest number there is.
+  if (scale(digits) === 0 && value !== 0) return NUM_ERROR;
   return roundMagnitude(value, digits, Math.ceil);
 }
 

@@ -7,7 +7,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { ceilingToSignificance, floorToSignificance, power, roundDownTo, roundTo, roundUpTo } from "../../src/engine/math-ops.ts";
-import { DIV_ZERO_ERROR, NUM_ERROR } from "../../src/engine/spreadsheet-errors.ts";
+import { DIV_ZERO_ERROR, NUM_ERROR, type SpreadsheetError } from "../../src/engine/spreadsheet-errors.ts";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { cellAt } from "./cellAccess.ts";
 
@@ -51,6 +51,13 @@ describe("a value with nothing to round is returned as it is", () => {
     assert.equal(roundDownTo(-1e300, 20), -1e300);
     assert.equal(floorToSignificance(1e300, 1e-20), 1e300);
     assert.equal(ceilingToSignificance(1e300, 1e-20), 1e300);
+  });
+
+  it("digits so negative that the scale underflows give 0, or #NUM! rounding up", () => {
+    assert.equal(roundTo(1, -400), 0);
+    assert.equal(roundDownTo(-1e-300, -400), 0);
+    assert.equal(roundUpTo(1, -400), NUM_ERROR);
+    assert.equal(roundUpTo(0, -400), 0);
   });
 
   it("rounds to tens and hundreds with negative digits", () => {
@@ -111,7 +118,7 @@ const DIRECTIONS: Direction[] = ["half", "up", "down"];
  *  where dividing by 0.1 would not. */
 const fromUnits = (units: bigint, digits: number): number => (digits >= 0 ? Number(units) / 10 ** digits : Number(units) * 10 ** -digits);
 
-const ROUNDERS: Record<Direction, (value: number, digits: number) => number> = { half: roundTo, up: roundUpTo, down: roundDownTo };
+const ROUNDERS: Record<Direction, (value: number, digits: number) => number | SpreadsheetError> = { half: roundTo, up: roundUpTo, down: roundDownTo };
 
 describe(`rounding over generated decimals (ROUNDING_SEED=${SEED})`, () => {
   it("ROUND, ROUNDUP and ROUNDDOWN agree with exact decimal arithmetic", () => {
