@@ -99,12 +99,10 @@ describe("COUNT counts only the arguments that hold a number", () => {
     assert.equal(evaluate("=COUNT(1+1)"), 1);
   });
 
-  // Excel counts a logical typed directly as an argument; this engine has PINNED
-  // booleans as non-numbers throughout (`toNumber(true)` is 0, see #2391), so
-  // COUNT follows the engine rather than splitting the difference.
-  it("does not count a logical literal", () => {
-    assert.equal(evaluate("=COUNT(TRUE)"), 0);
-    assert.equal(evaluate("=COUNT(FALSE)"), 0);
+  // Excel counts a logical value typed directly as an argument (#116).
+  it("counts a logical literal typed as an argument", () => {
+    assert.equal(evaluate("=COUNT(TRUE)"), 1);
+    assert.equal(evaluate("=COUNT(FALSE)"), 1);
   });
 
   // Excel reads "12abc" as text and answers 0. The engine's shared numeric parser
@@ -114,9 +112,9 @@ describe("COUNT counts only the arguments that hold a number", () => {
     assert.equal(evaluate('=COUNT("12abc")'), 1);
   });
 
-  it("leaves the lenient aggregates coercing as before", () => {
-    assert.equal(evaluate('=SUM(1,"text")'), 1);
-    assert.equal(evaluate('=AVERAGE(1,"text")'), 0.5);
+  it("answers #VALUE! for text typed as an argument that is not a number (#116)", () => {
+    assert.equal(evaluate('=SUM(1,"text")'), "#VALUE!");
+    assert.equal(evaluate('=AVERAGE(1,"text")'), "#VALUE!");
   });
 
   it("still lets COUNTA count a text literal", () => {

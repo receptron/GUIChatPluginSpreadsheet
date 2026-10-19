@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { functionRegistry, type FunctionContext } from "../../src/engine/registry.ts";
-import { DIV_ZERO_ERROR, NUM_ERROR, isSpreadsheetErrorValue } from "../../src/engine/spreadsheet-errors.ts";
+import { DIV_ZERO_ERROR, NUM_ERROR, VALUE_ERROR, isSpreadsheetErrorValue } from "../../src/engine/spreadsheet-errors.ts";
 import type { CellValue } from "../../src/engine/types.ts";
 import type { SpreadsheetCell } from "../../src/engine/types.ts";
 import { cellAt } from "./cellAccess.ts";
@@ -137,7 +137,10 @@ describe("a host without the blank-aware read", () => {
     getCellValue: () => 0,
     getRangeValues: () => [3, 5],
     getRangeValuesRaw: () => raw.filter(isCellValueForTest),
-    evaluateFormula: (formula) => (formula === "1/0" ? DIV_ZERO_ERROR : Number(formula)),
+    evaluateFormula: (formula) => {
+      if (formula === "1/0") return DIV_ZERO_ERROR;
+      return formula.startsWith('"') ? formula.slice(1, -1) : Number(formula);
+    },
   });
 
   it("still answers a range error, read from the raw read", () => {
@@ -151,6 +154,13 @@ describe("a host without the blank-aware read", () => {
     const average = functionRegistry.get("AVERAGE");
     assert.ok(average);
     assert.equal(average.handler(["A1:A3"], host([3, 0, 5])), 4);
+  });
+
+  it("reads a written argument as Excel does: text #VALUE!, numeric text its number", () => {
+    const sum = functionRegistry.get("SUM");
+    assert.ok(sum);
+    assert.equal(sum.handler(['"x"', "A1:A3"], host([3, 0, 5])), VALUE_ERROR);
+    assert.equal(sum.handler(['"2"', "A1:A3"], host([3, 0, 5])), 10);
   });
 
   it("answers the first error in argument order", () => {

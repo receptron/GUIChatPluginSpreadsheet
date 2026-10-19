@@ -14,7 +14,7 @@ import {
 } from "../registry";
 import { computeAverage, computeMedian, computeMode, sampleStdev, sampleVariance } from "./statistical-math";
 import { DIV_ZERO_ERROR, isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
-import { holdsNumber, isRangeNumber } from "../numericCoercion";
+import { holdsNumber, isRangeNumber, toScalarNumber } from "../numericCoercion";
 import type { CellValue } from "../types";
 
 // Excel accepts up to 255 arguments for its aggregate functions.
@@ -74,10 +74,17 @@ export const collectArgumentValues = (args: string[], context: FunctionContext, 
  *  numeric read does. */
 export const collectNumbersOrError = (args: string[], context: FunctionContext): number[] | SpreadsheetError => {
   if (!context.getRangeValuesKeepingBlanks) return numbersOrErrorWithoutBlankRead(args, context);
-  const collected = collectArgumentValues(args, context, context.getRangeValuesKeepingBlanks);
-  const firstError = collected.map(({ value }) => value).find(isSpreadsheetErrorValue);
-  if (firstError) return firstError;
-  return collected.filter(({ value, isScalar }) => isScalar || isRangeNumber(value)).map(({ value }) => toNumber(value));
+  const read = collectArgumentValues(args, context, context.getRangeValuesKeepingBlanks).flatMap(aggregateNumber);
+  return read.find(isSpreadsheetErrorValue) ?? read.filter((value): value is number => typeof value === "number");
+};
+
+/** One collected value as an aggregate counts it. A value written as an argument is read the way
+ *  Excel reads it there — a logical value as 1 or 0, numeric text as its number, other text as
+ *  #VALUE! — while a range's text, logical values and blanks are skipped. */
+const aggregateNumber = ({ value, isScalar }: ArgumentValue): (number | SpreadsheetError)[] => {
+  if (isSpreadsheetErrorValue(value)) return [value];
+  if (isScalar) return [toScalarNumber(value)];
+  return isRangeNumber(value) ? [toNumber(value)] : [];
 };
 
 /** A host without the blank-aware read cannot tell a blank from a 0 in one read, so its errors
@@ -89,8 +96,8 @@ function numbersOrErrorWithoutBlankRead(args: string[], context: FunctionContext
     .map((arg): { error?: SpreadsheetError; numbers: number[] } => {
       if (isReference(arg))
         return { error: context.getRangeValuesRaw?.(arg).find(isSpreadsheetErrorValue), numbers: context.getRangeValues(arg).map(toNumber) };
-      const value = context.evaluateFormula(arg);
-      return isSpreadsheetErrorValue(value) ? { error: value, numbers: [] } : { numbers: [toNumber(value)] };
+      const number = toScalarNumber(context.evaluateFormula(arg));
+      return typeof number === "number" ? { numbers: [number] } : { error: number, numbers: [] };
     });
   return perArgument.find(({ error }) => error)?.error ?? perArgument.flatMap(({ numbers }) => numbers);
 }
@@ -127,7 +134,7 @@ const minHandler = overNumbers((values) => (values.length > 0 ? Math.min(...valu
 // the other aggregates share: `toNumber("text")` is 0, which made COUNT("text")
 // answer 1 where Excel answers 0 (Codex review). A range cell reached the list
 // only by being numeric already; a scalar has to be asked.
-const countsAsNumber = ({ value, isScalar }: ArgumentValue): boolean => !isScalar || holdsNumber(value);
+const countsAsNumber = ({ value, isScalar }: ArgumentValue): boolean => !isScalar || typeof toScalarNumber(value) === "number";
 
 const countHandler: FunctionHandler = (args, context) => collectArgumentValues(args, context, context.getRangeValues).filter(countsAsNumber).length;
 
