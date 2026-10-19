@@ -105,11 +105,9 @@ describe("COUNT counts only the arguments that hold a number", () => {
     assert.equal(evaluate("=COUNT(FALSE)"), 1);
   });
 
-  // Excel reads "12abc" as text and answers 0. The engine's shared numeric parser
-  // reads the leading number everywhere (SUM(1,"12abc") is 13), so COUNT stays
-  // consistent with the engine instead.
-  it("counts a leading-number string, as the rest of the engine reads it", () => {
-    assert.equal(evaluate('=COUNT("12abc")'), 1);
+  // Excel reads "12abc" as text, not as its leading number (#140).
+  it("does not count text that only starts with a number", () => {
+    assert.equal(evaluate('=COUNT("12abc")'), 0);
   });
 
   it("answers #VALUE! for text typed as an argument that is not a number (#116)", () => {

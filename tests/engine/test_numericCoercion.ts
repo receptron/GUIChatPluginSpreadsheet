@@ -29,9 +29,29 @@ describe("parseNumericString — reads the formats the engine has always read", 
     assert.equal(parseNumericString("1e3"), 1000);
   });
 
-  it("takes the leading number from a partly-numeric string", () => {
-    assert.equal(parseNumericString("12abc"), 12);
-    assert.equal(parseNumericString("3.5kg"), 3.5);
+  // Text that only starts with a number is text, as Excel reads a typed cell (#140).
+  it("returns null for text that only starts with a number", () => {
+    for (const text of ["12abc", "3.5kg", "2023-01", "5% off", "$5 each", "Tokyo, Japan", "1,2,3", "Infinity", "-$-1"]) {
+      assert.equal(parseNumericString(text), null, text);
+    }
+  });
+
+  it("reads a whole number as typed: plain, grouped, percentage, currency", () => {
+    const read: [string, number][] = [
+      ["42", 42],
+      [" 42 ", 42],
+      ["-1.5", -1.5],
+      [".5", 0.5],
+      ["2e3", 2000],
+      ["1,200", 1200],
+      ["1,200.50", 1200.5],
+      ["25%", 0.25],
+      ["1,000%", 10],
+      ["$1,000", 1000],
+      ["-$5", -5],
+      ["$-5", -5],
+    ];
+    for (const [text, number] of read) assert.equal(parseNumericString(text), number, text);
   });
 
   // The distinction that lets the two coercions differ: null, not 0, when there
@@ -68,7 +88,7 @@ describe("toNumber — PINNED lenient behaviour (#2391 does not change this)", (
   it("still reads formatted strings", () => {
     assert.equal(toNumber("5%"), 0.05);
     assert.equal(toNumber("$1,000"), 1000);
-    assert.equal(toNumber("12abc"), 12);
+    assert.equal(toNumber("12abc"), 0);
   });
 });
 
@@ -98,10 +118,8 @@ describe("toScalarNumber — strict scalar read for ABS / SIGN (#2391)", () => {
     assert.equal(toScalarNumber("   "), VALUE_ERROR);
   });
 
-  // Deliberate leniency, pinned: a partly-numeric string keeps its leading number
-  // (matching the rest of the engine) rather than erroring as strict Excel would.
-  it("still takes the leading number from partly-numeric text", () => {
-    assert.equal(toScalarNumber("12abc"), 12);
+  it("is #VALUE! for text that only starts with a number, as in Excel (#140)", () => {
+    assert.equal(toScalarNumber("12abc"), VALUE_ERROR);
   });
 });
 
@@ -144,9 +162,7 @@ describe("holdsNumber — is there a number in this value at all", () => {
     assert.equal(holdsNumber(NaN), false);
   });
 
-  // Inherited from parseNumericString, pinned deliberately: the engine reads the
-  // leading number everywhere, so SUM and COUNT agree that "12abc" has one.
-  it("is true for a leading-number string, unlike Excel", () => {
-    assert.equal(holdsNumber("12abc"), true);
+  it("is false for text that only starts with a number, as in Excel (#140)", () => {
+    assert.equal(holdsNumber("12abc"), false);
   });
 });

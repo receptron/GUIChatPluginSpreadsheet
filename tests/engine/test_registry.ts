@@ -57,11 +57,8 @@ describe("toNumber — the branch order is load-bearing", () => {
     assert.equal(num("$1,000%"), 0);
   });
 
-  it("reads a percent string with thousands separators off by three orders of magnitude", () => {
-    // The `%` branch strips only "%", so the comma survives and `parseFloat`
-    // stops there: "1,000" reads as 1, then /100 gives 0.01. The value a user
-    // means by "1,000%" is 10. Pinned as current behaviour, not as correct.
-    assert.equal(num("1,000%"), 0.01);
+  it("reads a percent string with thousands separators", () => {
+    assert.equal(num("1,000%"), 10);
   });
 
   it("handles a currency string with a percent-free comma correctly", () => {
@@ -88,11 +85,9 @@ describe("toNumber — everything unreadable becomes 0", () => {
     assert.equal(num(false), 0);
   });
 
-  // `parseFloat` stops at the first character it cannot read rather than
-  // rejecting the string, so a partly-numeric cell contributes its prefix.
-  it("takes the leading number from a partly-numeric string", () => {
-    assert.equal(num("12abc"), 12);
-    assert.equal(num("3.5kg"), 3.5);
+  it("reads text that only starts with a number as 0, as text is (#140)", () => {
+    assert.equal(num("12abc"), 0);
+    assert.equal(num("3.5kg"), 0);
   });
 
   it("returns 0 when the number does not come first", () => {

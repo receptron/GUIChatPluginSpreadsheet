@@ -14,24 +14,38 @@
 import type { CellValue } from "./types";
 import { VALUE_ERROR, type SpreadsheetError } from "./spreadsheet-errors";
 
-const numberOrNull = (num: number): number | null => (isNaN(num) ? null : num);
+// A number written plainly (`-1.5`, `.5`, `2e3`), or with thousands separators in threes (`1,200`).
+const PLAIN_NUMBER = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$/;
+const GROUPED_NUMBER = /^[-+]?\d{1,3}(?:,\d{3})+(?:\.\d*)?$/;
+// A percentage (`25%`, `1,200 %`) and a currency amount (`$1,000`, `-$5`): the sign may sit outside the `$`.
+const PERCENTAGE = /^(.*?)\s*%$/;
+const CURRENCY = /^([-+]?)\$(.*)$/;
+
+const wholeNumber = (text: string): number | null => {
+  if (PLAIN_NUMBER.test(text)) return Number(text);
+  return GROUPED_NUMBER.test(text) ? Number(text.replace(/,/g, "")) : null;
+};
 
 /**
  * Parse a spreadsheet string as a number, or `null` when it holds no number.
  *
- * Mirrors the engine's long-standing lenient read: a percentage, a currency
- * amount, or a thousands-separated value, else a bare `parseFloat` (which reads a
- * leading number out of "12abc"). The branch order is load-bearing — each strips
- * only its own characters, so a string mixing "%" and "$" fails in the first.
+ * The WHOLE text must be the number — a percentage, a currency amount, a thousands-separated value
+ * or a plain one, as Excel reads what is typed into a cell. Text that merely starts with one
+ * (`2023-01`, `12abc`, `5% off`) or holds a comma (`Tokyo, Japan`) is text, not its leading digits.
  */
 export function parseNumericString(value: string): number | null {
-  if (value.includes("%")) {
-    const num = numberOrNull(parseFloat(value.replace("%", "").trim()));
+  const text = value.trim();
+  const [, percentage] = text.match(PERCENTAGE) ?? [];
+  if (percentage !== undefined) {
+    const num = wholeNumber(percentage);
     return num === null ? null : num / 100;
   }
-  if (value.includes("$")) return numberOrNull(parseFloat(value.replace(/[$,]/g, "").trim()));
-  if (value.includes(",")) return numberOrNull(parseFloat(value.replace(/,/g, "").trim()));
-  return numberOrNull(parseFloat(value));
+  const [, sign, amount] = text.match(CURRENCY) ?? [];
+  if (amount !== undefined) {
+    const num = sign !== "" && /^[-+]/.test(amount) ? null : wholeNumber(amount);
+    return num === null ? null : sign === "-" ? -num : num;
+  }
+  return wholeNumber(text);
 }
 
 /**
@@ -50,8 +64,7 @@ export function holdsNumber(value: CellValue): boolean {
 /**
  * Strict scalar coercion for single-value math functions (ABS, SIGN). Follows
  * Excel's scalar rules: a boolean is 1 / 0 and genuinely non-numeric text is
- * `#VALUE!` rather than a silent 0. A partly-numeric string still yields its
- * leading number, matching the engine's other numeric reads.
+ * `#VALUE!` rather than a silent 0 — including text that only starts with a number.
  */
 export function toScalarNumber(value: CellValue): number | SpreadsheetError {
   if (typeof value === "number") return value;
