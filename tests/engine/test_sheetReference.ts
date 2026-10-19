@@ -50,7 +50,9 @@ describe("a sheet named with an apostrophe", () => {
     },
     {
       name: "F",
-      data: ["=SUM('It''s'!A1:A2)", "='It''s'!A1+1", "=VLOOKUP(2,'It''s'!A1:B2,2,FALSE)", "=COUNTA('It''s'!A1:A2)", "='It''s'!B2"].map((v) => [{ v }]),
+      data: ["=SUM('It''s'!A1:A2)", "='It''s'!A1+1", "=VLOOKUP(2,'It''s'!A1:B2,2,FALSE)", "=COUNTA('It''s'!A1:A2)", "='It''s'!B2", "=SUM('It''s'!A:A)"].map(
+        (v) => [{ v }],
+      ),
     },
   ];
 
@@ -68,8 +70,8 @@ describe("a sheet named with an apostrophe", () => {
     const calculated = new SpreadsheetEngine().calculateWorkbook(sheets)[1];
     assert.ok(calculated);
     assert.deepEqual(
-      [0, 1, 2, 3, 4].map((row) => cellAt(calculated.data, row, 0)),
-      [3, 2, 20, 2, 20],
+      [0, 1, 2, 3, 4, 5].map((row) => cellAt(calculated.data, row, 0)),
+      [3, 2, 20, 2, 20, 3],
     );
   });
 });
