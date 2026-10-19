@@ -65,7 +65,24 @@ describe("rangeCellValue", () => {
   });
 });
 
+describe("parseRange, written with $ anchors or in lowercase (#132)", () => {
+  it("reads them as the plain range, and a single cell too", () => {
+    assert.deepEqual(parseRange("Data!$b$2:c$4"), parseRange("Data!B2:C4"));
+    assert.deepEqual(parseRange("b2"), parseRange("B2"));
+    assert.deepEqual(parseRange("$B$2"), parseRange("B2"));
+  });
+
+  it("keeps a $ in the wrong place malformed", () => {
+    ["Data!A$$1:B2", "A1$", "$$B2"].forEach((text) => assert.equal(parseRange(text), null, text));
+  });
+});
+
 describe("calculatedRange", () => {
+  it("reads a range written with $ anchors or in lowercase", () => {
+    assert.deepEqual(calculatedRange(WORKBOOK, "Data!$a$1:$c$1"), calculatedRange(WORKBOOK, "Data!A1:C1"));
+    assert.deepEqual(calculatedRange(WORKBOOK, "b3"), [[800]]);
+  });
+
   it("returns calculated values, numbers kept as numbers", () => {
     assert.deepEqual(calculatedRange(WORKBOOK, "Data!A1:C3"), [
       ["Month", "Sales", "Share"],
