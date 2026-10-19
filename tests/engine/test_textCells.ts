@@ -5,12 +5,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { calculateSheet, type SheetData } from "../../src/engine/index.ts";
+import { readBeside, seededRandom } from "./textCellRead.ts";
 import { parseNumericString } from "../../src/engine/numericCoercion.ts";
 
-const read = (text: string, formulas: string[]): unknown[] => {
-  const sheet: SheetData = { name: "S", data: [[text, ...formulas].map((v) => ({ v }))] };
-  return calculateSheet(sheet, [sheet], { skipFormatting: true }).data[0]?.slice(1) ?? [];
-};
+const read = readBeside;
 
 describe("a text cell read by a formula (#140)", () => {
   for (const text of ["2023-01", "12abc", "Tokyo, Japan", "5% off", "$5 each", "1,2,3"]) {
@@ -64,10 +62,7 @@ const grouped = (n: number): string => {
   return `${n < 0 ? "-" : ""}${whole.replace(/\B(?=(\d{3})+$)/g, ",")}.${fraction}`;
 };
 describe(`parseNumericString over generated numbers (NUMBERS_SEED=${SEED})`, () => {
-  const random = (() => {
-    let state = SEED;
-    return (): number => (state = (state * 1103515245 + 12345) % 2147483648) / 2147483648;
-  })();
+  const random = seededRandom(SEED);
   const ROUNDS = 2000;
   const samples = Array.from({ length: ROUNDS }, () => Math.round((random() - 0.5) * 10 ** (1 + Math.floor(random() * 8)) * 100) / 100);
 

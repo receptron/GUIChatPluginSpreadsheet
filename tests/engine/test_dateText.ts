@@ -5,15 +5,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { calculateSheet, type SheetData } from "../../src/engine/index.ts";
+import { readBeside, seededRandom } from "./textCellRead.ts";
 import { dateSerialFromText } from "../../src/engine/dateText.ts";
 import { serialFromParts } from "../../src/engine/date-parser.ts";
 import { parseNonStringInput } from "../../src/engine/cellBuilder.ts";
 import { MONTH_NAMES_FULL, MONTH_NAMES_SHORT } from "../../src/engine/date-utils.ts";
 
-const read = (text: string, formulas: string[]): unknown[] => {
-  const sheet: SheetData = { name: "S", data: [[text, ...formulas].map((v) => ({ v }))] };
-  return calculateSheet(sheet, [sheet], { skipFormatting: true }).data[0]?.slice(1) ?? [];
-};
+const read = readBeside;
 
 describe("a cell holding a month or a Japanese date", () => {
   const cells: [string, number, number, number][] = [
@@ -81,10 +79,7 @@ describe("a date typed in the cell editor", () => {
 
 const SEED = Number(process.env.DATE_TEXT_SEED ?? Date.now() % 1_000_000);
 describe(`every month, written each way (DATE_TEXT_SEED=${SEED})`, () => {
-  const random = (() => {
-    let state = SEED;
-    return (): number => (state = (state * 1103515245 + 12345) % 2147483648) / 2147483648;
-  })();
+  const random = seededRandom(SEED);
   const ROUNDS = 500;
   const MIN_YEAR = 1900;
   const YEARS = 200;
