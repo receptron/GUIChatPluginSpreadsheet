@@ -12,7 +12,7 @@ import { parseDate, getDefaultDateFormat } from "./date-parser";
 import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaInfo, SpreadsheetCell, CalculateOptions } from "./types";
 import { isObj, isRecord } from "./guards";
 import { isBlankCell, isEmptyCell } from "./cellEmpty";
-import { isRangeNumber } from "./numericCoercion";
+import { isRangeNumber, parseNumericString } from "./numericCoercion";
 import { splitSheetReference } from "./sheetReference";
 import type { CellCoordinates } from "./registry";
 import { boundWholeReferences, type SheetExtent } from "./wholeReferences";
@@ -253,32 +253,11 @@ function openSheet(
 
     if (typeof cell === "number") return cell;
 
-    // Handle string values (for legacy or calculated cells)
+    // Text that is a number as typed ("1,200", "25%", "$1,000") reads as that number; any other text
+    // stays text — "2023-01" is not 2023, and "Tokyo, Japan" is not 0. An empty string is 0.
     if (typeof cell === "string") {
-      // Handle empty strings as 0
       if (cell.trim() === "") return 0;
-
-      // Handle percentage strings like "5%" or "0.4167%"
-      if (cell.includes("%")) {
-        const numericPart = cell.replace("%", "").trim();
-        const value = parseFloat(numericPart);
-        return isNaN(value) ? 0 : value / 100;
-      }
-      // Handle currency strings like "$1,000" or "$1,000.00"
-      if (cell.includes("$")) {
-        const numericPart = cell.replace(/[$,]/g, "").trim();
-        const value = parseFloat(numericPart);
-        return isNaN(value) ? 0 : value;
-      }
-      // Handle comma-separated numbers like "1,000"
-      if (cell.includes(",")) {
-        const numericPart = cell.replace(/,/g, "").trim();
-        const value = parseFloat(numericPart);
-        return isNaN(value) ? 0 : value;
-      }
-      // Handle regular numeric strings, but preserve non-numeric strings
-      const num = parseFloat(cell);
-      return isNaN(num) ? cell : num;
+      return parseNumericString(cell) ?? cell;
     }
 
     // Handle new cell format {v, f}; a cell without `v` holds nothing.
