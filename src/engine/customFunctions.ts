@@ -14,6 +14,7 @@ import {
   type QuickJSContext,
   type QuickJSHandle,
   type QuickJSRuntime,
+  type QuickJSSyncVariant,
   type QuickJSWASMModule,
 } from "quickjs-emscripten-core";
 import { functionRegistry, type FunctionContext, type FunctionDefinition } from "./registry";
@@ -46,11 +47,16 @@ const SHEET = "(?:(?:'(?:[^']|'')+'|[^!'\"(),]+)!)?";
 const RANGE = new RegExp(`^${SHEET}\\$?[A-Z]+\\$?\\d+:\\$?[A-Z]+\\$?\\d+$`, "i");
 const SINGLE_CELL = new RegExp(`^${SHEET}\\$?[A-Z]+\\$?\\d+$`, "i");
 
-let quickJS: Promise<QuickJSWASMModule> | null = null;
+let quickJSVariant: Promise<QuickJSSyncVariant> | null = null;
 
-/** QuickJS, loaded once and only when a workbook has functions. */
-const loadQuickJS = (): Promise<QuickJSWASMModule> =>
-  (quickJS ??= import("@jitl/quickjs-singlefile-mjs-release-sync").then((variant) => newQuickJSWASMModuleFromVariant(variant.default)));
+/** A QuickJS module of its own for each set of functions. QuickJS can abort while freeing a runtime
+ *  (`list_empty(&rt->gc_obj_list)`, seen after a calculation ran out of time), and an aborted module
+ *  is unusable: shared, it would take every later workbook's functions with it. Instantiating one is
+ *  a few milliseconds; only the code is loaded once, and only when a workbook has functions. */
+const newQuickJSModule = async (): Promise<QuickJSWASMModule> => {
+  quickJSVariant ??= import("@jitl/quickjs-singlefile-mjs-release-sync").then((variant) => variant.default);
+  return newQuickJSWASMModuleFromVariant(await quickJSVariant);
+};
 
 /** A workbook's functions, ready to be made visible to a calculation with {@link calculateWith}. */
 export interface CustomFunctionSet {
@@ -79,7 +85,7 @@ export async function loadCustomFunctions(sheets: readonly { functions?: unknown
   const specs = sheets.flatMap((sheet) => specsOf(sheet.functions));
   const { usable, problems } = checkedSpecs(specs, (name) => functionRegistry.isBuiltIn(name));
   if (usable.size === 0) return { ...NO_CUSTOM_FUNCTIONS, problems };
-  return buildSet(await loadQuickJS(), usable, problems);
+  return buildSet(await newQuickJSModule(), usable, problems);
 }
 
 function buildSet(module: QuickJSWASMModule, usable: Map<string, CustomFunctionSpec>, problems: CustomFunctionProblem[]): CustomFunctionSet {
@@ -112,12 +118,17 @@ function buildSet(module: QuickJSWASMModule, usable: Map<string, CustomFunctionS
       definitionFor(spec, (json) => callInVm(call, json, clock.calculationStart)),
     );
   });
+  // Never throws: if QuickJS aborts while freeing, this set's module is simply dropped with it.
   const dispose = () => {
-    contexts.forEach(({ vm, handles }) => {
-      handles.forEach((handle) => handle.dispose());
-      vm.dispose();
-    });
-    runtime.dispose();
+    try {
+      contexts.forEach(({ vm, handles }) => {
+        handles.forEach((handle) => handle.dispose());
+        vm.dispose();
+      });
+      runtime.dispose();
+    } catch {
+      // The module is this set's alone; nothing else uses it.
+    }
   };
   return { definitions, problems, startCalculation: () => (clock.calculationStart = Date.now()), dispose };
 }

@@ -153,6 +153,8 @@ A workbook can define functions of its own, for an analysis no built-in function
 - A range argument arrives as rows of cells (an array of arrays, a blank cell as `null`); a single cell and any other argument as its value. A whole column or row (`A:A`, `2:2`) arrives as the range it covers in its sheet's data. An argument that is an error is passed on without calling the function.
 - Return a number, text or `true`/`false`. A time-out or a non-finite number shows `#NUM!`; a thrown error or any other return value shows `#VALUE!`.
 - A name is letters and digits, parts joined by dots, and cannot be a built-in function's. `presentSpreadsheet` says in its reply which definitions could not be used.
+- `presentSpreadsheet`'s reply also lists formula cells that calculate to an error (a few, and how many in all), so an agent can fix a workbook before handing it over: the saved file holds formulas, not results.
+- Each workbook's functions get a QuickJS instance of their own, so a failure in one (an abort while freeing a runtime that ran out of time) cannot affect another.
 - QuickJS loads only for a workbook that defines functions. The View and `readCalculatedRange` load it themselves; a host calling `calculatedRange` directly passes the set from `loadCustomFunctions`.
 
 ## Development
