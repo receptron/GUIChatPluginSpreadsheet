@@ -62,11 +62,11 @@ function percentRankUntruncated(sorted: number[], x: number): number {
   return (below - 1 + (x - lower) / (upper - lower)) / last;
 }
 
-/** PERCENTRANK.INC with `significance` digits, truncated as Excel truncates. An x outside the
- *  data, or no data: #N/A. Fewer than one significant digit: #NUM!. One value: 1 when it is x. */
+/** PERCENTRANK.INC with `significance` digits, truncated as Excel truncates. No data, or fewer
+ *  than one significant digit: #NUM!. An x outside the data: #N/A. One value: 1 when it is x. */
 export function percentRank(values: number[], x: number, significance: number): Result {
   const digits = Math.trunc(significance);
-  if (digits < 1) return NUM_ERROR;
+  if (digits < 1 || values.length === 0) return NUM_ERROR;
   // A Float64Array sorts by value; a plain array's default sort compares text.
   const sorted = Array.from(Float64Array.from(values).sort());
   const [smallest, largest] = [sorted[0], sorted.at(-1)];
