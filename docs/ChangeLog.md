@@ -1,5 +1,15 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@4.2.5 — 2026-10-20
+
+Date and time format codes, read the way Excel reads them — by `TEXT` and by a cell's display format alike.
+
+- **`TEXT` writes dates with a date format** (#145, fixes #144): `=TEXT(45672,"yyyy-mm")` returned the serial `45672`; it now gives `2025-01`, as do `"YYYY-MM-DD"`, `"mm/dd/yyyy"`, `"dddd, mmmm d"`, `"yyyy年m月d日"`, `"h:mm AM/PM"` and `"hh:mm:ss"`. Letters are case-insensitive; `m` / `mm` is minutes after an hour or before a second and the month otherwise; quoted text and `\x` are literal; `AM/PM` and `A/P` give a 12-hour clock. A text value that reads as a number or a date (`"1,234"`, `2025-01-15`) is formatted as that value. A serial outside 0 to 9999-12-31 is `#VALUE!`. Number formats (`"#,##0.00"`, `"0%"`) are unchanged, and codes Excel reads differently (`[h]:mm`, `[$-409]`, fractional seconds) still go through the number formatter.
+- **A cell's date format is read the same way** (#147, fixes #146): `yyyy-mm-dd` displayed as `yyyy-00-dd`, `m/d/yyyy` as itself and `h"時"mm"分"` garbled; they now show `2025-03-04`, `3/4/2025` and `9時05分`. `HH:MM` shows minutes instead of the month. Time-only formats (`ss`, `hh`, `h A/P`) now show a time instead of the number. Formats this reading declines (`[h]:mm`, `Standard`, codes with an unquoted `0` / `#` or other letters) display as before. Saved workbooks change only where the old display disagreed with Excel: lowercase date letters, `M` / `MM` beside an hour or second, `mm` elsewhere, and uppercase `H` with `AM/PM`.
+- `h"時"mm"分"` in `TEXT` shows minutes, as Excel's own built-in format does (#147 corrects #145, which read that `m` as the month).
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.2.5`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.2.5)
+
 ## @gui-chat-plugin/spreadsheet@4.2.4 — 2026-10-19
 
 Date-like text, left open in 4.2.3 (#142).
