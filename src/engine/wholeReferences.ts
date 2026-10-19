@@ -6,6 +6,7 @@
  */
 
 import { columnToIndex, indexToColumn } from "./parser";
+import { UNQUOTED_SHEET_NAME } from "./sheetReference";
 
 /** How far a sheet's data reaches: the number of rows, and the longest row's length. */
 export interface SheetExtent {
@@ -19,12 +20,12 @@ export type ExtentOf = (sheetName: string | null) => SheetExtent | null;
 // An optional sheet prefix (`Data!`, `'My Sheet'!`), then two column letters or two row numbers
 // joined by a colon, standing alone as an operand: only what may sit beside an operand can touch
 // it, so a reference glued to another token (`A:B1`, `A:A:A`, `x.1:1`, `A:B(`) is left as written.
-const SHEET_PREFIX = String.raw`(?:'((?:[^']|'')+)'|([A-Za-z_][\w.]*))!`;
+const SHEET_PREFIX = String.raw`(?:'((?:[^']|'')+)'|(${UNQUOTED_SHEET_NAME}))!`;
 const BEFORE_OPERAND = String.raw`[(,+\-*/^&=<>\s]`;
 const AFTER_OPERAND = String.raw`[),+\-*/^&=<>\s]`;
 const WHOLE_REFERENCE = new RegExp(
   String.raw`(?<=^|${BEFORE_OPERAND})(?:${SHEET_PREFIX})?(?:(\$?[A-Za-z]{1,3}):(\$?[A-Za-z]{1,3})|(\$?\d+):(\$?\d+))(?=$|${AFTER_OPERAND})`,
-  "g",
+  "gu",
 );
 
 const withoutAnchor = (part: string): string => part.replace("$", "").toUpperCase();

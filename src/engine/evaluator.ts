@@ -9,7 +9,7 @@ import { FUNCTION_NAME_SOURCE, functionRegistry, isCallableName, tooFewArguments
 const SIMPLE_CALL = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\((.*)\\)$`, "i");
 const CALL_START = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\(`, "i");
 import type { CellValue } from "./types";
-import { endOfQuotedSheetName } from "./sheetReference";
+import { endOfQuotedSheetName, UNQUOTED_SHEET_NAME } from "./sheetReference";
 import { parseDate } from "./date-parser";
 import { concatOperands, concatToSum, topLevelGroups } from "./concatPrecedence";
 import { isEscapedAt } from "./escapes";
@@ -124,10 +124,12 @@ function matchQuotedSheetRef(expr: string, start: number): string | null {
   return expr.substring(start, afterName + 1 + cellPart[0].length);
 }
 
+const UNQUOTED_SHEET_PREFIX = new RegExp(String.raw`^(${UNQUOTED_SHEET_NAME})!`, "u");
+
 /** A `Sheet!A1` or bare `A1` / `$A$1` reference beginning at `start`, or null. */
 function matchUnquotedRef(expr: string, start: number): string | null {
   const rest = expr.substring(start);
-  const sheetMatch = rest.match(/^([A-Z][A-Z0-9]*)!/i);
+  const sheetMatch = rest.match(UNQUOTED_SHEET_PREFIX);
   if (sheetMatch) {
     const cellPart = rest.substring(sheetMatch[0].length).match(/^(\$?[A-Z]+\$?\d+)/);
     if (cellPart) return sheetMatch[0] + cellPart[0];

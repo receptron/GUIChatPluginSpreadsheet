@@ -3,6 +3,13 @@
  * quoted name holding an apostrophe written twice, as Excel writes it (`'It''s'!A1` names It's).
  */
 
+/** A sheet name Excel lets you write without quotes: letters of any script, digits, `_` and `.`,
+ *  not starting with a digit (`基準!B1`, `Sheet_1!B1`). Every reader of a reference uses this one
+ *  rule, with the `u` flag, so `基準!B1` and `基準!A:A` reach the same sheet. */
+export const UNQUOTED_SHEET_NAME = String.raw`[\p{L}_][\p{L}\p{N}_.]*`;
+/** A character that continues a name, so a word touching it is part of something longer. */
+export const NAME_CHARACTER = String.raw`[\p{L}\p{N}_]`;
+
 // The sheet name (quoted, with `''` inside, or plain), then `!` and the reference.
 const SHEET_QUALIFIED_REF = /^(?:'((?:[^']|'')+)'|([^!]+))!(.+)$/;
 
