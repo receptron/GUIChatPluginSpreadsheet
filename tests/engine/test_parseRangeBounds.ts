@@ -50,13 +50,10 @@ describe("parseRangeBounds — non-ranges return null", () => {
     assert.equal(parseRangeBounds(""), null);
   });
 
-  // Deliberate limitation, pinned so it is not "fixed" by accident: the parser
-  // matches uppercase `[A-Z]` with no `$`, exactly as the four former copies did.
-  // The engine's own cell reader (calculator.getCellValue) is likewise
-  // uppercase-only, so accepting these here would not make them resolve.
-  it("rejects lowercase and $-absolute ranges (matches prior lookup behaviour)", () => {
-    assert.equal(parseRangeBounds("a1:b2"), null);
-    assert.equal(parseRangeBounds("$A$1:$B$2"), null);
+  // The range readers drop `$` and read lowercase, so the bounds do too (#132).
+  it("reads lowercase and $-absolute ranges as the plain range", () => {
+    assert.deepEqual(parseRangeBounds("a1:b2"), parseRangeBounds("A1:B2"));
+    assert.deepEqual(parseRangeBounds("$A$1:$B$2"), parseRangeBounds("A1:B2"));
   });
 });
 
