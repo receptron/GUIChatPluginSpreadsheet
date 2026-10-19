@@ -124,10 +124,14 @@ function matchQuotedSheetRef(expr: string, start: number): string | null {
   return expr.substring(start, afterName + 1 + cellPart[0].length);
 }
 
+// A sheet name Excel lets you write without quotes: letters of any script, digits, `_` and `.`,
+// not starting with a digit. `基準!B1` must reach the sheet, not read B1 here.
+const UNQUOTED_SHEET_NAME = /^([\p{L}_][\p{L}\p{N}_.]*)!/u;
+
 /** A `Sheet!A1` or bare `A1` / `$A$1` reference beginning at `start`, or null. */
 function matchUnquotedRef(expr: string, start: number): string | null {
   const rest = expr.substring(start);
-  const sheetMatch = rest.match(/^([A-Z][A-Z0-9]*)!/i);
+  const sheetMatch = rest.match(UNQUOTED_SHEET_NAME);
   if (sheetMatch) {
     const cellPart = rest.substring(sheetMatch[0].length).match(/^(\$?[A-Z]+\$?\d+)/);
     if (cellPart) return sheetMatch[0] + cellPart[0];
