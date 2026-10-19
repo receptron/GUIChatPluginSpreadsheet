@@ -42,7 +42,7 @@ export function parseNumericString(value: string): number | null {
   }
   const [, sign, amount] = text.match(CURRENCY) ?? [];
   if (amount !== undefined) {
-    const num = sign !== "" && /^[-+]/.test(amount) ? null : wholeNumber(amount);
+    const num = sign !== "" && /^[-+]/.test(amount) ? null : wholeNumber(amount.trim());
     return num === null ? null : sign === "-" ? -num : num;
   }
   return wholeNumber(text);

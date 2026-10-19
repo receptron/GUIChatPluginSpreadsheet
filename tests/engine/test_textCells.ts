@@ -36,12 +36,20 @@ describe("a text cell read by a formula (#140)", () => {
     assert.deepEqual(read("12abc", ["=A1+1", "=SUM(A1:A1)", "=COUNT(A1:A1)"]).map(String), ["#VALUE!", "0", "0"]);
   });
 
+  it("is #VALUE! to a date function rather than serial 0, as calendar functions already answer", () => {
+    assert.deepEqual(
+      read("2023-01", ["=YEAR(A1)", "=MONTH(A1)", "=DAY(A1)", "=HOUR(A1)", '=DATEDIF(A1,45000,"D")', "=WEEKDAY(A1)"]).map(String),
+      Array(6).fill("#VALUE!"),
+    );
+  });
+
   it("still reads a number typed with separators, a percentage or a currency sign", () => {
     const typed: [string, number][] = [
       ["1,200", 1200],
       ["25%", 0.25],
       ["$1,000", 1000],
       ["-$5", -5],
+      ["$ 5", 5],
       [" 42 ", 42],
     ];
     for (const [text, number] of typed) {

@@ -4,7 +4,9 @@
  * Serial 0 is 1899-12-30 on the real calendar, so 1900-01-01 is serial 2 (see date-utils.ts).
  */
 
-import { functionRegistry, requiredArg, toNumber, toString, type FunctionHandler } from "../registry";
+import { functionRegistry, requiredArg, toNumber, toString, type FunctionContext, type FunctionHandler } from "../registry";
+import { toScalarNumber } from "../numericCoercion";
+import { isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
 import { computeDatedif } from "../datedif";
 import { dateToSerial, serialToDate } from "../date-utils";
 
@@ -52,49 +54,33 @@ const timeHandler: FunctionHandler = (args, context) => {
   return (totalSeconds % secondsPerDay) / secondsPerDay;
 };
 
-const yearHandler: FunctionHandler = (args, context) => {
-  const serial = toNumber(context.evaluateFormula(requiredArg(context, args, 0)));
-  const date = serialToDate(serial);
-  return date.getUTCFullYear();
-};
+// A date argument is read as Excel reads it: a date written as text has already become a serial
+// by the time it is evaluated, so text that is still text (`2023-01`) is #VALUE!, not serial 0.
+const serialArg = (args: string[], context: FunctionContext, index: number): number | SpreadsheetError =>
+  toScalarNumber(context.evaluateFormula(requiredArg(context, args, index)));
 
-const monthHandler: FunctionHandler = (args, context) => {
-  const serial = toNumber(context.evaluateFormula(requiredArg(context, args, 0)));
-  const date = serialToDate(serial);
-  return date.getUTCMonth() + 1; // 1-indexed
-};
+const fromSerial =
+  (read: (serial: number) => number): FunctionHandler =>
+  (args, context) => {
+    const serial = serialArg(args, context, 0);
+    return isSpreadsheetErrorValue(serial) ? serial : read(serial);
+  };
 
-const dayHandler: FunctionHandler = (args, context) => {
-  const serial = toNumber(context.evaluateFormula(requiredArg(context, args, 0)));
-  const date = serialToDate(serial);
-  return date.getUTCDate();
-};
+const SECONDS_PER_DAY = 86400;
+const secondOfDay = (serial: number): number => Math.round((serial - Math.floor(serial)) * SECONDS_PER_DAY);
 
-const hourHandler: FunctionHandler = (args, context) => {
-  const serial = toNumber(context.evaluateFormula(requiredArg(context, args, 0)));
-  // Get fractional part
-  const timePart = serial - Math.floor(serial);
-  const totalSeconds = Math.round(timePart * 86400);
-  return Math.floor(totalSeconds / 3600);
-};
-
-const minuteHandler: FunctionHandler = (args, context) => {
-  const serial = toNumber(context.evaluateFormula(requiredArg(context, args, 0)));
-  const timePart = serial - Math.floor(serial);
-  const totalSeconds = Math.round(timePart * 86400);
-  return Math.floor((totalSeconds % 3600) / 60);
-};
-
-const secondHandler: FunctionHandler = (args, context) => {
-  const serial = toNumber(context.evaluateFormula(requiredArg(context, args, 0)));
-  const timePart = serial - Math.floor(serial);
-  const totalSeconds = Math.round(timePart * 86400);
-  return totalSeconds % 60;
-};
+const yearHandler = fromSerial((serial) => serialToDate(serial).getUTCFullYear());
+const monthHandler = fromSerial((serial) => serialToDate(serial).getUTCMonth() + 1);
+const dayHandler = fromSerial((serial) => serialToDate(serial).getUTCDate());
+const hourHandler = fromSerial((serial) => Math.floor(secondOfDay(serial) / 3600));
+const minuteHandler = fromSerial((serial) => Math.floor((secondOfDay(serial) % 3600) / 60));
+const secondHandler = fromSerial((serial) => secondOfDay(serial) % 60);
 
 const datedifHandler: FunctionHandler = (args, context) => {
-  const startSerial = toNumber(context.evaluateFormula(requiredArg(context, args, 0)));
-  const endSerial = toNumber(context.evaluateFormula(requiredArg(context, args, 1)));
+  const startSerial = serialArg(args, context, 0);
+  if (isSpreadsheetErrorValue(startSerial)) return startSerial;
+  const endSerial = serialArg(args, context, 1);
+  if (isSpreadsheetErrorValue(endSerial)) return endSerial;
   const unit = toString(context.evaluateFormula(requiredArg(context, args, 2)));
 
   return computeDatedif(startSerial, endSerial, unit);
