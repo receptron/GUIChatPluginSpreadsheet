@@ -238,23 +238,18 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
       return isNaN(num) ? cell : num;
     }
 
-    // Handle new cell format {v, f}
-    if (isObj(cell) && "v" in cell) {
-      const value = cell.v;
+    // Handle new cell format {v, f}; a cell without `v` holds nothing.
+    if (isObj(cell)) {
+      const value = "v" in cell ? cell.v : undefined;
       // If value is a string starting with "=", it's a formula
       if (typeof value === "string" && value.startsWith("=")) {
         // Only evaluatable when we know the cell's position (for recursion +
         // circular tracking); otherwise treat as 0.
         return position ? resolveFormulaCell(value, position) : 0;
       }
-      // Try to parse as number, but preserve original type on failure
-      if (typeof value === "number") return value;
-      if (typeof value === "boolean") return value;
-      if (typeof value === "string") {
-        const num = parseFloat(value);
-        return isNaN(num) ? value : num;
-      }
-      return String(value);
+      // The walk copies a plain `v` into the grid as it is, so it is read by the same rules here: a
+      // cell the formula reaches before the walk does reads as it will after ("5%" as 0.05, null as 0).
+      return getRawValue(value);
     }
 
     // Try to parse cell as number, but preserve strings
