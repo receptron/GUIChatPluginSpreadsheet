@@ -12,6 +12,7 @@ import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaIn
 import { isObj } from "./guards";
 import { isEmptyCell } from "./cellEmpty";
 import { isRangeNumber } from "./numericCoercion";
+import { boundWholeReferences, type SheetExtent } from "./wholeReferences";
 import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
 import { isSpreadsheetErrorValue, spreadsheetError } from "./spreadsheet-errors";
@@ -171,6 +172,12 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
   // re-run".
   const evaluated = new Set<string>();
 
+  // How far a sheet's data reaches, for bounding `A:A` and `1:1`; null for a sheet that does not exist.
+  const extentOf = (name: string | null): SheetExtent | null => {
+    const rows = name === null || name === sheetName ? data : processedAllSheets?.find((other) => other.name === name)?.data;
+    return rows ? { rows: rows.length, columns: rows.reduce((longest, row) => Math.max(longest, row.length), 0) } : null;
+  };
+
   // Evaluate one formula cell, guarding circular references, caching the result,
   // and turning a thrown failure into a typed errors[] entry plus the Excel
   // error value in the cell — never a swallowed bare string/number (#2359).
@@ -183,7 +190,7 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     if (evaluated.has(cellKey)) return cells[col];
     calculating.add(cellKey);
     try {
-      const result = evaluateFormula(formulaText.substring(1)); // drop leading "="
+      const result = evaluateFormula(boundWholeReferences(formulaText.substring(1), extentOf)); // drop leading "="
       cells[col] = result;
       return result;
     } catch (error) {
