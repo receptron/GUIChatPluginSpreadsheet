@@ -8,7 +8,7 @@
 import { functionRegistry, rawRangeReader, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
 import { coerceToBoolean } from "../coerce-boolean";
 import { toScalarNumber } from "../numericCoercion";
-import { DIV_ZERO_ERROR, NUM_ERROR, type SpreadsheetError } from "../spreadsheet-errors";
+import { DIV_ZERO_ERROR, isSpreadsheetErrorValue, NUM_ERROR, type SpreadsheetError } from "../spreadsheet-errors";
 import { collectNumericValues } from "./statistical";
 import { numericPairs } from "./analysis-math";
 import {
@@ -35,8 +35,12 @@ type Result = number | SpreadsheetError;
 const numberArg = (args: string[], context: FunctionContext, index: number): Result =>
   toScalarNumber(context.evaluateFormula(requiredArg(context, args, index)));
 
-const booleanArg = (args: string[], context: FunctionContext, index: number): boolean =>
-  coerceToBoolean(context.evaluateFormula(requiredArg(context, args, index)));
+/** The argument at `index` read as Excel's truthiness, or the error it evaluated to: coerced
+ *  first, an error cell would read as TRUE and the formula answer as if it were fine. */
+function booleanArg(args: string[], context: FunctionContext, index: number): boolean | SpreadsheetError {
+  const value = context.evaluateFormula(requiredArg(context, args, index));
+  return isSpreadsheetErrorValue(value) ? value : coerceToBoolean(value);
+}
 
 /** The arguments as numbers, or the first error among them, in argument order. */
 function numberArgs(args: string[], context: FunctionContext, count: number): number[] | SpreadsheetError {
@@ -67,9 +71,11 @@ const tDist: FunctionHandler = (args, context) => {
   const values = numberArgs(args, context, 2);
   if (!Array.isArray(values)) return values;
   const [x = 0, rawDf = 0] = values;
+  const cumulative = booleanArg(args, context, 2);
+  if (typeof cumulative !== "boolean") return cumulative;
   const df = degreesOfFreedom(rawDf);
   if (df === null) return NUM_ERROR;
-  return booleanArg(args, context, 2) ? studentCdf(x, df) : studentDensity(x, df);
+  return cumulative ? studentCdf(x, df) : studentDensity(x, df);
 };
 
 const tDistTwoTailed = ([x = 0, rawDf = 0]: number[]): Result => {
@@ -118,7 +124,16 @@ function twoSampleStatistic(args: string[], context: FunctionContext, type: numb
 const finiteStatistic = (statistic: TStatistic | SpreadsheetError): TStatistic | SpreadsheetError =>
   "t" in statistic && !(Number.isFinite(statistic.t) && Number.isFinite(statistic.df)) ? DIV_ZERO_ERROR : statistic;
 
+/** The first error cell in the two sample ranges, in argument order. Excel's T.TEST answers it;
+ *  the numeric readers below skip any cell without a number, errors included. */
+function sampleRangeError(args: string[], context: FunctionContext): SpreadsheetError | undefined {
+  const readRaw = rawRangeReader(context);
+  return [0, 1].flatMap((index) => readRaw(requiredArg(context, args, index))).find(isSpreadsheetErrorValue);
+}
+
 const tTest: FunctionHandler = (args, context) => {
+  const rangeError = sampleRangeError(args, context);
+  if (rangeError) return rangeError;
   const tailsAndType = [numberArg(args, context, 2), numberArg(args, context, 3)];
   const firstError = tailsAndType.find((value): value is SpreadsheetError => typeof value !== "number");
   if (firstError) return firstError;
@@ -134,15 +149,19 @@ const normDist: FunctionHandler = (args, context) => {
   const values = numberArgs(args, context, 3);
   if (!Array.isArray(values)) return values;
   const [x = 0, mean = 0, sd = 0] = values;
+  const cumulative = booleanArg(args, context, 3);
+  if (typeof cumulative !== "boolean") return cumulative;
   if (sd <= 0) return NUM_ERROR;
   const z = (x - mean) / sd;
-  return booleanArg(args, context, 3) ? normalCdf(z) : normalDensity(z) / sd;
+  return cumulative ? normalCdf(z) : normalDensity(z) / sd;
 };
 
 const normStandardDist: FunctionHandler = (args, context) => {
   const z = numberArg(args, context, 0);
   if (typeof z !== "number") return z;
-  return booleanArg(args, context, 1) ? normalCdf(z) : normalDensity(z);
+  const cumulative = booleanArg(args, context, 1);
+  if (typeof cumulative !== "boolean") return cumulative;
+  return cumulative ? normalCdf(z) : normalDensity(z);
 };
 
 const normInv = ([p = 0, mean = 0, sd = 0]: number[]): Result => (!isOpenProbability(p) || sd <= 0 ? NUM_ERROR : mean + sd * normalQuantile(p));

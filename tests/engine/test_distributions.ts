@@ -345,6 +345,23 @@ describe("argument rules", () => {
     assert.deepEqual(same, [cdf, density]);
   });
 
+  it("passes an error in the cumulative argument through, rather than reading it as TRUE", () => {
+    assert.deepEqual(valuesOf(["=NORM.S.DIST(1,A1)", "=T.DIST(1,5,A1)", "=NORM.DIST(1,0,1,A1)"], [["=1/0"]]), ["#DIV/0!", "#DIV/0!", "#DIV/0!"]);
+  });
+
+  it("answers an error cell in either T.TEST range, in every type", () => {
+    const columns = [
+      ["=1/0", 2, 3, 4],
+      [2, 3, 5, "=SQRT(-1)"],
+    ];
+    assert.deepEqual(valuesOf(["=T.TEST(A1:A4,B1:B4,2,1)", "=T.TEST(A1:A4,B1:B4,2,2)", "=T.TEST(A1:A4,B1:B4,2,3)", "=T.TEST(B1:B4,A1:A4,2,3)"], columns), [
+      "#DIV/0!",
+      "#DIV/0!",
+      "#DIV/0!",
+      "#NUM!",
+    ]);
+  });
+
   it("passes an error argument through", () => {
     assert.deepEqual(valuesOf(["=T.DIST(1/0,5,TRUE)", "=NORM.INV(0.5,1/0,1)", '=T.DIST.RT("x",5)']), ["#DIV/0!", "#DIV/0!", "#VALUE!"]);
   });
