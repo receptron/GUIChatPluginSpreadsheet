@@ -182,8 +182,12 @@ describe("TREND", () => {
     assertClose(constant, 21, "y = 2x + 1");
   });
 
-  it("drops an x that never varies, as LINEST does, leaving the mean of y or 0", () => {
-    assert.deepEqual(valuesOf(["=TREND(A1:A4,B1:B4,9)", "=TREND(A1:A4,C1:C4,9,FALSE)"], [ys, [2, 2, 2, 2], [0, 0, 0, 0]]), [7, 0]);
+  it("drops an x collinear with the constant, as LINEST does, leaving the mean of y", () => {
+    assert.deepEqual(valuesOf(["=TREND(A1:A4,B1:B4,9)"], [ys, [2, 2, 2, 2]]), [7]);
+  });
+
+  it("keeps a constant x through the origin, where only an all-zero x is dropped", () => {
+    assert.deepEqual(valuesOf(["=TREND(A1:A4,B1:B4,9,FALSE)", "=TREND(A1:A4,C1:C4,9,FALSE)"], [ys, [2, 2, 2, 2], [0, 0, 0, 0]]), [31.5, 0]);
   });
 
   it("reads the ranges whole: #REF! for different sizes, #VALUE! for a blank or text, an error passed through", () => {

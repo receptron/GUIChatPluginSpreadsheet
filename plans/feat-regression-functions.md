@@ -16,7 +16,8 @@
 - `MAXIFS`・`MINIFS` は `statistical-analysis.ts` の SUMIFS の隣。合った行のうち数を持つ値の最大・最小。一つも無ければ 0（Excel と同じ）
 - Excel の誤り：
   - FORECAST・STEYX・COVARIANCE：大きさの違う範囲は `#N/A`。組が一つも無いとき、FORECAST と STEYX は `#N/A`、COVARIANCE は `#DIV/0!`。x が変わらない、STEYX の点が 3 つ未満、COVARIANCE.S の点が 2 つ未満は `#DIV/0!`
-  - TREND は LINEST と同じく範囲を丸ごと読む。大きさの違う範囲は `#REF!`、空や文字のセルは `#VALUE!`、誤りのセルはその誤り。x が変わらないときは LINEST がその列を外すのにならい、y の平均（原点を通すなら 0）
+  - TREND は LINEST と同じく範囲を丸ごと読む。大きさの違う範囲は `#REF!`、空や文字のセルは `#VALUE!`、誤りのセルはその誤り
+  - 定数ありで x が変わらないとき、x は定数の列と重なる。LINEST がその列を外すのにならい、y の平均を返す。原点を通すときは定数の列が無いので、x が変わらなくても外さない（Σxy/Σx²）。外すのは x がすべて 0 のときだけで、答えは 0
 
 ## 確かめたこと
 

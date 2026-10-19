@@ -49,8 +49,8 @@ export const defaultKnownXs = (count: number): number[] => Array.from({ length: 
 /**
  * TREND at one new x. Unlike FORECAST it reads the ranges whole, as LINEST does: ranges of
  * different sizes are #REF!, an error cell is that error, and a blank or text cell is #VALUE!
- * rather than a skipped row. An x that never varies is dropped from the fit, as LINEST drops a
- * collinear column, which leaves the mean of y (or 0 through the origin).
+ * rather than a skipped row. With a constant, an x that never varies is collinear with it and is
+ * dropped, as LINEST drops it, leaving the mean of y; through the origin only an all-zero x is.
  */
 export function trendAt(knownYs: CellValue[], knownXs: CellValue[], newX: number, withConstant: boolean): number | SpreadsheetError {
   if (knownYs.length !== knownXs.length) return REF_ERROR;
