@@ -9,6 +9,7 @@
 
 import type { CellValue } from "./types";
 import { isSpreadsheetErrorValue } from "./spreadsheet-errors";
+import { applyComparison, type ExcelComparisonOperator } from "./textComparison";
 
 export type ComparisonOperator = ">=" | "<=" | "<>" | "!=" | "==" | "=" | ">" | "<";
 
@@ -112,23 +113,30 @@ export function readOperand(raw: string): CellValue {
   return Number.isNaN(numeric) ? value : numeric;
 }
 
-function compareValues(left: CellValue, right: CellValue): number | null {
-  if (typeof left === "number" && typeof right === "number") return left - right;
-  if (typeof left === "boolean" || typeof right === "boolean") return null;
-  return String(left).localeCompare(String(right));
+const EXCEL_OPERATOR: Readonly<Record<ComparisonOperator, ExcelComparisonOperator>> = {
+  ">=": ">=",
+  "<=": "<=",
+  "<>": "<>",
+  "!=": "<>",
+  "==": "=",
+  "=": "=",
+  ">": ">",
+  "<": "<",
+};
+
+/** A blank cell reaches a condition as "", and Excel compares a blank as whatever the other side
+ *  is: 0 beside a number, FALSE beside a boolean, "" beside text. Read as plain text instead, a
+ *  blank would sort after every number (`blank > 5` TRUE). */
+function asBlankBeside(value: CellValue, other: CellValue): CellValue {
+  if (value !== "") return value;
+  if (typeof other === "number") return 0;
+  return typeof other === "boolean" ? false : value;
 }
 
+/** Excel's comparison, the one the evaluator uses (textComparison.ts): numbers before text before
+ *  booleans, text without regard to case. */
 function applyOperator(operator: ComparisonOperator, left: CellValue, right: CellValue): boolean {
-  // Equality does not need an ordering, so it works for every type pair —
-  // including the boolean combinations `compareValues` refuses to order.
-  if (operator === "=" || operator === "==") return left === right;
-  if (operator === "<>" || operator === "!=") return left !== right;
-  const ordering = compareValues(left, right);
-  if (ordering === null) return false;
-  if (operator === ">") return ordering > 0;
-  if (operator === ">=") return ordering >= 0;
-  if (operator === "<") return ordering < 0;
-  return ordering <= 0;
+  return applyComparison(EXCEL_OPERATOR[operator], asBlankBeside(left, right), asBlankBeside(right, left));
 }
 
 /** Whether a resolved condition value counts as satisfied. Mirrors the

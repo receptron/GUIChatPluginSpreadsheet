@@ -5,6 +5,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { evaluateCondition, isTruthyCondition, readOperand, renderConditionOperand, splitComparison, stripOuterParens } from "../../src/engine/condition.ts";
+import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
+import type { CellValue } from "../../src/engine/types.ts";
+import { cellAt } from "./cellAccess.ts";
 
 describe("splitComparison", () => {
   it("splits on each operator", () => {
@@ -185,10 +188,30 @@ describe("evaluateCondition — comparisons", () => {
     assert.equal(evaluateCondition('42="42"'), false);
   });
 
-  it("compares booleans for equality but refuses to order them", () => {
+  it("compares booleans, FALSE before TRUE, as Excel does", () => {
     assert.equal(evaluateCondition("TRUE=TRUE"), true);
     assert.equal(evaluateCondition("TRUE<>FALSE"), true);
-    assert.equal(evaluateCondition("TRUE>FALSE"), false, "no ordering is defined");
+    assert.equal(evaluateCondition("TRUE>FALSE"), true);
+    assert.equal(evaluateCondition("FALSE>TRUE"), false);
+  });
+
+  it("compares text without regard to case", () => {
+    assert.equal(evaluateCondition('"x"="X"'), true);
+    assert.equal(evaluateCondition('"Apple"<>"aPPLE"'), false);
+    assert.equal(evaluateCondition('"a"<"B"'), true, "case does not put B first");
+  });
+
+  it("orders numbers before text before booleans", () => {
+    assert.equal(evaluateCondition('5<"a"'), true);
+    assert.equal(evaluateCondition('"zzz"<TRUE'), true);
+    assert.equal(evaluateCondition("1E9<FALSE"), true);
+  });
+
+  it("compares a blank as whatever the other side is", () => {
+    assert.equal(evaluateCondition("<1"), true, "blank is 0 beside a number");
+    assert.equal(evaluateCondition("=0"), true);
+    assert.equal(evaluateCondition("=FALSE"), true, "blank is FALSE beside a boolean");
+    assert.equal(evaluateCondition('<"a"'), true, 'blank is "" beside text');
   });
 });
 
@@ -307,5 +330,20 @@ describe("quoted text inside a condition", () => {
   it("stops at the first closing parenthesis that ends the group early", () => {
     assert.equal(stripOuterParens("(a)=(b)"), "(a)=(b)");
     assert.equal(stripOuterParens("((a))"), "a");
+  });
+});
+
+describe("IFS compares the way the rest of the engine does", () => {
+  const ifs = (cell: CellValue, formula: string): unknown =>
+    cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: cell }, { v: formula }]] } satisfies SheetData).data, 0, 1);
+
+  it("matches text without regard to case", () => {
+    assert.equal(ifs("x", '=IFS(A1="X","y",TRUE,"n")'), "y");
+    assert.equal(ifs("x", '=IFS(A1<>"X","y",TRUE,"n")'), "n");
+  });
+
+  it("orders a number before text, and a blank like 0", () => {
+    assert.equal(ifs(5, '=IFS(A1<"a","y",TRUE,"n")'), "y");
+    assert.equal(ifs("", '=IFS(A1<1,"y",TRUE,"n")'), "y");
   });
 });
