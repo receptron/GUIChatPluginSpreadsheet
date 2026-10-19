@@ -13,6 +13,7 @@ import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaIn
 import { isObj, isRecord } from "./guards";
 import { isBlankCell, isEmptyCell } from "./cellEmpty";
 import { isRangeNumber } from "./numericCoercion";
+import { boundWholeReferences, type SheetExtent } from "./wholeReferences";
 import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
 import { isSpreadsheetErrorValue, spreadsheetError } from "./spreadsheet-errors";
@@ -186,6 +187,12 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
   // re-run".
   const evaluated = new Set<string>();
 
+  // How far a sheet's data reaches, for bounding `A:A` and `1:1`; null for a sheet that does not exist.
+  const extentOf = (name: string | null): SheetExtent | null => {
+    const rows = name === null || name === sheetName ? data : processedAllSheets?.find((other) => other.name === name)?.data;
+    return rows ? { rows: rows.length, columns: rows.reduce((longest, row) => Math.max(longest, row.length), 0) } : null;
+  };
+
   // Evaluate one formula cell, guarding circular references, caching the result,
   // and turning a thrown failure into a typed errors[] entry plus the Excel
   // error value in the cell — never a swallowed bare string/number (#2359).
@@ -198,7 +205,7 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     if (evaluated.has(cellKey)) return cells[col];
     calculating.add(cellKey);
     try {
-      const result = evaluateFormula(formulaText.substring(1)); // drop leading "="
+      const result = evaluateFormula(boundWholeReferences(formulaText.substring(1), extentOf)); // drop leading "="
       cells[col] = result;
       return result;
     } catch (error) {
@@ -253,23 +260,18 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
       return isNaN(num) ? cell : num;
     }
 
-    // Handle new cell format {v, f}
-    if (isObj(cell) && "v" in cell) {
-      const value = cell.v;
+    // Handle new cell format {v, f}; a cell without `v` holds nothing.
+    if (isObj(cell)) {
+      const value = "v" in cell ? cell.v : undefined;
       // If value is a string starting with "=", it's a formula
       if (typeof value === "string" && value.startsWith("=")) {
         // Only evaluatable when we know the cell's position (for recursion +
         // circular tracking); otherwise treat as 0.
         return position ? resolveFormulaCell(value, position) : 0;
       }
-      // Try to parse as number, but preserve original type on failure
-      if (typeof value === "number") return value;
-      if (typeof value === "boolean") return value;
-      if (typeof value === "string") {
-        const num = parseFloat(value);
-        return isNaN(num) ? value : num;
-      }
-      return String(value);
+      // The walk copies a plain `v` into the grid as it is, so it is read by the same rules here: a
+      // cell the formula reaches before the walk does reads as it will after ("5%" as 0.05, null as 0).
+      return getRawValue(value);
     }
 
     // Try to parse cell as number, but preserve strings
@@ -359,26 +361,26 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     const values: CellValue[] = [];
     for (const { row, col } of coords) {
       const gridRow = row >= 0 ? sheetData[row] : undefined;
-      if (gridRow && col >= 0 && col < gridRow.length) {
-        const cell = gridRow[col];
-        // Pass the position only if current sheet (for recursive evaluation)
-        const rawValue = getRawValue(cell, isCurrentSheet ? { cells: gridRow, row, col } : undefined);
+      // A position past the end of a short row, or below the last row, is a blank cell. Skipping
+      // it would shorten a positional read, and every row after it would pair with the wrong one.
+      const cell = gridRow && col >= 0 ? gridRow[col] : undefined;
+      // Pass the position only if current sheet (for recursive evaluation)
+      const rawValue = getRawValue(cell, gridRow && isCurrentSheet ? { cells: gridRow, row, col } : undefined);
 
-        if (rangeOptions.numericOnly) {
-          // A blank cell is not a value. Dropping it from the NUMERIC list keeps
-          // SUM unchanged (a blank read as 0) while stopping it from inflating
-          // AVERAGE's denominator and COUNT's tally (#2358). The raw list keeps
-          // every cell so SUMIF/AVERAGEIF's criteria and value ranges stay
-          // row-aligned; dropping there would shift indexes and aggregate the
-          // wrong rows (Codex review).
-          if (!isEmptyCell(cell) && isRangeNumber(rawValue)) {
-            values.push(rawValue);
-          }
-        } else {
-          // A calculated error has no `v`, so isEmptyCell would call it blank; it is a value.
-          const isBlank = isEmptyCell(cell) && !isSpreadsheetErrorValue(cell);
-          values.push(rangeOptions.keepBlanks && isBlank ? "" : rawValue);
+      if (rangeOptions.numericOnly) {
+        // A blank cell is not a value. Dropping it from the NUMERIC list keeps
+        // SUM unchanged (a blank read as 0) while stopping it from inflating
+        // AVERAGE's denominator and COUNT's tally (#2358). The raw list keeps
+        // every cell so SUMIF/AVERAGEIF's criteria and value ranges stay
+        // row-aligned; dropping there would shift indexes and aggregate the
+        // wrong rows (Codex review).
+        if (!isEmptyCell(cell) && isRangeNumber(rawValue)) {
+          values.push(rawValue);
         }
+      } else {
+        // A calculated error has no `v`, so isEmptyCell would call it blank; it is a value.
+        const isBlank = isEmptyCell(cell) && !isSpreadsheetErrorValue(cell);
+        values.push(rangeOptions.keepBlanks && isBlank ? "" : rawValue);
       }
     }
     return values;
