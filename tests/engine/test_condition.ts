@@ -333,10 +333,11 @@ describe("quoted text inside a condition", () => {
   });
 });
 
-describe("IFS compares the way the rest of the engine does", () => {
-  const ifs = (cell: CellValue, formula: string): unknown =>
-    cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: cell }, { v: formula }]] } satisfies SheetData).data, 0, 1);
+/** `formula` in B1, with `cell` in A1. */
+const ifs = (cell: CellValue, formula: string): unknown =>
+  cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: cell }, { v: formula }]] } satisfies SheetData).data, 0, 1);
 
+describe("IFS compares the way the rest of the engine does", () => {
   it("matches text without regard to case", () => {
     assert.equal(ifs("x", '=IFS(A1="X","y",TRUE,"n")'), "y");
     assert.equal(ifs("x", '=IFS(A1<>"X","y",TRUE,"n")'), "n");
