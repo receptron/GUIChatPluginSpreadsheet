@@ -44,7 +44,7 @@ const squaredDeviations = (values: number[]): number => {
   const center = sum(values) / values.length;
   return sum(values.map((value) => (value - center) ** 2));
 };
-const sorted = (values: number[]): number[] => [...values].sort((a, b) => a - b);
+const sorted = (values: number[]): number[] => values.toSorted((a, b) => a - b);
 const percentile = (values: number[], k: number): Expected => {
   if (values.length === 0) return ERROR;
   const ordered = sorted(values);
@@ -59,20 +59,22 @@ const pairsOf = (ys: Column, xs: Column): [number, number][] =>
     const pair: [number, number][] = typeof y === "number" && typeof x === "number" ? [[y, x]] : [];
     return pair;
   });
-const regression = (ys: Column, xs: Column): { slope: number; intercept: number; r: number } | typeof ERROR => {
+/** The least-squares line through the complete pairs. Slope and intercept need x to vary;
+ *  the correlation needs both sides to vary (a flat y has slope 0 but no correlation). */
+const regression = (ys: Column, xs: Column): { slope: number; intercept: number; r: Expected } | typeof ERROR => {
   const pairs = pairsOf(ys, xs);
   if (pairs.length < 2) return ERROR;
   const y = pairs.map(([value]) => value);
   const x = pairs.map(([, value]) => value);
   const sxx = squaredDeviations(x);
   const syy = squaredDeviations(y);
-  if (sxx === 0 || syy === 0) return ERROR;
+  if (sxx === 0) return ERROR;
   const yCenter = sum(y) / y.length;
   const xCenter = sum(x) / x.length;
   const sxy = sum(pairs.map(([yv, xv]) => (yv - yCenter) * (xv - xCenter)));
-  return { slope: sxy / sxx, intercept: yCenter - (sxy / sxx) * xCenter, r: sxy / Math.sqrt(sxx * syy) };
+  return { slope: sxy / sxx, intercept: yCenter - (sxy / sxx) * xCenter, r: syy === 0 ? ERROR : sxy / Math.sqrt(sxx * syy) };
 };
-const fromRegression = (ys: Column, xs: Column, read: (fit: { slope: number; intercept: number; r: number }) => number): Expected => {
+const fromRegression = (ys: Column, xs: Column, read: (fit: { slope: number; intercept: number; r: Expected }) => Expected): Expected => {
   const fit = regression(ys, xs);
   return fit === ERROR ? ERROR : read(fit);
 };
@@ -105,12 +107,12 @@ const CASES: Case[] = [
   { formula: "VARP(A1:A{n})", expected: (a) => (numbersIn(a).length > 0 ? squaredDeviations(numbersIn(a)) / numbersIn(a).length : ERROR) },
   { formula: "PERCENTILE(A1:A{n},0.3)", expected: (a) => percentile(numbersIn(a), 0.3) },
   { formula: "QUARTILE(A1:A{n},3)", expected: (a) => percentile(numbersIn(a), 0.75) },
-  { formula: "LARGE(A1:A{n},2)", expected: (a) => sorted(numbersIn(a)).reverse()[1] ?? ERROR },
+  { formula: "LARGE(A1:A{n},2)", expected: (a) => sorted(numbersIn(a)).toReversed()[1] ?? ERROR },
   { formula: "SMALL(A1:A{n},2)", expected: (a) => sorted(numbersIn(a))[1] ?? ERROR },
   { formula: "SLOPE(B1:B{n},A1:A{n})", expected: (a, b) => fromRegression(b, a, (fit) => fit.slope) },
   { formula: "INTERCEPT(B1:B{n},A1:A{n})", expected: (a, b) => fromRegression(b, a, (fit) => fit.intercept) },
   { formula: "CORREL(A1:A{n},B1:B{n})", expected: (a, b) => fromRegression(b, a, (fit) => fit.r) },
-  { formula: "RSQ(B1:B{n},A1:A{n})", expected: (a, b) => fromRegression(b, a, (fit) => fit.r ** 2) },
+  { formula: "RSQ(B1:B{n},A1:A{n})", expected: (a, b) => fromRegression(b, a, (fit) => (fit.r === ERROR ? ERROR : fit.r ** 2)) },
   ...ORDERINGS.flatMap((ordering): Case[] => [
     { formula: `COUNTIF(A1:A{n},"${ordering}2")`, expected: (a) => a.filter((value) => orderingHolds(value, ordering, 2)).length },
     {
