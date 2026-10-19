@@ -19,23 +19,33 @@ import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
 import { isSpreadsheetErrorValue, spreadsheetError } from "./spreadsheet-errors";
 
-// The grid a reference should read from, plus the sheet-name-stripped ref and
-// whether it points at the sheet currently being calculated (which decides
-// whether recursive formula evaluation is allowed for the cell it lands on).
-interface ResolvedSheetRef {
-  sheetData: (SpreadsheetCell | CellValue)[][];
-  ref: string;
-  isCurrentSheet: boolean;
-}
-
-// Where a cell sits in the grid CURRENTLY being calculated, carrying the row it
-// belongs to so a formula's result is written back without re-indexing. Only a
-// same-sheet cell has one: a cross-sheet read is resolved by that sheet's own
-// calculateSheet pass, so it has no position here to recurse from.
+// Where a cell sits in the grid of the sheet it belongs to, carrying the row so a formula's result is
+// written back without re-indexing.
 interface CellPosition {
   cells: any[];
   row: number;
   col: number;
+}
+
+/** Reads one cell of a sheet, calculating it if it is a formula. */
+type CellReader = (cell: unknown, position?: CellPosition) => CellValue;
+
+/** A sheet opened during one calculation: its grid, and the reader that calculates a cell of it on
+ *  demand. Another sheet's formula reads it cell by cell rather than calculating it whole, so two
+ *  sheets that refer to each other work as long as no CELL depends on itself (#130). */
+interface OpenSheet {
+  calculated: (SpreadsheetCell | CellValue)[][];
+  read: CellReader;
+}
+
+/** The sheets opened so far in one calculation, by name. */
+type OpenSheets = Map<string, OpenSheet>;
+
+// The grid a reference should read from, the sheet-name-stripped ref, and the reader for that sheet.
+interface ResolvedSheetRef {
+  sheetData: (SpreadsheetCell | CellValue)[][];
+  ref: string;
+  read: CellReader;
 }
 
 /**
@@ -149,6 +159,18 @@ type SheetCalculateOptions = CalculateOptions & { skipFormatting?: boolean };
  * @returns Calculated sheet with formulas evaluated
  */
 export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], options: SheetCalculateOptions = {}): CalculatedSheet {
+  return openSheet(sheet, allSheets, options, new Map()).finish();
+}
+
+/** Open `sheet` in `opened`: everything a cell of it needs to be calculated, nothing calculated yet.
+ *  `finish` walks every cell and formats it — what calculating the sheet itself means; a sheet opened
+ *  only because another one reads it is never finished, just read. */
+function openSheet(
+  sheet: SheetData,
+  allSheets: SheetData[] | undefined,
+  options: SheetCalculateOptions,
+  opened: OpenSheets,
+): { finish: () => CalculatedSheet } {
   const preferDDMMYYYY = options.preferDDMMYYYY ?? false;
   const skipFormatting = options.skipFormatting ?? false;
   // Normalize malformed data structures first
@@ -165,16 +187,11 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
 
   const data = processedData;
   const sheetName = sheet.name;
-  // Cache stores either SpreadsheetCell[][] (before calculation) or CellValue[][] (after)
-  const sheetsCache = new Map<string, (SpreadsheetCell | CellValue)[][]>();
   const errors: CalculationError[] = [];
   const formulas: FormulaInfo[] = [];
 
   // Create a copy of the data with calculated values
   const calculated: any[][] = data.map((row) => [...row]);
-
-  // Add current sheet to cache to prevent infinite loops
-  sheetsCache.set(sheetName, calculated);
 
   // Track cells being calculated to detect circular references
   const calculating = new Set<string>();
@@ -277,40 +294,29 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     return isNaN(num) ? cell : num;
   };
 
-  // Resolve a possibly cross-sheet reference to the grid it reads from, plus the
-  // sheet-name-stripped ref. A same-sheet ref returns the current `calculated`
-  // grid; a cross-sheet ref computes and caches its target sheet. null means the
-  // named sheet does not exist — the caller picks the terminal action (#REF! for
-  // a single cell, [] for a range). The two-stage cache seed (raw copy published
-  // BEFORE recursing, real result after) is the cross-sheet infinite-loop guard.
+  // Resolve a possibly cross-sheet reference to the grid it reads from. Another sheet is opened in
+  // the same calculation (once) and read cell by cell; null means the named sheet does not exist — the
+  // caller picks the terminal action (#REF! for a single cell, [] for a range). Values read across
+  // sheets are RAW: an opened sheet is never formatted, so a date reads as its serial, not "03/04/2025".
   const resolveSheetData = (fullRef: string): ResolvedSheetRef | null => {
     const qualified = splitSheetReference(fullRef);
-    if (!qualified) return { sheetData: calculated, ref: fullRef, isCurrentSheet: true };
-    const { sheetName: targetSheetName, ref: innerRef } = qualified;
-
-    // Check cache first to prevent infinite loops
-    const cached = sheetsCache.get(targetSheetName);
-    if (cached) return { sheetData: cached, ref: innerRef, isCurrentSheet: false };
-
-    const targetSheet = processedAllSheets?.find((s) => s.name === targetSheetName);
-    if (!targetSheet || !targetSheet.data) return null;
-
-    // Seed the cache with a raw copy BEFORE recursing so a cyclic back-reference
-    // finds this sheet mid-flight, then overwrite it with the calculated result.
-    // Resolve cross-sheet values RAW (skip display formatting) so a date cell
-    // reads as its serial, not the presentation string "03/04/2025".
-    const targetCalculated = targetSheet.data.map((row) => [...row]);
-    sheetsCache.set(targetSheetName, targetCalculated);
-    const targetResult = calculateSheet(targetSheet, processedAllSheets, { preferDDMMYYYY, skipFormatting: true });
-    sheetsCache.set(targetSheetName, targetResult.data);
-    return { sheetData: targetResult.data, ref: innerRef, isCurrentSheet: false };
+    if (!qualified) return { sheetData: calculated, ref: fullRef, read: getRawValue };
+    const target = opened.get(qualified.sheetName) ?? openOther(qualified.sheetName);
+    return target ? { sheetData: target.calculated, ref: qualified.ref, read: target.read } : null;
   };
 
-  /** The grid cell a reference names, with its position; null outside the sheet's grid. */
-  const locateCell = (ref: string): { cell: unknown; position: CellPosition | undefined } | null => {
+  const openOther = (name: string): OpenSheet | null => {
+    const targetSheet = processedAllSheets?.find((s) => s.name === name);
+    if (!targetSheet || !targetSheet.data) return null;
+    openSheet(targetSheet, processedAllSheets, { preferDDMMYYYY, skipFormatting: true }, opened);
+    return opened.get(name) ?? null;
+  };
+
+  /** The grid cell a reference names, with its position and its sheet's reader; null outside the grid. */
+  const locateCell = (ref: string): { cell: unknown; position: CellPosition; read: CellReader } | null => {
     const resolved = resolveSheetData(ref);
     if (!resolved) throw invalidRefError(ref); // Sheet not found → #REF!
-    const { sheetData, ref: cellRef, isCurrentSheet } = resolved;
+    const { sheetData, ref: cellRef, read } = resolved;
 
     // `$` symbols and the A1 shape are parsed by the shared single-cell reader.
     const coord = parseSingleCellRef(cellRef);
@@ -320,14 +326,13 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     const gridRow = row >= 0 ? sheetData[row] : undefined;
     if (!gridRow || col < 0 || col >= gridRow.length) return null;
 
-    // Pass the position only if this is the current sheet (for recursive evaluation)
-    return { cell: gridRow[col], position: isCurrentSheet ? { cells: gridRow, row, col } : undefined };
+    return { cell: gridRow[col], position: { cells: gridRow, row, col }, read };
   };
 
   // Helper to get cell value by reference (e.g., "B2", "$B$2", or "'Sheet1'!B2")
   const getCellValue = (ref: string): CellValue => {
     const located = locateCell(ref);
-    return located ? getRawValue(located.cell, located.position) : 0;
+    return located ? located.read(located.cell, located.position) : 0;
   };
 
   /** Whether a reference names a cell that holds nothing — outside the grid included. A formula
@@ -336,16 +341,16 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
   const isCellEmpty = (ref: string): boolean => {
     const located = locateCell(ref);
     if (located === null) return true;
-    const { cell, position } = located;
+    const { cell, position, read } = located;
     const source = isRecord(cell) ? cell["v"] : undefined;
     const isFormula = typeof source === "string" && source.startsWith("=");
-    return isBlankCell(isFormula ? getRawValue(cell, position) : cell);
+    return isBlankCell(isFormula ? read(cell, position) : cell);
   };
 
   const collectRangeValues = (range: string, rangeOptions: { numericOnly: boolean; keepBlanks?: boolean }): CellValue[] => {
     const resolved = resolveSheetData(range);
     if (!resolved) return []; // Sheet not found → empty range
-    const { sheetData, ref: rangeRef, isCurrentSheet } = resolved;
+    const { sheetData, ref: rangeRef, read } = resolved;
 
     const coords = expandRangeOrCell(rangeRef);
     if (!coords) return [];
@@ -356,8 +361,7 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
       // A position past the end of a short row, or below the last row, is a blank cell. Skipping
       // it would shorten a positional read, and every row after it would pair with the wrong one.
       const cell = gridRow && col >= 0 ? gridRow[col] : undefined;
-      // Pass the position only if current sheet (for recursive evaluation)
-      const rawValue = getRawValue(cell, gridRow && isCurrentSheet ? { cells: gridRow, row, col } : undefined);
+      const rawValue = read(cell, gridRow ? { cells: gridRow, row, col } : undefined);
 
       if (rangeOptions.numericOnly) {
         // A blank cell is not a value. Dropping it from the NUMERIC list keeps
@@ -456,31 +460,37 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     });
   };
 
-  // Process all cells and calculate formulas. A cell already evaluated through
-  // another formula's recursion keeps its number; formatting comes at the end.
-  forEachCell((originalCell, position) => {
-    const alreadyCalculated = typeof position.cells[position.col] === "number" && isObj(originalCell) && "f" in originalCell;
-    if (!alreadyCalculated) calculateCell(originalCell, position);
-  });
+  // Opened before anything is calculated, so a sheet that reads this one back finds it here.
+  opened.set(sheetName, { calculated, read: getRawValue });
 
-  // Final display-formatting pass: turn raw serials into presentation strings.
-  // Skipped when this sheet is computed only to resolve a cross-sheet reference,
-  // so the referencing cell reads the underlying value, not a display string.
-  if (!skipFormatting) {
-    const dateSource = sheetsDateSource([{ name: sheetName, data }, ...(processedAllSheets ?? []).filter((other) => other.name !== sheetName)]);
-    forEachCell((originalCell, { cells, col }) => {
-      const source = isObj(originalCell) && typeof originalCell.v === "string" ? originalCell.v : "";
-      const showsDate = source.startsWith("=") && formulaShowsDate(source, sheetName, dateSource);
-      cells[col] = formatCellForDisplay(originalCell, cells[col], preferDDMMYYYY, showsDate);
+  const finish = (): CalculatedSheet => {
+    // Process all cells and calculate formulas. A cell already evaluated through
+    // another formula's recursion keeps its number; formatting comes at the end.
+    forEachCell((originalCell, position) => {
+      const alreadyCalculated = typeof position.cells[position.col] === "number" && isObj(originalCell) && "f" in originalCell;
+      if (!alreadyCalculated) calculateCell(originalCell, position);
     });
-  }
 
-  return {
-    name: sheetName,
-    data: calculated,
-    formulas,
-    errors,
+    // Final display-formatting pass: turn raw serials into presentation strings.
+    // Skipped when this sheet is computed only to resolve a cross-sheet reference,
+    // so the referencing cell reads the underlying value, not a display string.
+    if (!skipFormatting) {
+      const dateSource = sheetsDateSource([{ name: sheetName, data }, ...(processedAllSheets ?? []).filter((other) => other.name !== sheetName)]);
+      forEachCell((originalCell, { cells, col }) => {
+        const source = isObj(originalCell) && typeof originalCell.v === "string" ? originalCell.v : "";
+        const showsDate = source.startsWith("=") && formulaShowsDate(source, sheetName, dateSource);
+        cells[col] = formatCellForDisplay(originalCell, cells[col], preferDDMMYYYY, showsDate);
+      });
+    }
+
+    return {
+      name: sheetName,
+      data: calculated,
+      formulas,
+      errors,
+    };
   };
+  return { finish };
 }
 
 /**
