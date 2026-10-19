@@ -245,7 +245,7 @@ describe("TEXT — end to end through SpreadsheetEngine", () => {
   });
 
   it("returns the value's own text for a format code it does not render", () => {
-    assert.equal(evalFormula('TEXT(1234.5,"MM/DD/YYYY")'), "1234.5");
+    assert.equal(evalFormula('TEXT(1234.5,"0.00E+00")'), "1234.5");
   });
 
   it("passes non-numeric input through unchanged", () => {

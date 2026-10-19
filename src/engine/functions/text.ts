@@ -5,6 +5,10 @@
 import { functionRegistry, requiredArg, toString, type FunctionContext, type FunctionHandler } from "../registry";
 import { VALUE_ERROR, isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
 import { formatWithPattern } from "../textFormat";
+import { parseDatePattern, renderDatePattern } from "../textDateFormat";
+import { parseNumericString } from "../numericCoercion";
+import { dateSerialFromText } from "../dateText";
+import type { CellValue } from "../types";
 
 // A letter or a combining mark. A decomposed accented letter (e + U+0301) is two
 // code points; counting the mark as part of the word stops PROPER from treating
@@ -184,11 +188,24 @@ const searchHandler: FunctionHandler = makeLocateHandler(true);
 // the handler.
 const stripSurroundingQuotes = (text: string): string => text.replace(/^["']/, "").replace(/["']$/, "");
 
+// Excel's TEXT reads text that is a number or a date as that value, so a date
+// kept as text (a CSV column) still takes a date format.
+const textAsValue = (value: CellValue, preferDDMMYYYY = false): CellValue => {
+  if (typeof value !== "string") return value;
+  return parseNumericString(value) ?? dateSerialFromText(value, preferDDMMYYYY) ?? value;
+};
+
+const formatAsText = (value: number, format: string): string | SpreadsheetError | null => {
+  const dateTokens = parseDatePattern(format);
+  if (!dateTokens) return formatWithPattern(value, format);
+  return Number.isFinite(value) && value >= 0 ? renderDatePattern(value, dateTokens) : VALUE_ERROR;
+};
+
 const textHandler: FunctionHandler = (args, context) => {
-  const value = context.evaluateFormula(requiredArg(context, args, 0));
+  const value = textAsValue(context.evaluateFormula(requiredArg(context, args, 0)), context.preferDDMMYYYY);
   const format = stripSurroundingQuotes(textArg(context, args, 1));
   if (typeof value !== "number") return toString(value);
-  return formatWithPattern(value, format) ?? toString(value);
+  return formatAsText(value, format) ?? toString(value);
 };
 
 /** Read a numeric string in full, or null. `Number` rather than `parseFloat`:
@@ -376,8 +393,8 @@ functionRegistry.register({
   handler: textHandler,
   minArgs: 2,
   maxArgs: 2,
-  description: "Formats a number and converts it to text",
-  examples: ['TEXT(1234.5, "$#,##0.00")', 'TEXT(0.5, "0%")'],
+  description: "Formats a number or a date and converts it to text",
+  examples: ['TEXT(1234.5, "$#,##0.00")', 'TEXT(0.5, "0%")', 'TEXT(A2, "yyyy-mm")'],
   category: "Text",
 });
 
