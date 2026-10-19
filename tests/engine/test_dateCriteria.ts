@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { parseCriteria } from "../../src/engine/registry.ts";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { cellAt } from "./cellAccess.ts";
+import { seededRandom, type Random } from "./seededRandom.ts";
 
 const MS_PER_DAY = 86_400_000;
 const SERIAL_EPOCH_MS = Date.UTC(1899, 11, 30);
@@ -117,18 +118,6 @@ describe("conditional functions with a date criteria", () => {
   });
 });
 
-/** mulberry32: a small seeded generator so a failing case can be replayed. */
-function seededRandom(seed: number): () => number {
-  const state = { value: seed >>> 0 };
-  return () => {
-    state.value = (state.value + 0x6d2b79f5) >>> 0;
-    const mixed = Math.imul(state.value ^ (state.value >>> 15), 1 | state.value);
-    const scrambled = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed;
-    return ((scrambled ^ (scrambled >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-type Random = () => number;
 const integerBelow = (random: Random, limit: number): number => Math.floor(random() * limit);
 
 interface CalendarDate {

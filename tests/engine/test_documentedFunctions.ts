@@ -15,7 +15,7 @@ const README_PATH = path.join(import.meta.dirname, "../../README.md");
 // whole text is scanned rather than just the formulas in it, so a prose word
 // written directly before "(" fails the check too — deliberately, as a false
 // alarm is cheaper than a missed call.
-const FUNCTION_CALL = /\b([A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)*)\(/g;
+const FUNCTION_CALL = /\b([A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)*)\(/g;
 
 /** `### Category` → the backticked names under it, within the README's "Supported Functions" section. */
 const readmeFunctionsByCategory = (readme: string): Map<string, string[]> => {
@@ -28,7 +28,7 @@ const readmeFunctionsByCategory = (readme: string): Map<string, string[]> => {
     .slice(1)
     .map((block): [string, string[]] => {
       const [heading = "", ...lines] = block.split("\n");
-      return [heading.trim(), [...lines.join("\n").matchAll(/`([A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)*)`/g)].map((match) => match[1] ?? "").sort()];
+      return [heading.trim(), [...lines.join("\n").matchAll(/`([A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)*)`/g)].map((match) => match[1] ?? "").sort()];
     });
   const headings = entries.map(([heading]) => heading);
   assert.deepEqual(headings, [...new Set(headings)], "each category appears once");
