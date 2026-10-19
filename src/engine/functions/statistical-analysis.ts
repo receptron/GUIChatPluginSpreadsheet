@@ -4,7 +4,7 @@
  * analysis-math.ts; this file reads the ranges and registers the names.
  */
 
-import { criteriaArg, functionRegistry, rawRangeReader, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
+import { blankAwareRangeReader, criteriaArg, functionRegistry, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
 import { collectNumericValues } from "./statistical";
 import {
   correlation,
@@ -35,7 +35,7 @@ const scalarArg = (args: string[], context: FunctionContext, index: number): num
 
 /** `(known_y, known_x)` read raw, so the two ranges stay paired by position. */
 const pairsFrom = (args: string[], context: FunctionContext): NumericPairs | SpreadsheetError => {
-  const readRaw = rawRangeReader(context);
+  const readRaw = blankAwareRangeReader(context);
   return numericPairs(readRaw(requiredArg(context, args, 0)), readRaw(requiredArg(context, args, 1)));
 };
 
@@ -66,7 +66,7 @@ const rankHandler: FunctionHandler = (args, context) => {
  *  criteria evaluated to. A range without its criteria is an arity error,
  *  raised by `requiredArg`. */
 const conditionsFrom = (args: string[], context: FunctionContext, first: number): RangeCondition[] | SpreadsheetError => {
-  const readRaw = rawRangeReader(context);
+  const readRaw = blankAwareRangeReader(context);
   const pairStarts = Array.from({ length: Math.ceil((args.length - first) / 2) }, (_, index) => first + index * 2);
   const conditions = pairStarts.map((start) => ({ range: readRaw(requiredArg(context, args, start)), matches: criteriaArg(context, args, start + 1) }));
   const firstError = conditions.map(({ matches }) => matches).find(isSpreadsheetErrorValue);
@@ -76,7 +76,7 @@ const conditionsFrom = (args: string[], context: FunctionContext, first: number)
 
 /** The rows of the value range (argument 0) that meet every condition after it. */
 const matchedValues = (args: string[], context: FunctionContext): CellValue[] | SpreadsheetError => {
-  const values = rawRangeReader(context)(requiredArg(context, args, 0));
+  const values = blankAwareRangeReader(context)(requiredArg(context, args, 0));
   const conditions = conditionsFrom(args, context, 1);
   if (!Array.isArray(conditions)) return conditions;
   const matched = rowsMeetingAll(values.length, conditions);
