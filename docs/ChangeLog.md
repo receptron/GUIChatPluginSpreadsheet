@@ -1,5 +1,16 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@4.2.4 — 2026-10-19
+
+Date-like text, left open in 4.2.3 (#142).
+
+- **Date functions read a date written as text** (#143, fixes #142): `YEAR`, `MONTH`, `DAY`, `DATEDIF`, `WEEKDAY`, `DAYS`, `EDATE`, `EOMONTH`, `WORKDAY`, `NETWORKDAYS` and the others now take `2025-01-15`, `2025-01`, `Jan 2025`, `2025年1月` and `2025年1月15日` as that date; a month alone is its first day. The cell itself stays text, so `RIGHT(A1,2)` and `SUMIF(...,"2025-*",...)` work as before, and saved workbooks calculate the same. Arguments that are counts or codes (`WEEKDAY`'s return type, `EDATE`'s months, `WORKDAY`'s days) are still read as numbers. Other text is still `#VALUE!`.
+- **Typing a date in the cell editor keeps it** (#143): `2025-01-15` typed into a cell was turned into the formula `=2025-01-15` and showed 2009. A date-like entry now stays as typed. `1/2`, which has no year, is still a fraction.
+
+Still open: `TEXT` does not format a date with a date pattern such as `"YYYY-MM"` (#144).
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.2.4`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.2.4)
+
 ## @gui-chat-plugin/spreadsheet@4.2.3 — 2026-10-19
 
 Three fixes found by a stress test of agents building analysis workbooks (receptron/mulmoterminal#3113). The first silently gave wrong numbers with no error showing.
