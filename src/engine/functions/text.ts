@@ -8,6 +8,7 @@ import { formatWithPattern } from "../textFormat";
 import { parseDatePattern, renderDatePattern } from "../textDateFormat";
 import { parseNumericString } from "../numericCoercion";
 import { dateSerialFromText } from "../dateText";
+import { LAST_SERIAL } from "../date-calendar";
 import type { CellValue } from "../types";
 
 // A letter or a combining mark. A decomposed accented letter (e + U+0301) is two
@@ -198,7 +199,7 @@ const textAsValue = (value: CellValue, preferDDMMYYYY = false): CellValue => {
 const formatAsText = (value: number, format: string): string | SpreadsheetError | null => {
   const dateTokens = parseDatePattern(format);
   if (!dateTokens) return formatWithPattern(value, format);
-  return Number.isFinite(value) && value >= 0 ? renderDatePattern(value, dateTokens) : VALUE_ERROR;
+  return value >= 0 && value < LAST_SERIAL + 1 ? renderDatePattern(value, dateTokens) : VALUE_ERROR;
 };
 
 const textHandler: FunctionHandler = (args, context) => {

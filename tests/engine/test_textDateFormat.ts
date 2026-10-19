@@ -47,11 +47,20 @@ describe("TEXT date codes — each part", () => {
     assert.equal(text(JAN_15_2025, "mmm"), "Jan");
   });
 
+  it("reads m as the month when text, not a separator, stands between it and the hour", () => {
+    assert.equal(text(JAN_15_2025 + SIX_PM, 'h"h"m'), "18h1");
+  });
+
   it("uses the 12-hour clock only with AM/PM", () => {
     assert.equal(text(JAN_15_2025 + SIX_PM, "h:mm AM/PM"), "6:00 PM");
     assert.equal(text(JAN_15_2025 + SIX_PM, "hh:mm am/pm"), "06:00 pm");
     assert.equal(text(JAN_15_2025, "h:mm AM/PM"), "12:00 AM");
     assert.equal(text(JAN_15_2025 + SIX_PM, "hh:mm:ss"), "18:00:00");
+  });
+
+  it("writes one letter for A/P", () => {
+    assert.equal(text(JAN_15_2025 + SIX_PM, "h A/P"), "6 P");
+    assert.equal(text(JAN_15_2025, "h a/p"), "12 a");
   });
 
   it("keeps other characters, quoted text and escaped letters as written", () => {
@@ -66,13 +75,22 @@ describe("TEXT date codes — what is not a date code", () => {
     ["0.00", "#,##0", "$#,##0.00", "0%", "General", '"yyyy"'].forEach((pattern) => assert.equal(parseDatePattern(pattern), null, pattern));
   });
 
+  it("leaves a number code with letters in its text to the number formats", () => {
+    const formulas = ['=TEXT(1234.5,"$#,##0.00 USD")', '=TEXT(2,"0.00 d")'];
+    assert.deepEqual(readBeside("", formulas), ["$1,234.50 USD", "2.00 d"]);
+  });
+
   it("declines elapsed time and locale codes rather than guessing", () => {
     ["[h]:mm", "[$-409]yyyy-mm-dd"].forEach((pattern) => assert.equal(parseDatePattern(pattern), null, pattern));
   });
 
-  it("answers #VALUE! for a negative serial, as Excel does", () => {
-    const [result] = readBeside("", ['=TEXT(-1,"yyyy")']);
-    assert.ok(isSpreadsheetErrorValue(result) && result.code === "#VALUE!", String(result));
+  it("answers #VALUE! for a serial before the first or after the last date, as Excel does", () => {
+    const results = readBeside("", ['=TEXT(-1,"yyyy")', '=TEXT(2958466,"yyyy")', '=TEXT(1E+300,"yyyy")']);
+    results.forEach((result) => assert.ok(isSpreadsheetErrorValue(result) && result.code === "#VALUE!", String(result)));
+  });
+
+  it("writes the last date Excel has", () => {
+    assert.deepEqual(readBeside("", ['=TEXT(2958465,"yyyy-mm-dd")']), ["9999-12-31"]);
   });
 });
 

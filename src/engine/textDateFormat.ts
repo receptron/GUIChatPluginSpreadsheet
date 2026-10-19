@@ -10,10 +10,10 @@ import { serialToDate, MONTH_NAMES_SHORT, MONTH_NAMES_FULL, DAY_NAMES_SHORT, DAY
 
 type PartKind = "year" | "month" | "day" | "hour" | "minute" | "second";
 
-export type DateToken = { kind: PartKind; width: number } | { kind: "meridiem"; lowercase: boolean } | { kind: "literal"; text: string };
+export type DateToken = { kind: PartKind; width: number } | { kind: "meridiem"; lowercase: boolean; letterOnly: boolean } | { kind: "literal"; text: string };
 
 const PART_LETTERS: Record<string, PartKind> = { y: "year", m: "month", d: "day", h: "hour", s: "second" };
-const MERIDIEM = "am/pm";
+const MERIDIEMS = ["am/pm", "a/p"];
 const HOURS_PER_HALF_DAY = 12;
 const SHORT_YEAR_DIVISOR = 100;
 const FULL_NAME_WIDTH = 4;
@@ -22,10 +22,16 @@ const INITIAL_WIDTH = 5;
 interface Scan {
   tokens: DateToken[];
   index: number;
+  hasDigitPlaceholder: boolean;
 }
 
 // `[h]` elapsed time and `[$-409]` locale codes are not rendered.
 const UNSUPPORTED_CHARACTER = "[";
+// An unquoted `0` or `#` makes it a number code (`0.00 d`, `$#,##0 USD`), whose
+// letters are text; that also declines fractional seconds (`ss.0`).
+const DIGIT_PLACEHOLDERS = "0#";
+// Between an hour and `m`, or `m` and a second, Excel allows a separator only.
+const SEPARATOR = /^[^\p{L}\p{N}]$/u;
 
 const runLength = (pattern: string, start: number, letter: string): number => {
   const rest = Array.from(pattern.slice(start).toLowerCase());
@@ -38,9 +44,10 @@ const readToken = (pattern: string, scan: Scan): void => {
   const char = pattern[scan.index] ?? "";
   const letter = char.toLowerCase();
   const part = PART_LETTERS[letter];
-  if (pattern.slice(scan.index, scan.index + MERIDIEM.length).toLowerCase() === MERIDIEM) {
-    scan.tokens.push({ kind: "meridiem", lowercase: char === "a" });
-    scan.index += MERIDIEM.length;
+  const meridiem = MERIDIEMS.find((code) => pattern.slice(scan.index, scan.index + code.length).toLowerCase() === code);
+  if (meridiem) {
+    scan.tokens.push({ kind: "meridiem", lowercase: char === "a", letterOnly: meridiem.length < MERIDIEMS[0].length });
+    scan.index += meridiem.length;
   } else if (part) {
     const width = runLength(pattern, scan.index, letter);
     scan.tokens.push({ kind: part, width });
@@ -63,23 +70,27 @@ const readLiteral = (pattern: string, scan: Scan): number => {
     scan.tokens.push({ kind: "literal", text: pattern[scan.index + 1] ?? "" });
     return scan.index + 2;
   }
+  if (DIGIT_PLACEHOLDERS.includes(char)) scan.hasDigitPlaceholder = true;
   scan.tokens.push({ kind: "literal", text: char });
   return scan.index + 1;
 };
 
-const isPart = (token: DateToken | undefined, kind: PartKind): boolean => token?.kind === kind;
+const isSeparator = (token: DateToken): boolean => token.kind === "literal" && SEPARATOR.test(token.text);
 
-// Excel reads `m` / `mm` as minutes right after an hour or right before a second,
-// with only separators between; anywhere else it is the month.
-const resolveMinutes = (tokens: DateToken[]): DateToken[] => {
-  const parts = tokens.filter((token) => token.kind !== "literal");
-  return tokens.map((token) => {
+/** The nearest token from `start` stepping by `step`, past separators only. */
+const neighbour = (tokens: DateToken[], start: number, step: number): DateToken | undefined => {
+  const rest = step < 0 ? tokens.slice(0, start + 1).reverse() : tokens.slice(start);
+  return rest.find((token) => !isSeparator(token));
+};
+
+// Excel reads `m` / `mm` as minutes right after an hour or right before a second;
+// anywhere else it is the month.
+const resolveMinutes = (tokens: DateToken[]): DateToken[] =>
+  tokens.map((token, index) => {
     if (token.kind !== "month" || token.width > 2) return token;
-    const position = parts.indexOf(token);
-    const isMinute = isPart(parts[position - 1], "hour") || isPart(parts[position + 1], "second");
+    const isMinute = neighbour(tokens, index - 1, -1)?.kind === "hour" || neighbour(tokens, index + 1, 1)?.kind === "second";
     return isMinute ? { kind: "minute", width: token.width } : token;
   });
-};
 
 /**
  * Split an Excel date/time format code into tokens, reading its letters
@@ -88,8 +99,9 @@ const resolveMinutes = (tokens: DateToken[]): DateToken[] => {
  */
 export const parseDatePattern = (pattern: string): DateToken[] | null => {
   if (pattern.includes(UNSUPPORTED_CHARACTER)) return null;
-  const scan: Scan = { tokens: [], index: 0 };
+  const scan: Scan = { tokens: [], index: 0, hasDigitPlaceholder: false };
   while (scan.index < pattern.length) readToken(pattern, scan);
+  if (scan.hasDigitPlaceholder) return null;
   const tokens = resolveMinutes(scan.tokens);
   return tokens.some((token) => token.kind !== "literal") ? tokens : null;
 };
@@ -115,27 +127,25 @@ const renderDay = (date: Date, width: number): string => {
 
 const clockHour = (hours: number, twelveHour: boolean): number => (twelveHour ? hours % HOURS_PER_HALF_DAY || HOURS_PER_HALF_DAY : hours);
 
+const PART_RENDERERS: Record<PartKind, (date: Date, width: number, twelveHour: boolean) => string> = {
+  year: (date, width) => renderYear(date.getUTCFullYear(), width),
+  month: (date, width) => renderMonth(date.getUTCMonth(), width),
+  day: renderDay,
+  hour: (date, width, twelveHour) => padded(clockHour(date.getUTCHours(), twelveHour), width),
+  minute: (date, width) => padded(date.getUTCMinutes(), width),
+  second: (date, width) => padded(date.getUTCSeconds(), width),
+};
+
+const renderMeridiem = (date: Date, lowercase: boolean, letterOnly: boolean): string => {
+  const text = date.getUTCHours() >= HOURS_PER_HALF_DAY ? "PM" : "AM";
+  const shown = letterOnly ? text.charAt(0) : text;
+  return lowercase ? shown.toLowerCase() : shown;
+};
+
 const renderToken = (token: DateToken, date: Date, twelveHour: boolean): string => {
-  switch (token.kind) {
-    case "literal":
-      return token.text;
-    case "meridiem": {
-      const text = date.getUTCHours() >= HOURS_PER_HALF_DAY ? "PM" : "AM";
-      return token.lowercase ? text.toLowerCase() : text;
-    }
-    case "year":
-      return renderYear(date.getUTCFullYear(), token.width);
-    case "month":
-      return renderMonth(date.getUTCMonth(), token.width);
-    case "day":
-      return renderDay(date, token.width);
-    case "hour":
-      return padded(clockHour(date.getUTCHours(), twelveHour), token.width);
-    case "minute":
-      return padded(date.getUTCMinutes(), token.width);
-    case "second":
-      return padded(date.getUTCSeconds(), token.width);
-  }
+  if (token.kind === "literal") return token.text;
+  if (token.kind === "meridiem") return renderMeridiem(date, token.lowercase, token.letterOnly);
+  return PART_RENDERERS[token.kind](date, token.width, twelveHour);
 };
 
 /** Render a date serial with the tokens `parseDatePattern` read. */
