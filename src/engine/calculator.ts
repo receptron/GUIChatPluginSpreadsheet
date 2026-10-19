@@ -464,12 +464,10 @@ function openSheet(
   opened.set(sheetName, { calculated, read: getRawValue });
 
   const finish = (): CalculatedSheet => {
-    // Process all cells and calculate formulas. A cell already evaluated through
-    // another formula's recursion keeps its number; formatting comes at the end.
-    forEachCell((originalCell, position) => {
-      const alreadyCalculated = typeof position.cells[position.col] === "number" && isObj(originalCell) && "f" in originalCell;
-      if (!alreadyCalculated) calculateCell(originalCell, position);
-    });
+    // Process all cells and calculate formulas; formatting comes at the end. A formula already
+    // evaluated — through another formula, on this sheet or from another — is read back from its
+    // cell by resolveFormulaCell, not run again, and is still listed in `formulas`.
+    forEachCell(calculateCell);
 
     // Final display-formatting pass: turn raw serials into presentation strings.
     // Skipped when this sheet is computed only to resolve a cross-sheet reference,

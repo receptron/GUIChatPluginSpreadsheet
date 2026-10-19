@@ -121,6 +121,16 @@ describe(`sheets that read each other (SHEETS_SEED=${SEED})`, () => {
     assert.deepEqual(result.data, [[rows], [rows * rows + (rows * (rows + 1)) / 2]]);
   });
 
+  it("lists every formula of the sheet, also one another sheet calculated first", () => {
+    const data: SheetData = { name: "Data", data: [[{ v: "=Settings!A1+1" }, { v: "=A2*2", f: "0.00" }], [{ v: 3 }]] };
+    const settings: SheetData = { name: "Settings", data: [[{ v: "=Data!B1" }]] };
+    const result = calculateSheet(data, [data, settings]);
+    assert.deepEqual(
+      result.formulas.map((info) => info.formula),
+      ["=Settings!A1+1", "=A2*2"],
+    );
+  });
+
   it("does not report a cycle where no cell depends on itself", () => {
     const data: SheetData = { name: "Data", data: [[{ v: 10 }, { v: "=Settings!A1*2" }]] };
     const settings: SheetData = { name: "Settings", data: [[{ v: "=Data!A1+1" }]] };
