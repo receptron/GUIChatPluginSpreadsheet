@@ -11,7 +11,7 @@ const CALL_START = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\(`, "i");
 import type { CellValue } from "./types";
 import { endOfQuotedSheetName } from "./sheetReference";
 import { parseDate } from "./date-parser";
-import { concatOperands, concatToSum } from "./concatPrecedence";
+import { concatOperands, concatToSum, topLevelGroups } from "./concatPrecedence";
 import { isEscapedAt } from "./escapes";
 import { withBlankSides } from "./blankOperands";
 import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison, separateRepeatedSigns } from "./translateFormula";
@@ -21,6 +21,7 @@ import { stripOuterParens } from "./condition";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
 import { booleansAsNumbers, logicalLiteralsAsBooleans, loneBoolean } from "./logicalLiterals";
+import { textOperandsAsNumbers } from "./textArithmetic";
 
 /**
  * Evaluation context for formulas
@@ -310,6 +311,24 @@ export function loneReference(operand: string): string | null {
   return only && rest.length === 0 && only.start === 0 && only.ref.length === inner.length ? only.ref : null;
 }
 
+/** `expr` with each top-level bracketed part evaluated and written as its
+ *  value. A part that is only a reference is left for the substitution, which knows a blank
+ *  cell from a 0 (#127), and a range is left as written. */
+function withGroupsEvaluated(expr: string, context: EvaluatorContext): string {
+  const groups = topLevelGroups(expr).filter(({ open, close }) => {
+    // A bracket right after a name is not a group: the calls are already replaced by their
+    // values, so what is left (`A1(2)`) is malformed and stays so.
+    const inner = expr.slice(open + 1, close).trim();
+    const followsName = /[\w.$]$/.test(expr.slice(0, open));
+    return !followsName && inner !== "" && !inner.includes(":") && loneReference(inner) === null;
+  });
+  return groups.reduceRight((rewritten, { open, close }) => {
+    const value = context.evaluateFormula(expr.slice(open + 1, close));
+    if (isSpreadsheetErrorValue(value)) throw propagatedError(value.code);
+    return rewritten.slice(0, open) + renderOperand(value) + rewritten.slice(close + 1);
+  }, expr);
+}
+
 /**
  * Evaluate a formula string
  *
@@ -483,6 +502,10 @@ export function evaluateFormula(writtenFormula: string, context: EvaluatorContex
     }
   }
 
+  // A bracketed part is a value of its own, as a call is: `("a"="b")&"x"` joins the comparison's
+  // answer, where the whole formula used to come back as its text.
+  expr = withGroupsEvaluated(expr, context);
+
   // Then replace cell references with their values. Detection skips quoted
   // string literals so a `"A1"` constant is not read as a reference.
   const cellRefs = findCellRefs(expr);
@@ -526,6 +549,11 @@ export function evaluateFormula(writtenFormula: string, context: EvaluatorContex
     }
     return match; // Keep original if not a date
   });
+
+  // Text beside an arithmetic operator is its number, or the expression is #VALUE!.
+  const numericText = textOperandsAsNumbers(expr);
+  if (isSpreadsheetErrorValue(numericText)) throw propagatedError(numericText.code);
+  expr = numericText;
 
   // Replace ^ with ** for exponentiation
   expr = caretToPow(expr);
