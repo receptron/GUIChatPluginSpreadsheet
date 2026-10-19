@@ -11,6 +11,7 @@ import { TOOL_DEFINITION, SYSTEM_PROMPT } from "./definition";
 import { artifactsFileOps, executeSpreadsheetDispatch, isSpreadsheetDispatchArgs } from "./dispatch";
 import { spreadsheetArtifactPath } from "./paths";
 import { loadCustomFunctions } from "../engine/customFunctions";
+import { calculationErrors, calculationErrorsNote, ERROR_SAMPLES } from "./calculationErrors";
 
 // Re-export for convenience
 export { TOOL_NAME, TOOL_DEFINITION, SYSTEM_PROMPT } from "./definition";
@@ -44,13 +45,23 @@ function validateSheets(sheets: SpreadsheetSheet[]): void {
   });
 }
 
-/** What the agent is told about functions it defined that cannot be used, so it can fix them;
- *  a formula calling one shows #NAME? otherwise, with nothing saying why. */
-async function unusableFunctionsNote(sheets: SpreadsheetSheet[]): Promise<string> {
+/** What the agent is told about the workbook it made, so it can fix it before the user sees it:
+ *  functions it defined that cannot be used (their calls show #NAME?), and formula cells that
+ *  calculate to an error. The workbook holds formulas, not results, so there is no other way to know. */
+async function workbookNotes(sheets: SpreadsheetSheet[]): Promise<string> {
   const functions = await loadCustomFunctions(sheets);
-  functions.dispose();
-  if (functions.problems.length === 0) return "";
-  return ` These functions could not be used and calls to them show #NAME?: ${functions.problems.map(({ name, reason }) => `${name} (${reason})`).join("; ")}.`;
+  try {
+    const problems =
+      functions.problems.length === 0
+        ? ""
+        : ` These functions could not be used and calls to them show #NAME?: ${functions.problems
+            .slice(0, ERROR_SAMPLES)
+            .map(({ name, reason }) => `${name} (${reason})`)
+            .join("; ")}.`;
+    return problems + calculationErrorsNote(calculationErrors(sheets, functions));
+  } finally {
+    functions.dispose();
+  }
 }
 
 /**
@@ -63,7 +74,7 @@ export const executeSpreadsheet = async (context: ToolContext, args: Spreadsheet
   validateSheets(sheets);
 
   const instructions = "Acknowledge that the spreadsheet has been created and is displayed to the user.";
-  const functionNote = await unusableFunctionsNote(sheets);
+  const functionNote = await workbookNotes(sheets);
   const artifacts = artifactsFileOps(context);
   if (!artifacts) {
     return { message: `Created spreadsheet: ${title}${functionNote}`, title, data: { sheets }, instructions };
