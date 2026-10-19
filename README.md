@@ -121,9 +121,9 @@ Dates are serial numbers on the real calendar, as in LibreOffice and Google Shee
 `AND`, `FALSE`, `IF`, `IFERROR`, `IFNA`, `IFS`, `NOT`, `OR`, `TRUE`
 
 ### Lookup & Reference
-`HLOOKUP`, `INDEX`, `MATCH`, `VLOOKUP`, `XLOOKUP`
+`COLUMN`, `COLUMNS`, `HLOOKUP`, `INDEX`, `MATCH`, `ROW`, `ROWS`, `VLOOKUP`, `XLOOKUP`
 
-A range is written `A1:C10`, `Data!A1:C10` or `'My Sheet'!A1:C10`. A whole column (`A:A`, `B:D`) or a whole row (`1:1`) covers its sheet as far as the data reaches, which gives the same answers, since everything past the data is blank.
+A range is written `A1:C10`, `Data!A1:C10` or `'My Sheet'!A1:C10`. A whole column (`A:A`, `B:D`) or a whole row (`1:1`) covers its sheet as far as the data reaches, which gives the same answers, since everything past the data is blank. `ROW()` and `COLUMN()` give the number of the cell the formula is in; given a range, they answer for its first cell.
 
 ### Statistical
 `AVERAGE`, `AVERAGEIF`, `AVERAGEIFS`, `CONFIDENCE.NORM`, `CONFIDENCE.T`, `CORREL`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `COVARIANCE.P`, `COVARIANCE.S`, `FORECAST`, `FORECAST.LINEAR`, `GEOMEAN`, `HARMEAN`, `INTERCEPT`, `KURT`, `LARGE`, `MAX`, `MAXIFS`, `MEDIAN`, `MIN`, `MINIFS`, `MODE`, `NORM.DIST`, `NORM.INV`, `NORM.S.DIST`, `NORM.S.INV`, `PEARSON`, `PERCENTILE`, `PERCENTILE.INC`, `PERCENTRANK`, `PERCENTRANK.INC`, `QUARTILE`, `QUARTILE.INC`, `RANK`, `RANK.EQ`, `RSQ`, `SKEW`, `SLOPE`, `SMALL`, `STANDARDIZE`, `STDEV`, `STDEV.P`, `STDEV.S`, `STDEVP`, `STEYX`, `SUM`, `SUMIF`, `SUMIFS`, `T.DIST`, `T.DIST.2T`, `T.DIST.RT`, `T.INV`, `T.INV.2T`, `T.TEST`, `TREND`, `TTEST`, `VAR`, `VAR.P`, `VAR.S`, `VARP`

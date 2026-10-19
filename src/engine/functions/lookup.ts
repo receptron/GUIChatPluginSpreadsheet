@@ -7,7 +7,8 @@ import { indexToColumn } from "../parser";
 import { parseRangeBounds, resolveIndexTarget, resolveTableOffset } from "../formulaRefs";
 import { isApproximateMatch } from "./lookup-math";
 import type { CellValue } from "../types";
-import { NA_ERROR, REF_ERROR } from "../spreadsheet-errors";
+import { NA_ERROR, REF_ERROR, VALUE_ERROR } from "../spreadsheet-errors";
+import { referenceBounds } from "./reference-math";
 
 const inclusiveRange = (start: number, end: number): number[] => Array.from({ length: Math.max(0, end - start + 1) }, (_, i) => start + i);
 
@@ -205,6 +206,23 @@ const xlookupHandler: FunctionHandler = (args, context) => {
   return found === undefined ? NA_ERROR : found;
 };
 
+// ROW / COLUMN: of the reference's first cell, or of the cell calculating the formula when there is
+// none. A range answers for its first cell — the engine returns one value, not Excel's array.
+const positionHandler =
+  (of: (bounds: { row: number; col: number }) => number): FunctionHandler =>
+  (args, context) => {
+    if (args.length === 0) return context.currentCell ? of(context.currentCell) : VALUE_ERROR;
+    const bounds = referenceBounds(requiredArg(context, args, 0));
+    return bounds ? of({ row: bounds.startRow - 1, col: bounds.startCol }) : VALUE_ERROR;
+  };
+
+const sizeHandler =
+  (of: (bounds: NonNullable<ReturnType<typeof referenceBounds>>) => number): FunctionHandler =>
+  (args, context) => {
+    const bounds = referenceBounds(requiredArg(context, args, 0));
+    return bounds ? of(bounds) : VALUE_ERROR;
+  };
+
 // Register functions
 functionRegistry.register({
   name: "VLOOKUP",
@@ -253,5 +271,45 @@ functionRegistry.register({
   maxArgs: 6,
   description: "Searches a range or an array, and returns an item corresponding to the first match it finds",
   examples: ["XLOOKUP(A1, B1:B10, C1:C10)", 'XLOOKUP("USA", Countries, Populations)'],
+  category: "Lookup & Reference",
+});
+
+functionRegistry.register({
+  name: "ROW",
+  handler: positionHandler((cell) => cell.row + 1),
+  minArgs: 0,
+  maxArgs: 1,
+  description: "Returns the row number of a reference, or of the cell the formula is in",
+  examples: ["ROW()", "ROW(C10)", "ROW()-1"],
+  category: "Lookup & Reference",
+});
+
+functionRegistry.register({
+  name: "COLUMN",
+  handler: positionHandler((cell) => cell.col + 1),
+  minArgs: 0,
+  maxArgs: 1,
+  description: "Returns the column number of a reference, or of the cell the formula is in",
+  examples: ["COLUMN()", "COLUMN(D3)"],
+  category: "Lookup & Reference",
+});
+
+functionRegistry.register({
+  name: "ROWS",
+  handler: sizeHandler((bounds) => bounds.endRow - bounds.startRow + 1),
+  minArgs: 1,
+  maxArgs: 1,
+  description: "Returns the number of rows in a reference",
+  examples: ["ROWS(A2:C10)"],
+  category: "Lookup & Reference",
+});
+
+functionRegistry.register({
+  name: "COLUMNS",
+  handler: sizeHandler((bounds) => bounds.endCol - bounds.startCol + 1),
+  minArgs: 1,
+  maxArgs: 1,
+  description: "Returns the number of columns in a reference",
+  examples: ["COLUMNS(A2:C10)"],
   category: "Lookup & Reference",
 });
