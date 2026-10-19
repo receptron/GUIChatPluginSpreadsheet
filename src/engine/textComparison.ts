@@ -9,6 +9,7 @@
 
 import type { CellValue } from "./types";
 import { placesOf } from "./concatPrecedence";
+import { compareText } from "./textCollation";
 
 export type ExcelComparisonOperator = "=" | "<>" | "<" | ">" | "<=" | ">=";
 
@@ -52,10 +53,6 @@ export function splitTopLevelComparisons(expr: string): ComparisonChain | null {
   return { operands, operators: operators.filter(isExcelOperator) };
 }
 
-// Language order, case ignored, accents kept: "_" before "1", "é" between "e" and "f".
-// Character codes put "_" after "1" and "é" after "z". A fixed locale keeps every machine alike.
-const TEXT_ORDER = new Intl.Collator("en", { sensitivity: "accent" });
-
 const NUMBER_RANK = 0;
 const TEXT_RANK = 1;
 const BOOLEAN_RANK = 2;
@@ -71,7 +68,7 @@ export function compareCellValues(left: CellValue, right: CellValue): number {
   if (rankGap !== 0) return rankGap;
   if (typeof left === "number" && typeof right === "number") return left - right;
   if (typeof left === "boolean" && typeof right === "boolean") return Number(left) - Number(right);
-  return TEXT_ORDER.compare(String(left), String(right));
+  return compareText(String(left), String(right));
 }
 
 const OUTCOME: Readonly<Record<ExcelComparisonOperator, (ordering: number) => boolean>> = {
