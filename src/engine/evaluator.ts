@@ -24,6 +24,7 @@ export interface EvaluatorContext {
   getCellValue: (ref: string) => CellValue;
   getRangeValues: (range: string) => CellValue[];
   getRangeValuesRaw?: ((range: string) => CellValue[]) | undefined;
+  getRangeValuesKeepingBlanks?: ((range: string) => CellValue[]) | undefined;
   evaluateFormula: (formula: string) => CellValue;
   /** Reading order for an ambiguous slash date; see engine/date-locale.ts. */
   preferDDMMYYYY?: boolean | undefined;
@@ -355,6 +356,7 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
         getCellValue: context.getCellValue,
         getRangeValues: context.getRangeValues,
         getRangeValuesRaw: context.getRangeValuesRaw,
+        getRangeValuesKeepingBlanks: context.getRangeValuesKeepingBlanks,
         evaluateFormula: context.evaluateFormula,
         preferDDMMYYYY: context.preferDDMMYYYY,
       });

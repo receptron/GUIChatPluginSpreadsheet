@@ -311,7 +311,7 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     return getRawValue(gridRow[col], isCurrentSheet ? { cells: gridRow, row, col } : undefined);
   };
 
-  const collectRangeValues = (range: string, rangeOptions: { numericOnly: boolean }): CellValue[] => {
+  const collectRangeValues = (range: string, rangeOptions: { numericOnly: boolean; keepBlanks?: boolean }): CellValue[] => {
     const resolved = resolveSheetData(range);
     if (!resolved) return []; // Sheet not found → empty range
     const { sheetData, ref: rangeRef, isCurrentSheet } = resolved;
@@ -334,11 +334,13 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
           // every cell so SUMIF/AVERAGEIF's criteria and value ranges stay
           // row-aligned; dropping there would shift indexes and aggregate the
           // wrong rows (Codex review).
-          if (!isEmptyCell(cell) && !isNaN(rawValue as number)) {
+          // A logical cell is not a number either: Excel's SUM / AVERAGE / COUNT
+          // skip TRUE and FALSE held in a range rather than reading them as 0.
+          if (!isEmptyCell(cell) && typeof rawValue !== "boolean" && !isNaN(rawValue as number)) {
             values.push(rawValue);
           }
         } else {
-          values.push(rawValue);
+          values.push(rangeOptions.keepBlanks && isEmptyCell(cell) ? "" : rawValue);
         }
       }
     }
@@ -351,12 +353,17 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
   // Helper to get raw range values including text
   const getRangeValuesRaw = (range: string): CellValue[] => collectRangeValues(range, { numericOnly: false });
 
+  // Every cell, with a blank one as "" — the raw read gives a blank 0, which a
+  // criteria or a pairing cannot tell from a stored 0.
+  const getRangeValuesKeepingBlanks = (range: string): CellValue[] => collectRangeValues(range, { numericOnly: false, keepBlanks: true });
+
   // Evaluate a formula with context
   const evaluateFormula = (formula: string): CellValue => {
     return evaluateFormulaFn(formula, {
       getCellValue,
       getRangeValues,
       getRangeValuesRaw,
+      getRangeValuesKeepingBlanks,
       evaluateFormula,
       preferDDMMYYYY,
     });

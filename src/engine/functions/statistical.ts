@@ -4,7 +4,7 @@
 
 import {
   functionRegistry,
-  rawRangeReader,
+  blankAwareRangeReader,
   requiredArg,
   toNumber,
   criteriaArg,
@@ -74,7 +74,7 @@ export const collectNumericValues = (args: string[], context: FunctionContext): 
 // Same walk as `collectNumericValues`, but keeping each cell as it is: COUNTA
 // counts non-empty cells, so text must survive the trip.
 const collectRawValues = (args: string[], context: FunctionContext): CellValue[] =>
-  collectArgumentValues(args, context, rawRangeReader(context)).map(({ value }) => value);
+  collectArgumentValues(args, context, blankAwareRangeReader(context)).map(({ value }) => value);
 
 const sumHandler: FunctionHandler = (args, context) => {
   const values = collectNumericValues(args, context);
@@ -123,7 +123,7 @@ const countaHandler: FunctionHandler = (args, context) => {
 };
 
 const countifHandler: FunctionHandler = (args, context) => {
-  const values = rawRangeReader(context)(requiredArg(context, args, 0));
+  const values = blankAwareRangeReader(context)(requiredArg(context, args, 0));
   const matches = criteriaArg(context, args, 1);
   return typeof matches === "function" ? values.filter(matches).length : matches;
 };
@@ -134,7 +134,7 @@ const countifHandler: FunctionHandler = (args, context) => {
  *  blank would pull a later row's number into an earlier match (#2358). */
 const readConditionalRanges = (args: string[], context: FunctionContext) => {
   const criteriaRef = requiredArg(context, args, 0);
-  const readRaw = rawRangeReader(context);
+  const readRaw = blankAwareRangeReader(context);
   const valueRef = args.length === 3 ? requiredArg(context, args, 2) : criteriaRef;
   return {
     criteriaRange: readRaw(criteriaRef),
@@ -143,11 +143,16 @@ const readConditionalRanges = (args: string[], context: FunctionContext) => {
   };
 };
 
-/** Sum and count the values whose row in `criteriaRange` matches. The two
- *  ranges stay row-aligned, so a matched row with no value contributes 0. */
+/** Sum the values whose row in `criteriaRange` matches, and count the matched values that are
+ *  numbers. The two ranges stay row-aligned, so a matched row with no number adds 0 to the sum
+ *  and nothing to the count: AVERAGEIF skips a blank or text value as Excel does. */
 const aggregateMatchedRows = (criteriaRange: CellValue[], valueRange: CellValue[], matches: (value: CellValue) => boolean) =>
   criteriaRange.reduce(
-    (totals, criteriaValue, index) => (matches(criteriaValue) ? { sum: totals.sum + toNumber(valueRange[index] ?? 0), count: totals.count + 1 } : totals),
+    (totals, criteriaValue, index) => {
+      if (!matches(criteriaValue)) return totals;
+      const value = valueRange[index] ?? "";
+      return { sum: totals.sum + toNumber(value), count: totals.count + (holdsNumber(value) ? 1 : 0) };
+    },
     { sum: 0, count: 0 },
   );
 

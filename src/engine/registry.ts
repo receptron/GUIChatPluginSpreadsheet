@@ -6,7 +6,7 @@
  */
 
 import type { CellValue } from "./types";
-import { parseNumericString } from "./numericCoercion";
+import { holdsNumber, parseNumericString } from "./numericCoercion";
 import { parseDate } from "./date-parser";
 import { isSpreadsheetErrorValue, type SpreadsheetError } from "./spreadsheet-errors";
 export type { CellValue };
@@ -21,6 +21,7 @@ export interface FunctionContext {
   getCellValue: CellGetter;
   getRangeValues: RangeGetter;
   getRangeValuesRaw?: RawRangeGetter | undefined;
+  getRangeValuesKeepingBlanks?: RawRangeGetter | undefined;
   evaluateFormula: (formula: string) => CellValue;
   /** Read an ambiguous `01/02/2020` as day-first, as the sheet's own dates are. */
   preferDDMMYYYY?: boolean | undefined;
@@ -56,6 +57,12 @@ export const requiredArg = (context: FunctionContext, args: string[], index: num
  *  `FunctionContext` — a host that predates it keeps its old behaviour rather
  *  than throwing. */
 export const rawRangeReader = (context: FunctionContext): RangeGetter => context.getRangeValuesRaw ?? context.getRangeValues;
+
+/** The positional reader with a blank cell read as "" rather than 0, for the functions that
+ *  must tell a blank from a stored 0: a criteria (`"<2"` does not match a blank), a pairing
+ *  (CORREL drops a row with a blank side), COUNTA. Lookups keep `rawRangeReader`, where a
+ *  blank reads as 0 the way Excel's INDEX returns it. */
+export const blankAwareRangeReader = (context: FunctionContext): RangeGetter => context.getRangeValuesKeepingBlanks ?? rawRangeReader(context);
 
 export type FunctionHandler = (args: string[], context: FunctionContext) => CellValue;
 
@@ -168,6 +175,10 @@ export function parseCriteria(criteria: string, preferDDMMYYYY = false): (value:
   // eslint-disable -- sonarjs/anchor-precedence
   const trimmedCriteria = criteria.trim().replace(/^["']|["']$/g, "");
 
+  // A bare `=` matches a blank cell and a bare `<>` any cell that is not blank.
+  if (trimmedCriteria === "=") return (v) => String(v).trim() === "";
+  if (trimmedCriteria === "<>") return (v) => String(v).trim() !== "";
+
   // Check for comparison operators
   // eslint-disable -- sonarjs/slow-regex
   const [, op, value] = trimmedCriteria.match(/^([><=!]+)(.+)$/) ?? [];
@@ -177,15 +188,18 @@ export function parseCriteria(criteria: string, preferDDMMYYYY = false): (value:
     // `=` / `<>` compare like the bare criteria does — case-insensitive text
     // with wildcards, or the number. `<>` is exactly its negation.
     const equals = matchesTextOrNumber(value, preferDDMMYYYY);
+    // An ordering compares numbers only: Excel's `"<2"` matches neither a blank nor text,
+    // which toNumber would both read as 0.
+    const ordered = (test: (n: number) => boolean) => (v: CellValue) => holdsNumber(v) && test(toNumber(v));
     switch (op) {
       case ">":
-        return (v) => toNumber(v) > numValue;
+        return ordered((n) => n > numValue);
       case ">=":
-        return (v) => toNumber(v) >= numValue;
+        return ordered((n) => n >= numValue);
       case "<":
-        return (v) => toNumber(v) < numValue;
+        return ordered((n) => n < numValue);
       case "<=":
-        return (v) => toNumber(v) <= numValue;
+        return ordered((n) => n <= numValue);
       case "=":
       case "==":
         return equals;
@@ -212,7 +226,9 @@ function matchesTextOrNumber(criteria: string, preferDDMMYYYY: boolean): (value:
   const matchesText = textMatcher(criteria);
   const numCriteria = criteriaNumber(criteria, preferDDMMYYYY);
   const hasNumber = !isNaN(numCriteria);
-  return (value) => matchesText(String(value)) || (hasNumber && toNumber(value) === numCriteria);
+  // Text patterns match text (a boolean as its name), never a number: Excel's `"1*"` skips
+  // the number 10, and `0` does not match a text cell that toNumber would read as 0.
+  return (value) => (typeof value !== "number" && matchesText(String(value))) || (hasNumber && holdsNumber(value) && toNumber(value) === numCriteria);
 }
 
 /** The matcher for the criteria argument at `index`, or the error it evaluated to.
