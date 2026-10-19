@@ -59,3 +59,13 @@ export function toScalarNumber(value: CellValue): number | SpreadsheetError {
   if (typeof value !== "string") return value;
   return parseNumericString(value) ?? VALUE_ERROR;
 }
+
+/**
+ * Whether a calculated cell value counts as a number in a range read by SUM, AVERAGE or COUNT:
+ * a number, or text that is entirely a number. A logical value and an empty string — what a
+ * formula like `=IF(…,"",…)` leaves — are not, as in Excel.
+ */
+export function isRangeNumber(value: CellValue): boolean {
+  if (typeof value === "number") return !isNaN(value);
+  return typeof value === "string" && value.trim() !== "" && !isNaN(Number(value));
+}

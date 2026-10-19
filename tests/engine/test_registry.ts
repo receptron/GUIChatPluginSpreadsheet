@@ -201,13 +201,14 @@ describe("parseCriteria — exact match", () => {
     assert.equal(five(6), false);
   });
 
-  // `toNumber` turns unreadable values into 0, so a criteria of "0" matches
-  // every text cell in the range. Pinned because it inflates a COUNTIF
-  // without any sign that something went wrong.
-  it("matches unreadable text when the criteria is 0", () => {
+  // `toNumber` reads unreadable text as 0, so a criteria of "0" used to match
+  // every text cell and inflate a COUNTIF with no sign of it. Excel compares a
+  // number criteria with numbers only.
+  it("does not match unreadable text when the criteria is 0", () => {
     const zero = parseCriteria("0");
     assert.equal(zero(0), true);
-    assert.equal(zero("hello"), true, "toNumber('hello') is 0, so this counts");
+    assert.equal(zero("hello"), false);
+    assert.equal(zero(""), false, "a blank is not the number 0");
   });
 
   it("strips quotes around an exact-match criteria too", () => {
