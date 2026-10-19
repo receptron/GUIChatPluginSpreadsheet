@@ -52,7 +52,7 @@ interface Assembly {
 }
 
 /** Where each top-level `( … )` group of `expr` opens and closes. */
-function topLevelGroups(expr: string): { open: number; close: number }[] {
+export function topLevelGroups(expr: string): { open: number; close: number }[] {
   const places = placesOf(expr);
   const opens = places.flatMap((place, index) => (place.depth === 0 && isOperator(place, "(") ? [index] : []));
   const closeOf = (open: number): number => places.findIndex((place, index) => index > open && place.depth === 0 && isOperator(place, ")"));
