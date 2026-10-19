@@ -1,5 +1,14 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@4.2.2 — 2026-10-19
+
+Two more calculation fixes, where the evaluator read a formula as a JavaScript expression.
+
+- **Parentheses are calculated first** (#135, fixes #94): a comparison inside parentheses was left as text, so `=("a"="b")&"x"` showed the formula itself; it now gives `FALSEx`, as Excel does. Each outermost group is calculated and replaced by its value.
+- **Text in arithmetic is a number or `#VALUE!`** (#135, fixes #92): text beside `+ - * / ^` is read as a number when it is one (`"3"`, `"1,000"`, `"50%"`) and gives `#VALUE!` otherwise, so `="a"+1` and `=A1+1` with `A1` holding `abc` no longer give text, `NaN` or `#DIV/0!`. Text beside `&` and comparisons is left as it is.
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.2.2`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.2.2)
+
 ## @gui-chat-plugin/spreadsheet@4.2.1 — 2026-10-19
 
 Calculation fixes, found by generated tests and by a stress test of agents building analysis workbooks (receptron/mulmoterminal#3113). Formulas that used to give a wrong number, `0` or text now calculate as Excel does.
