@@ -121,6 +121,8 @@ Dates are serial numbers on the real calendar, as in LibreOffice and Google Shee
 ### Lookup & Reference
 `HLOOKUP`, `INDEX`, `MATCH`, `VLOOKUP`, `XLOOKUP`
 
+A range is written `A1:C10`, `Data!A1:C10` or `'My Sheet'!A1:C10`. A whole column (`A:A`, `B:D`) or a whole row (`1:1`) covers its sheet as far as the data reaches, which gives the same answers, since everything past the data is blank.
+
 ### Statistical
 `AVERAGE`, `AVERAGEIF`, `AVERAGEIFS`, `CORREL`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `INTERCEPT`, `LARGE`, `MAX`, `MEDIAN`, `MIN`, `MODE`, `PERCENTILE`, `PERCENTILE.INC`, `QUARTILE`, `QUARTILE.INC`, `RANK`, `RANK.EQ`, `RSQ`, `SLOPE`, `SMALL`, `STDEV`, `STDEV.P`, `STDEV.S`, `STDEVP`, `SUM`, `SUMIF`, `SUMIFS`, `VAR`, `VAR.P`, `VAR.S`, `VARP`
 
