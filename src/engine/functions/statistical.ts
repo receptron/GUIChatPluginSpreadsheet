@@ -5,6 +5,7 @@
 import {
   functionRegistry,
   blankAwareRangeReader,
+  rawRangeReader,
   requiredArg,
   toNumber,
   criteriaArg,
@@ -13,7 +14,7 @@ import {
   type RangeGetter,
 } from "../registry";
 import { computeAverage, computeMedian, computeMode, sampleStdev, sampleVariance } from "./statistical-math";
-import { DIV_ZERO_ERROR } from "../spreadsheet-errors";
+import { DIV_ZERO_ERROR, isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
 import { holdsNumber } from "../numericCoercion";
 import type { CellValue } from "../types";
 
@@ -67,6 +68,19 @@ const collectArgumentValues = (args: string[], context: FunctionContext, readRan
 
   return collected;
 };
+
+/** The first error among the arguments, in argument order: an error cell in a range, or an
+ *  argument that evaluated to one. The numeric reads skip it, but Excel's aggregates answer it. */
+export const firstArgumentError = (args: string[], context: FunctionContext): SpreadsheetError | undefined =>
+  collectArgumentValues(args, context, rawRangeReader(context))
+    .map(({ value }) => value)
+    .find(isSpreadsheetErrorValue);
+
+/** The handler, answering the first error in its arguments before it computes anything. */
+export const answeringArgumentErrors =
+  (handler: FunctionHandler): FunctionHandler =>
+  (args, context) =>
+    firstArgumentError(args, context) ?? handler(args, context);
 
 export const collectNumericValues = (args: string[], context: FunctionContext): number[] =>
   collectArgumentValues(args, context, context.getRangeValues).map(({ value }) => toNumber(value));
@@ -184,7 +198,7 @@ const averageifHandler: FunctionHandler = (args, context) => {
 // Register all statistical functions
 functionRegistry.register({
   name: "SUM",
-  handler: sumHandler,
+  handler: answeringArgumentErrors(sumHandler),
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the sum of all numbers in a range",
@@ -194,7 +208,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "AVERAGE",
-  handler: averageHandler,
+  handler: answeringArgumentErrors(averageHandler),
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the average (arithmetic mean) of numbers in a range",
@@ -204,7 +218,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "MAX",
-  handler: maxHandler,
+  handler: answeringArgumentErrors(maxHandler),
   minArgs: 1,
   description: "Returns the largest value in a range",
   examples: ["MAX(A1:A10)", "MAX(B2:B20)"],
@@ -213,7 +227,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "MIN",
-  handler: minHandler,
+  handler: answeringArgumentErrors(minHandler),
   minArgs: 1,
   description: "Returns the smallest value in a range",
   examples: ["MIN(A1:A10)", "MIN(B2:B20)"],
@@ -232,7 +246,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "MEDIAN",
-  handler: medianHandler,
+  handler: answeringArgumentErrors(medianHandler),
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the median (middle) value in a range",
@@ -242,7 +256,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "MODE",
-  handler: modeHandler,
+  handler: answeringArgumentErrors(modeHandler),
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the most frequently occurring value in a range",
@@ -252,7 +266,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "STDEV",
-  handler: stdevHandler,
+  handler: answeringArgumentErrors(stdevHandler),
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the standard deviation of numbers in a range",
@@ -262,7 +276,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "VAR",
-  handler: varHandler,
+  handler: answeringArgumentErrors(varHandler),
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the variance of numbers in a range",

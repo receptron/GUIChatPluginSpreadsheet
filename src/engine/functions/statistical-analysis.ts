@@ -5,7 +5,7 @@
  */
 
 import { blankAwareRangeReader, criteriaArg, functionRegistry, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
-import { collectNumericValues } from "./statistical";
+import { answeringArgumentErrors, collectNumericValues } from "./statistical";
 import {
   correlation,
   intercept,
@@ -116,7 +116,7 @@ interface AnalysisFunction {
 const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   {
     name: "CORREL",
-    handler: pairedHandler(correlation),
+    handler: answeringArgumentErrors(pairedHandler(correlation)),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the correlation coefficient of two ranges",
@@ -124,7 +124,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "SLOPE",
-    handler: pairedHandler(slope),
+    handler: answeringArgumentErrors(pairedHandler(slope)),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the slope of the least-squares line through known_y and known_x",
@@ -132,7 +132,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "INTERCEPT",
-    handler: pairedHandler(intercept),
+    handler: answeringArgumentErrors(pairedHandler(intercept)),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns where the least-squares line crosses the y axis",
@@ -140,7 +140,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "RSQ",
-    handler: pairedHandler(rSquared),
+    handler: answeringArgumentErrors(pairedHandler(rSquared)),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the square of the correlation coefficient",
@@ -148,7 +148,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "PERCENTILE",
-    handler: rankedHandler(percentileInclusive),
+    handler: answeringArgumentErrors(rankedHandler(percentileInclusive)),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the k-th percentile (k from 0 to 1), interpolated like PERCENTILE.INC",
@@ -156,16 +156,23 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "QUARTILE",
-    handler: rankedHandler(quartileInclusive),
+    handler: answeringArgumentErrors(rankedHandler(quartileInclusive)),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns a quartile (0 to 4), interpolated like QUARTILE.INC",
     examples: ["QUARTILE(A2:A100, 1)"],
   },
-  { name: "LARGE", handler: rankedHandler(kthLargest), minArgs: 2, maxArgs: 2, description: "Returns the k-th largest value", examples: ["LARGE(A2:A100, 3)"] },
+  {
+    name: "LARGE",
+    handler: answeringArgumentErrors(rankedHandler(kthLargest)),
+    minArgs: 2,
+    maxArgs: 2,
+    description: "Returns the k-th largest value",
+    examples: ["LARGE(A2:A100, 3)"],
+  },
   {
     name: "SMALL",
-    handler: rankedHandler(kthSmallest),
+    handler: answeringArgumentErrors(rankedHandler(kthSmallest)),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the k-th smallest value",
@@ -181,7 +188,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "STDEVP",
-    handler: (args, context) => populationStdev(collectNumericValues(args, context)),
+    handler: answeringArgumentErrors((args, context) => populationStdev(collectNumericValues(args, context))),
     minArgs: 1,
     maxArgs: MAX_AGGREGATE_ARGS,
     description: "Returns the population standard deviation",
@@ -189,7 +196,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "VARP",
-    handler: (args, context) => populationVariance(collectNumericValues(args, context)),
+    handler: answeringArgumentErrors((args, context) => populationVariance(collectNumericValues(args, context))),
     minArgs: 1,
     maxArgs: MAX_AGGREGATE_ARGS,
     description: "Returns the population variance",
