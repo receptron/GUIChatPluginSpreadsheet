@@ -5,6 +5,7 @@
  */
 
 import { formatCellForDisplay } from "./cellFormatting";
+import { formulaShowsDate, type DateSource } from "./dateDisplay";
 import { evaluateFormula as evaluateFormulaFn } from "./evaluator";
 import { expandRangeOrCell, parseSingleCellRef } from "./formulaRefs";
 import { parseDate, getDefaultDateFormat } from "./date-parser";
@@ -42,6 +43,20 @@ interface CellPosition {
  * @param data - Potentially malformed sheet data
  * @returns Normalized 2D array
  */
+/** A cell's format and formula, read off the sheets as they were given (dates already carrying
+ *  the format they were typed in). A reference names its sheet, or is on `sheet`. */
+function sheetsDateSource(sheets: SheetData[]): DateSource {
+  return (ref, sheet) => {
+    const [, quoted, plain, inner] = /^(?:'([^']+)'|([^!]+))!(.+)$/.exec(ref) ?? [undefined, undefined, undefined, ref];
+    const target = quoted ?? plain ?? sheet;
+    const coord = inner === undefined ? null : parseSingleCellRef(inner);
+    const cell = coord ? sheets.find((candidate) => candidate.name === target)?.data[coord.row]?.[coord.col] : undefined;
+    if (!isObj(cell)) return null;
+    const formula = typeof cell.v === "string" && cell.v.startsWith("=") ? cell.v : null;
+    return { format: typeof cell.f === "string" ? cell.f : "", formula, sheet: target };
+  };
+}
+
 export function normalizeData(data: any): SpreadsheetCell[][] {
   // Handle null/undefined
   if (!data) {
@@ -440,8 +455,11 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
   // Skipped when this sheet is computed only to resolve a cross-sheet reference,
   // so the referencing cell reads the underlying value, not a display string.
   if (!skipFormatting) {
+    const dateSource = sheetsDateSource([{ name: sheetName, data }, ...(processedAllSheets ?? []).filter((other) => other.name !== sheetName)]);
     forEachCell((originalCell, { cells, col }) => {
-      cells[col] = formatCellForDisplay(originalCell, cells[col], preferDDMMYYYY);
+      const source = isObj(originalCell) && typeof originalCell.v === "string" ? originalCell.v : "";
+      const showsDate = source.startsWith("=") && formulaShowsDate(source, sheetName, dateSource);
+      cells[col] = formatCellForDisplay(originalCell, cells[col], preferDDMMYYYY, showsDate);
     });
   }
 
