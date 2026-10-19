@@ -118,6 +118,16 @@ const filesHolding = (store: Record<string, string>): FileOps => ({
 describe("readCalculatedRange", () => {
   const PATH = "artifacts/spreadsheets/2026/10/abc.json";
 
+  // A chart drawn from a range calls the workbook's own functions too (#114), or every cell
+  // that uses one would reach the chart as #NAME?.
+  it("calculates with the workbook's own functions", async () => {
+    const workbook: SpreadsheetSheet[] = [
+      { name: "Data", functions: [{ name: "TWICE", params: ["x"], body: "return x * 2;" }], data: [[{ v: 3 }, { v: "=TWICE(A1)" }]] },
+    ];
+    const artifacts = filesHolding({ "spreadsheets/2026/10/fn.json": JSON.stringify(workbook) });
+    assert.deepEqual(await readCalculatedRange(artifacts, "artifacts/spreadsheets/2026/10/fn.json", "Data!A1:B1"), [[3, 6]]);
+  });
+
   it("reads the saved workbook through files.artifacts", async () => {
     const artifacts = filesHolding({ "spreadsheets/2026/10/abc.json": JSON.stringify(WORKBOOK) });
     assert.deepEqual(await readCalculatedRange(artifacts, PATH, "Data!B2:B3"), [[1200], [800]]);

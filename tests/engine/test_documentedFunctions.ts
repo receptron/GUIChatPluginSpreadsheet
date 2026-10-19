@@ -63,8 +63,10 @@ describe("documented functions match the registry", () => {
     assert.deepEqual(Object.fromEntries(documented), Object.fromEntries(registeredByCategory()));
   });
 
+  // The `functions` field (#114) is where the model DEFINES a workbook's own functions: its example
+  // calls one of those, and its body example is JavaScript, so neither is a built-in to look up.
   it("the model guidance only calls registered functions", () => {
-    const guidance = `${SYSTEM_PROMPT}\n${JSON.stringify(TOOL_DEFINITION)}`;
+    const guidance = `${SYSTEM_PROMPT}\n${JSON.stringify(TOOL_DEFINITION, (key, value: unknown) => (key === "functions" ? undefined : value))}`;
     const called = [...functionsIn(guidance), ...listedFunctions(guidance)];
     assert.ok(listedFunctions(guidance).length > 0, "the guidance lists functions");
     assert.deepEqual(
@@ -80,5 +82,13 @@ describe("documented functions match the registry", () => {
       called.filter((name) => !isRegistered(name)),
       [],
     );
+  });
+});
+
+describe("the workbook-functions field", () => {
+  it("is in the tool definition, and only it was left out of the scan above", () => {
+    const sheetProperties = TOOL_DEFINITION.parameters.properties.sheets.items.properties;
+    assert.ok("functions" in sheetProperties);
+    assert.deepEqual(Object.keys(sheetProperties), ["name", "data", "functions"]);
   });
 });

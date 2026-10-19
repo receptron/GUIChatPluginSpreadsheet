@@ -6,6 +6,8 @@
  */
 
 /** Mirrors the engine's `StoredCellValue`. */
+import type { CustomFunctionSpec } from "../engine/customFunctionSpecs";
+
 export type SpreadsheetCellValue = string | number | boolean;
 
 export interface SpreadsheetCell {
@@ -23,6 +25,8 @@ export type StorableCell = SpreadsheetCell | { v?: null; f?: string } | Spreadsh
 export interface SpreadsheetSheet {
   name: string;
   data: StorableCell[][];
+  /** Functions this workbook defines, usable from any of its sheets (#114). */
+  functions?: CustomFunctionSpec[];
 }
 
 /** `sheets` is the workbook itself, or — when the host gave the plugin

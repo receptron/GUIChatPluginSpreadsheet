@@ -7,6 +7,7 @@ import type { FileOps } from "gui-chat-protocol";
 // The engine index, not calculator.ts alone: it is what registers the functions.
 import { isRecord } from "../engine/guards";
 import { calculateSheet, normalizeData, parseRangeBounds, parseSingleCellRef, type SheetData, type StoredCellValue } from "../engine";
+import { calculateWith, loadCustomFunctions, NO_CUSTOM_FUNCTIONS, type CustomFunctionSet } from "../engine/customFunctions";
 import { isSpreadsheetArtifactPath, toArtifactsRelative } from "./paths";
 import { readSheets } from "./sheetGuards";
 import type { SpreadsheetSheet } from "./types";
@@ -77,7 +78,7 @@ const colsOf = ({ startCol, endCol }: Rectangle): number[] => Array.from({ lengt
  * Throws when the range is malformed, too large, or names a sheet the workbook
  * does not have.
  */
-export function calculatedRange(sheets: SpreadsheetSheet[], range: string): RangeCell[][] {
+export function calculatedRange(sheets: SpreadsheetSheet[], range: string, functions: CustomFunctionSet = NO_CUSTOM_FUNCTIONS): RangeCell[][] {
   const rectangle = parseRange(range.trim());
   if (!rectangle) throw new Error(`"${range}" is not a range such as Data!A1:C13`);
   const cellCount = (rectangle.endRow - rectangle.startRow + 1) * (rectangle.endCol - rectangle.startCol + 1);
@@ -88,8 +89,8 @@ export function calculatedRange(sheets: SpreadsheetSheet[], range: string): Rang
   const engineSheets = sheets.map(toEngineSheet);
   const target = engineSheets[index] ?? toEngineSheet(sheet);
   // Both passes: the raw one keeps a formatted number plottable, the display one gives a date its text.
-  const calculated = calculateSheet(target, engineSheets, { skipFormatting: true }).data;
-  const displayed = calculateSheet(target, engineSheets).data;
+  const calculated = calculateWith(functions, () => calculateSheet(target, engineSheets, { skipFormatting: true }).data);
+  const displayed = calculateWith(functions, () => calculateSheet(target, engineSheets).data);
   return rowsOf(rectangle).map((row) =>
     colsOf(rectangle).map((col) => rangeCellValue(target.data[row]?.[col], asStored(calculated[row]?.[col]), asStored(displayed[row]?.[col]))),
   );
@@ -105,5 +106,10 @@ export async function readCalculatedRange(artifacts: FileOps, path: string, rang
   if (!isSpreadsheetArtifactPath(path)) throw new Error("path must be a .json file under artifacts/spreadsheets/");
   const sheets = readSheets(JSON.parse(await artifacts.read(toArtifactsRelative(path))));
   if (!sheets) throw new Error(`${path} does not hold an array of sheets`);
-  return calculatedRange(sheets, range);
+  const functions = await loadCustomFunctions(sheets);
+  try {
+    return calculatedRange(sheets, range, functions);
+  } finally {
+    functions.dispose();
+  }
 }

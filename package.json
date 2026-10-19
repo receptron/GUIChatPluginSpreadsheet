@@ -55,6 +55,8 @@
     "vue": "^3.5.0"
   },
   "dependencies": {
+    "@jitl/quickjs-singlefile-mjs-release-sync": "^0.32.0",
+    "quickjs-emscripten-core": "^0.32.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
