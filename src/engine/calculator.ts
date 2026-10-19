@@ -5,12 +5,13 @@
  */
 
 import { formatCellForDisplay } from "./cellFormatting";
+import { formulaShowsDate, type DateSource } from "./dateDisplay";
 import { evaluateFormula as evaluateFormulaFn } from "./evaluator";
 import { expandRangeOrCell, parseSingleCellRef } from "./formulaRefs";
 import { parseDate, getDefaultDateFormat } from "./date-parser";
 import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaInfo, SpreadsheetCell, CalculateOptions } from "./types";
-import { isObj } from "./guards";
-import { isEmptyCell } from "./cellEmpty";
+import { isObj, isRecord } from "./guards";
+import { isBlankCell, isEmptyCell } from "./cellEmpty";
 import { isRangeNumber } from "./numericCoercion";
 import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
@@ -42,6 +43,20 @@ interface CellPosition {
  * @param data - Potentially malformed sheet data
  * @returns Normalized 2D array
  */
+/** A cell's format and formula, read off the sheets as they were given (dates already carrying
+ *  the format they were typed in). A reference names its sheet, or is on `sheet`. */
+function sheetsDateSource(sheets: SheetData[]): DateSource {
+  return (ref, sheet) => {
+    const [, quoted, plain, inner] = /^(?:'([^']+)'|([^!]+))!(.+)$/.exec(ref) ?? [undefined, undefined, undefined, ref];
+    const target = quoted ?? plain ?? sheet;
+    const coord = inner === undefined ? null : parseSingleCellRef(inner);
+    const cell = coord ? sheets.find((candidate) => candidate.name === target)?.data[coord.row]?.[coord.col] : undefined;
+    if (!isObj(cell)) return null;
+    const formula = typeof cell.v === "string" && cell.v.startsWith("=") ? cell.v : null;
+    return { format: typeof cell.f === "string" ? cell.f : "", formula, sheet: target };
+  };
+}
+
 export function normalizeData(data: any): SpreadsheetCell[][] {
   // Handle null/undefined
   if (!data) {
@@ -297,22 +312,40 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     return { sheetData: targetResult.data, ref: innerRef, isCurrentSheet: false };
   };
 
-  // Helper to get cell value by reference (e.g., "B2", "$B$2", or "'Sheet1'!B2")
-  const getCellValue = (ref: string): CellValue => {
+  /** The grid cell a reference names, with its position; null outside the sheet's grid. */
+  const locateCell = (ref: string): { cell: unknown; position: CellPosition | undefined } | null => {
     const resolved = resolveSheetData(ref);
     if (!resolved) throw invalidRefError(ref); // Sheet not found → #REF!
     const { sheetData, ref: cellRef, isCurrentSheet } = resolved;
 
     // `$` symbols and the A1 shape are parsed by the shared single-cell reader.
     const coord = parseSingleCellRef(cellRef);
-    if (!coord) return 0;
+    if (!coord) return null;
 
     const { row, col } = coord;
     const gridRow = row >= 0 ? sheetData[row] : undefined;
-    if (!gridRow || col < 0 || col >= gridRow.length) return 0;
+    if (!gridRow || col < 0 || col >= gridRow.length) return null;
 
     // Pass the position only if this is the current sheet (for recursive evaluation)
-    return getRawValue(gridRow[col], isCurrentSheet ? { cells: gridRow, row, col } : undefined);
+    return { cell: gridRow[col], position: isCurrentSheet ? { cells: gridRow, row, col } : undefined };
+  };
+
+  // Helper to get cell value by reference (e.g., "B2", "$B$2", or "'Sheet1'!B2")
+  const getCellValue = (ref: string): CellValue => {
+    const located = locateCell(ref);
+    return located ? getRawValue(located.cell, located.position) : 0;
+  };
+
+  /** Whether a reference names a cell that holds nothing — outside the grid included. A formula
+   *  cell is judged by what it answers, calculated here if it has not been yet: judged by its
+   *  source it read as not empty only until it was calculated, so the answer depended on order. */
+  const isCellEmpty = (ref: string): boolean => {
+    const located = locateCell(ref);
+    if (located === null) return true;
+    const { cell, position } = located;
+    const source = isRecord(cell) ? cell["v"] : undefined;
+    const isFormula = typeof source === "string" && source.startsWith("=");
+    return isBlankCell(isFormula ? getRawValue(cell, position) : cell);
   };
 
   const collectRangeValues = (range: string, rangeOptions: { numericOnly: boolean; keepBlanks?: boolean }): CellValue[] => {
@@ -388,6 +421,7 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
       countFilledCells,
       evaluateFormula,
       preferDDMMYYYY,
+      isCellEmpty,
     });
   };
 
@@ -440,8 +474,11 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
   // Skipped when this sheet is computed only to resolve a cross-sheet reference,
   // so the referencing cell reads the underlying value, not a display string.
   if (!skipFormatting) {
+    const dateSource = sheetsDateSource([{ name: sheetName, data }, ...(processedAllSheets ?? []).filter((other) => other.name !== sheetName)]);
     forEachCell((originalCell, { cells, col }) => {
-      cells[col] = formatCellForDisplay(originalCell, cells[col], preferDDMMYYYY);
+      const source = isObj(originalCell) && typeof originalCell.v === "string" ? originalCell.v : "";
+      const showsDate = source.startsWith("=") && formulaShowsDate(source, sheetName, dateSource);
+      cells[col] = formatCellForDisplay(originalCell, cells[col], preferDDMMYYYY, showsDate);
     });
   }
 

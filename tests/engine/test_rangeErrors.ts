@@ -56,6 +56,19 @@ describe("an error in an aggregate's arguments", () => {
     );
   });
 
+  it("is the answer of RANK, before its order is read", () => {
+    assert.deepEqual(valuesOf(DATA, ["=RANK(2,A1:C1)", "=RANK(2,B1:C1)", "=RANK(2,A1:C1,1/0)", "=RANK(2,A2:C2)"]), ["#DIV/0!", "#NUM!", "#DIV/0!", 2]);
+  });
+
+  it("is the answer of a regression or covariance over the ranges", () => {
+    assert.deepEqual(valuesOf(DATA, ["=FORECAST.LINEAR(1,A1:C1,A2:C2)", "=STEYX(A2:C2,B1:C1)", "=COVARIANCE.P(A1:C1,A2:C2)", "=COVARIANCE.S(A2:C2,A2:C2)"]), [
+      "#DIV/0!",
+      "#NUM!",
+      "#DIV/0!",
+      1,
+    ]);
+  });
+
   it("is the first in argument order, then in reading order", () => {
     assert.deepEqual(valuesOf(DATA, ["=SUM(C1,A1)", "=SUM(B1,C1:C1,A1:A1)", "=SUM(A1:C1)", "=MAX(B1:C1,A1)"]), ["#NUM!", "#NUM!", "#DIV/0!", "#NUM!"]);
   });
@@ -110,6 +123,53 @@ describe("reading an aggregate's arguments", () => {
       assert.equal(definition.handler(args, context), expected, `${name}(${args.join(",")})`);
       assert.deepEqual(calls, expectedCalls, `${name}(${args.join(",")})`);
     });
+  });
+});
+
+describe("an error in a conditional aggregate's ranges", () => {
+  // A: regions; B: values, B2 an error; C: values, C3 an error.
+  const data: SpreadsheetCell[][] = [
+    [{ v: "East" }, { v: 10 }, { v: 1 }],
+    [{ v: "West" }, { v: "=1/0" }, { v: 2 }],
+    [{ v: "East" }, { v: 30 }, { v: "=SQRT(-1)" }],
+    [{ v: "=1/0" }, { v: 40 }, { v: 4 }],
+  ];
+
+  it("is the answer when its row is matched", () => {
+    assert.deepEqual(
+      valuesOf(data, [
+        '=SUMIF(A1:A4,"West",B1:B4)',
+        '=AVERAGEIF(A1:A4,"East",C1:C4)',
+        '=SUMIFS(B1:B4,A1:A4,"West")',
+        '=AVERAGEIFS(C1:C4,A1:A4,"East")',
+        '=MAXIFS(B1:B4,A1:A4,"West")',
+        '=MINIFS(C1:C4,A1:A4,"East")',
+      ]),
+      ["#DIV/0!", "#NUM!", "#DIV/0!", "#NUM!", "#DIV/0!", "#NUM!"],
+    );
+  });
+
+  it("is the first matched one, in row order", () => {
+    const twoErrors: SpreadsheetCell[][] = [
+      [{ v: "x" }, { v: "=SQRT(-1)" }],
+      [{ v: "x" }, { v: "=1/0" }],
+    ];
+    assert.deepEqual(valuesOf(twoErrors, ['=SUMIF(A1:A2,"x",B1:B2)', '=AVERAGEIF(A1:A2,"x",B1:B2)', '=SUMIFS(B1:B2,A1:A2,"x")']), ["#NUM!", "#NUM!", "#NUM!"]);
+  });
+
+  it("is not read when its row is not matched, nor when it sits in the criteria range", () => {
+    assert.deepEqual(
+      valuesOf(data, [
+        '=SUMIF(A1:A4,"East",B1:B4)',
+        '=AVERAGEIF(A1:A4,"West",C1:C4)',
+        '=SUMIFS(B1:B4,A1:A4,"East")',
+        '=MAXIFS(C1:C4,A1:A4,"West")',
+        '=COUNTIF(A1:A4,"East")',
+        '=COUNTIFS(A1:A4,"East",B1:B4,">0")',
+        '=SUMIF(B1:B4,">5")',
+      ]),
+      [40, 2, 40, 2, 2, 2, 80],
+    );
   });
 });
 

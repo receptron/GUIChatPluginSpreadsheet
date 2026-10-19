@@ -84,16 +84,16 @@ describe("isErrorResult keys off the value, not the text", () => {
 
 describe("the display pass renders an error value to its code", () => {
   it("returns the code for a formula cell", () => {
-    assert.equal(formatCellForDisplay({ v: "=SQRT(-1)" }, NUM_ERROR, false), "#NUM!");
+    assert.equal(formatCellForDisplay({ v: "=SQRT(-1)" }, NUM_ERROR, false, false), "#NUM!");
   });
 
   it("returns the code regardless of the cell's format code", () => {
-    assert.equal(formatCellForDisplay({ v: "=A1/A2", f: "$#,##0.00" }, DIV_ZERO_ERROR, false), "#DIV/0!");
+    assert.equal(formatCellForDisplay({ v: "=A1/A2", f: "$#,##0.00" }, DIV_ZERO_ERROR, false, false), "#DIV/0!");
   });
 
   it("leaves ordinary values alone", () => {
-    assert.equal(formatCellForDisplay({ v: "=1+1" }, 2, false), 2);
-    assert.equal(formatCellForDisplay({ v: "text" }, "text", false), "text");
+    assert.equal(formatCellForDisplay({ v: "=1+1" }, 2, false, false), 2);
+    assert.equal(formatCellForDisplay({ v: "text" }, "text", false, false), "text");
   });
 });
 

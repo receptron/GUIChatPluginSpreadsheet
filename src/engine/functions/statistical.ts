@@ -51,7 +51,7 @@ interface ArgumentValue {
   isScalar: boolean;
 }
 
-const collectArgumentValues = (args: string[], context: FunctionContext, readRange: RangeGetter): ArgumentValue[] => {
+export const collectArgumentValues = (args: string[], context: FunctionContext, readRange: RangeGetter): ArgumentValue[] => {
   const collected: ArgumentValue[] = [];
 
   for (const rawArg of args) {
@@ -78,6 +78,9 @@ export const collectNumbersOrError = (args: string[], context: FunctionContext):
   if (firstError) return firstError;
   return collected.filter(({ value, isScalar }) => isScalar || isRangeNumber(value)).map(({ value }) => toNumber(value));
 };
+
+/** The cells of a range read blank-aware that hold a number, as numbers — what the numeric read keeps. */
+export const rangeNumbers = (values: CellValue[]): number[] => values.filter(isRangeNumber).map(toNumber);
 
 /** The handler's rule over the numbers of its arguments, or the first error among them. */
 export const overNumbers =
@@ -157,29 +160,39 @@ const readConditionalRanges = (args: string[], context: FunctionContext) => {
   };
 };
 
+interface MatchedTotals {
+  sum: number;
+  count: number;
+  /** The first matched value that is an error, which is then the answer, as in Excel. */
+  error?: SpreadsheetError;
+}
+
 /** Sum the values whose row in `criteriaRange` matches, and count the matched values that are
  *  numbers. The two ranges stay row-aligned, so a matched row with no number adds 0 to the sum
- *  and nothing to the count: AVERAGEIF skips a blank or text value as Excel does. */
-const aggregateMatchedRows = (criteriaRange: CellValue[], valueRange: CellValue[], matches: (value: CellValue) => boolean) =>
-  criteriaRange.reduce(
-    (totals, criteriaValue, index) => {
-      if (!matches(criteriaValue)) return totals;
-      const value = valueRange[index] ?? "";
-      return { sum: totals.sum + toNumber(value), count: totals.count + (holdsNumber(value) ? 1 : 0) };
-    },
-    { sum: 0, count: 0 },
-  );
+ *  and nothing to the count: AVERAGEIF skips a blank or text value as Excel does. An error in an
+ *  unmatched row, or in the criteria range, is not read. */
+const aggregateMatchedRows = (criteriaRange: CellValue[], valueRange: CellValue[], matches: (value: CellValue) => boolean): MatchedTotals => {
+  const none: MatchedTotals = { sum: 0, count: 0 };
+  return criteriaRange.reduce((totals, criteriaValue, index) => {
+    if (!matches(criteriaValue)) return totals;
+    const value = valueRange[index] ?? "";
+    if (isSpreadsheetErrorValue(value)) return { ...totals, error: totals.error ?? value };
+    return { ...totals, sum: totals.sum + toNumber(value), count: totals.count + (holdsNumber(value) ? 1 : 0) };
+  }, none);
+};
 
 const sumifHandler: FunctionHandler = (args, context) => {
   const { criteriaRange, valueRange, matches } = readConditionalRanges(args, context);
   if (typeof matches !== "function") return matches;
-  return aggregateMatchedRows(criteriaRange, valueRange, matches).sum;
+  const { sum, error } = aggregateMatchedRows(criteriaRange, valueRange, matches);
+  return error ?? sum;
 };
 
 const averageifHandler: FunctionHandler = (args, context) => {
   const { criteriaRange, valueRange, matches } = readConditionalRanges(args, context);
   if (typeof matches !== "function") return matches;
-  const { sum, count } = aggregateMatchedRows(criteriaRange, valueRange, matches);
+  const { sum, count, error } = aggregateMatchedRows(criteriaRange, valueRange, matches);
+  if (error) return error;
   // Excel returns #DIV/0! when no cell matches (the average of nothing is
   // undefined), rather than a silent 0.
   return count > 0 ? sum / count : DIV_ZERO_ERROR;

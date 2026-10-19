@@ -31,13 +31,14 @@ export const isLikelyDateSerial = (value: CellValue): boolean =>
  *
  * - A formula error renders as its code, so the cell still reads `#NUM!`.
  * - Explicit format code wins (currency, percentage, date, ...).
- * - A formula that produced a date serial auto-formats as a date.
+ * - A formula whose number is a date by origin (`showsDate`, see dateDisplay.ts) and lands in
+ *   the date-serial window auto-formats as a date.
  * - Everything else (text, plain numbers, empty) passes through unchanged.
  *
  * The result is always a STORED value: this is the boundary where a computed
  * error becomes the text a cell shows and a workbook serializes.
  */
-export const formatCellForDisplay = (originalCell: unknown, calculatedValue: CellValue, preferDDMMYYYY: boolean): StoredCellValue => {
+export const formatCellForDisplay = (originalCell: unknown, calculatedValue: CellValue, preferDDMMYYYY: boolean, showsDate: boolean): StoredCellValue => {
   if (isSpreadsheetErrorValue(calculatedValue)) {
     return calculatedValue.code;
   }
@@ -51,7 +52,7 @@ export const formatCellForDisplay = (originalCell: unknown, calculatedValue: Cel
   }
 
   const isFormula = typeof originalCell.v === "string" && originalCell.v.startsWith("=");
-  if (isFormula && isLikelyDateSerial(calculatedValue)) {
+  if (isFormula && showsDate && isLikelyDateSerial(calculatedValue)) {
     return formatNumber(calculatedValue, preferDDMMYYYY ? "DD/MM/YYYY" : "MM/DD/YYYY");
   }
 

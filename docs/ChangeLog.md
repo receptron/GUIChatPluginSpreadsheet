@@ -1,5 +1,30 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@4.2.0 — 2026-10-19
+
+Workbook functions, more analysis functions, and a long list of calculations brought in line with Excel.
+
+### New
+
+- **Workbook functions** (#117, fixes #114): a sheet may carry `functions: [{ name, params, body }]`, and any formula in the workbook calls them, e.g. `=MOVING.AVG(B2:B100, 7)`. Bodies are JavaScript run in QuickJS (WebAssembly), synchronously, with no DOM, network, files or timers; 50 ms per call, 2 s per calculation, 16 MB of memory, one context per function. A range arrives as rows of cells (blank = `null`), a single cell as its value; a time-out is `#NUM!`, a throw or a non-scalar return `#VALUE!`. They are visible only while their own workbook is calculated and cannot redefine a built-in. `presentSpreadsheet` reports definitions it could not use; the View and `readCalculatedRange` load them. QuickJS (`quickjs-emscripten-core`, `@jitl/quickjs-singlefile-mjs-release-sync`) is a new dependency, loaded only for a workbook that defines functions.
+- **Tests and distributions** (#108): `T.TEST`, `T.DIST`, `T.DIST.2T`, `T.DIST.RT`, `T.INV`, `T.INV.2T`, `NORM.DIST`, `NORM.S.DIST`, `NORM.INV`, `NORM.S.INV`, `CONFIDENCE.T`, `CONFIDENCE.NORM` (and the older names).
+- **Shape of a distribution and means** (#112): `SKEW`, `KURT`, `STANDARDIZE`, `PERCENTRANK.INC`, `GEOMEAN`, `HARMEAN`.
+- **Regression, covariance, conditional extremes** (#119): `FORECAST.LINEAR`, `TREND` (single value), `STEYX`, `COVARIANCE.S`, `COVARIANCE.P`, `PEARSON`, `MAXIFS`, `MINIFS`.
+- **Date functions and current Excel names** (#78, fixes #73): date functions plus aliases such as `PERCENTILE.INC`, `QUARTILE.INC`, `STDEV.S`, `VAR.P`, `RANK.EQ`.
+- **The View follows its file** (#79, fixes #74): an open spreadsheet reloads when the file changes on disk (an agent's edit), holding the change while an edit is unsaved.
+- **Save only if unchanged** (#96, fixes #86): `loadSpreadsheet` returns a content `version`; `saveSpreadsheet` takes `baseVersion` and refuses (`conflict: true`) when the file moved on, and the View asks which copy to keep. Saves to one file are serialized. No host change is needed.
+
+### Fixed
+
+- **Blank, text and logical cells counted as 0** (#104, fixes #103): criteria (`COUNTIF(…,"<2")`, `=0`, `""`, bare `=` / `<>`, text patterns against numbers), `AVERAGEIF`'s average range, paired functions (`CORREL`/`SLOPE`/`INTERCEPT`/`RSQ`), `COUNTA` (a formula's `""` now counts), and `TRUE`/`FALSE` in numeric ranges now follow Excel. Criteria read `5%` and `1,200` as numbers; a logical criteria matches logical cells only.
+- **Rounding at 15 significant digits** (#107, fixes #105): `ROUND(1.005,2)` is 1.01, `ROUNDDOWN(523.685,3)` is 523.685, `FLOOR(0.3,0.1)` is 0.3; exact integers and huge values are left alone. `POWER` gives `#DIV/0!` for 0 to a negative power and `#NUM!` for `0^0` and overflow.
+- **Dates shown only when they come from a date** (#110, fixes #106): an unformatted formula result between 36000 and 63499 is no longer displayed as a date unless the formula uses a date function or a date cell — a sales total of 52,345 stays a number.
+- **Operators and comparisons**: `&` with Excel's precedence and type rules (#77, fixes #75); comparisons the Excel way, text, logicals and `&` included (#90, fixes #81); a parenthesised literal on one side of a comparison (#97); `IFS` conditions (#111, fixes #93); `^` precedence, `-2^2` (#87, fixes #82); repeated signs `=--2`, `=1--2` (#113, fixes #88); an empty cell joined with `&` adds nothing (#102, fixes #83).
+- **Criteria**: a criteria is evaluated as an expression, so a cell reference or `">"&A1` works (#76, fixes #72); a date criteria with an operator compares as a date (#89, fixes #84).
+- **Tests and docs**: PV analysis expectations computed from the unrounded monthly rate (#80, fixes #57); date serials follow the real calendar, documented and pinned (#95, fixes #85); ChangeLog for 4.1.0 (#71).
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.2.0`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.2.0)
+
 ## @gui-chat-plugin/spreadsheet@4.1.0 — 2026-10-19
 
 Analysis functions, and a way for another plugin to read a calculated range.

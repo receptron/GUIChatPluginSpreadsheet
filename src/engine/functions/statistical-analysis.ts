@@ -5,7 +5,7 @@
  */
 
 import { blankAwareRangeReader, criteriaArg, functionRegistry, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
-import { collectNumbersOrError, collectNumericValues, overNumbers } from "./statistical";
+import { collectNumbersOrError, overNumbers } from "./statistical";
 import {
   correlation,
   intercept,
@@ -30,18 +30,18 @@ import type { CellValue } from "../types";
 const MAX_AGGREGATE_ARGS = 255;
 
 /** A scalar argument as a number, or the error it evaluated to (`#VALUE!` for text). */
-const scalarArg = (args: string[], context: FunctionContext, index: number): number | SpreadsheetError =>
+export const scalarArg = (args: string[], context: FunctionContext, index: number): number | SpreadsheetError =>
   toScalarNumber(context.evaluateFormula(requiredArg(context, args, index)));
 
-/** `(known_y, known_x)` read raw, so the two ranges stay paired by position. */
-const pairsFrom = (args: string[], context: FunctionContext): NumericPairs | SpreadsheetError => {
+/** `(known_y, known_x)` from argument `first` on, read raw so the two ranges stay paired by position. */
+export const pairsFrom = (args: string[], context: FunctionContext, first = 0): NumericPairs | SpreadsheetError => {
   const readRaw = blankAwareRangeReader(context);
-  const [yValues, xValues] = [readRaw(requiredArg(context, args, 0)), readRaw(requiredArg(context, args, 1))];
+  const [yValues, xValues] = [readRaw(requiredArg(context, args, first)), readRaw(requiredArg(context, args, first + 1))];
   // The first error in either range is the answer; the pairing alone would skip it.
   return [...yValues, ...xValues].find(isSpreadsheetErrorValue) ?? numericPairs(yValues, xValues);
 };
 
-const pairedHandler =
+export const pairedHandler =
   (rule: (pairs: NumericPairs) => number | SpreadsheetError): FunctionHandler =>
   (args, context) => {
     const pairs = pairsFrom(args, context);
@@ -61,9 +61,11 @@ const rankedHandler =
 const rankHandler: FunctionHandler = (args, context) => {
   const target = scalarArg(args, context, 0);
   if (typeof target !== "number") return target;
+  const values = collectNumbersOrError([requiredArg(context, args, 1)], context);
+  if (!Array.isArray(values)) return values;
   const order = args.length > 2 ? scalarArg(args, context, 2) : 0;
   if (typeof order !== "number") return order;
-  return rankOf(target, collectNumericValues([requiredArg(context, args, 1)], context), order !== 0);
+  return rankOf(target, values, order !== 0);
 };
 
 /** The `range, criteria` pairs starting at `first`, or the first error a
@@ -84,7 +86,10 @@ const matchedValues = (args: string[], context: FunctionContext): CellValue[] | 
   const conditions = conditionsFrom(args, context, 1);
   if (!Array.isArray(conditions)) return conditions;
   const matched = rowsMeetingAll(values.length, conditions);
-  return Array.isArray(matched) ? values.filter((_, row) => matched[row]) : matched;
+  if (!Array.isArray(matched)) return matched;
+  const matchedRows = values.filter((_, row) => matched[row]);
+  // A matched value that is an error is the answer; one in an unmatched row is not read.
+  return matchedRows.find(isSpreadsheetErrorValue) ?? matchedRows;
 };
 
 const sumifsHandler: FunctionHandler = (args, context) => {
@@ -100,6 +105,16 @@ const averageifsHandler: FunctionHandler = (args, context) => {
   const numbers = values.filter(holdsNumber).map(toNumber);
   return numbers.length > 0 ? numbers.reduce((sum, value) => sum + value, 0) / numbers.length : DIV_ZERO_ERROR;
 };
+
+/** MAXIFS / MINIFS: the extreme of the matched values that hold a number, or 0 when none do. */
+const extremeIfsHandler =
+  (pick: (left: number, right: number) => number): FunctionHandler =>
+  (args, context) => {
+    const values = matchedValues(args, context);
+    if (!Array.isArray(values)) return values;
+    const numbers = values.filter(holdsNumber).map(toNumber);
+    return numbers.length > 0 ? numbers.reduce((extreme, value) => pick(extreme, value)) : 0;
+  };
 
 const countifsHandler: FunctionHandler = (args, context) => {
   const conditions = conditionsFrom(args, context, 0);
@@ -221,6 +236,22 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
     maxArgs: MAX_AGGREGATE_ARGS,
     description: "Counts the rows that meet every condition",
     examples: ['COUNTIFS(A2:A100, "East", B2:B100, ">10")'],
+  },
+  {
+    name: "MAXIFS",
+    handler: extremeIfsHandler(Math.max),
+    minArgs: 3,
+    maxArgs: MAX_AGGREGATE_ARGS,
+    description: "Returns the largest value whose row meets every condition (0 when none does)",
+    examples: ['MAXIFS(C2:C100, A2:A100, "East")'],
+  },
+  {
+    name: "MINIFS",
+    handler: extremeIfsHandler(Math.min),
+    minArgs: 3,
+    maxArgs: MAX_AGGREGATE_ARGS,
+    description: "Returns the smallest value whose row meets every condition (0 when none does)",
+    examples: ['MINIFS(C2:C100, A2:A100, "East")'],
   },
   {
     name: "AVERAGEIFS",

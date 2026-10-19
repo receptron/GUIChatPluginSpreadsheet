@@ -19,9 +19,9 @@ const MIN_PAIRS = 2;
 const PERCENT_MAX = 1;
 const QUARTILES_IN_WHOLE = 4;
 
-const mean = (values: number[]): number => values.reduce((sum, value) => sum + value, 0) / values.length;
+export const mean = (values: number[]): number => values.reduce((sum, value) => sum + value, 0) / values.length;
 
-const sumOfSquaredDeviations = (values: number[]): number => {
+export const sumOfSquaredDeviations = (values: number[]): number => {
   const center = mean(values);
   return values.reduce((sum, value) => sum + (value - center) ** 2, 0);
 };
@@ -41,7 +41,7 @@ export function numericPairs(yValues: CellValue[], xValues: CellValue[]): Numeri
   return { ys: kept.map((pair) => pair.y), xs: kept.map((pair) => pair.x) };
 }
 
-const sumOfCrossDeviations = ({ ys, xs }: NumericPairs): number => {
+export const sumOfCrossDeviations = ({ ys, xs }: NumericPairs): number => {
   const yCenter = mean(ys);
   const xCenter = mean(xs);
   return ys.reduce((sum, y, index) => sum + (y - yCenter) * ((xs[index] ?? xCenter) - xCenter), 0);

@@ -113,6 +113,8 @@ The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to loa
 ### Date & Time
 `DATE`, `DATEDIF`, `DAY`, `DAYS`, `EDATE`, `EOMONTH`, `HOUR`, `MINUTE`, `MONTH`, `NETWORKDAYS`, `NOW`, `SECOND`, `TIME`, `TODAY`, `WEEKDAY`, `WORKDAY`, `YEAR`
 
+A formula without a format code shows its number as a date only when the number is a date by origin: the formula starts with DATE, TODAY, EDATE, EOMONTH or WORKDAY, or its first reference is a date (a cell with a date format, typed as a date, or itself such a formula, on any sheet). A total that lands on 52,345 stays a number. Give a formula a format code to choose its display yourself.
+
 Dates are serial numbers on the real calendar, as in LibreOffice and Google Sheets. Excel counts a 1900-02-29 that never existed, so a serial before 61 (1900-03-01) is one day earlier here than in Excel; from 61 on they are the same.
 
 ### Logical
@@ -122,7 +124,7 @@ Dates are serial numbers on the real calendar, as in LibreOffice and Google Shee
 `HLOOKUP`, `INDEX`, `MATCH`, `VLOOKUP`, `XLOOKUP`
 
 ### Statistical
-`AVERAGE`, `AVERAGEIF`, `AVERAGEIFS`, `CORREL`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `INTERCEPT`, `LARGE`, `MAX`, `MEDIAN`, `MIN`, `MODE`, `PERCENTILE`, `PERCENTILE.INC`, `QUARTILE`, `QUARTILE.INC`, `RANK`, `RANK.EQ`, `RSQ`, `SLOPE`, `SMALL`, `STDEV`, `STDEV.P`, `STDEV.S`, `STDEVP`, `SUM`, `SUMIF`, `SUMIFS`, `VAR`, `VAR.P`, `VAR.S`, `VARP`
+`AVERAGE`, `AVERAGEIF`, `AVERAGEIFS`, `CONFIDENCE.NORM`, `CONFIDENCE.T`, `CORREL`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `COVARIANCE.P`, `COVARIANCE.S`, `FORECAST`, `FORECAST.LINEAR`, `GEOMEAN`, `HARMEAN`, `INTERCEPT`, `KURT`, `LARGE`, `MAX`, `MAXIFS`, `MEDIAN`, `MIN`, `MINIFS`, `MODE`, `NORM.DIST`, `NORM.INV`, `NORM.S.DIST`, `NORM.S.INV`, `PEARSON`, `PERCENTILE`, `PERCENTILE.INC`, `PERCENTRANK`, `PERCENTRANK.INC`, `QUARTILE`, `QUARTILE.INC`, `RANK`, `RANK.EQ`, `RSQ`, `SKEW`, `SLOPE`, `SMALL`, `STANDARDIZE`, `STDEV`, `STDEV.P`, `STDEV.S`, `STDEVP`, `STEYX`, `SUM`, `SUMIF`, `SUMIFS`, `T.DIST`, `T.DIST.2T`, `T.DIST.RT`, `T.INV`, `T.INV.2T`, `T.TEST`, `TREND`, `TTEST`, `VAR`, `VAR.P`, `VAR.S`, `VARP`
 
 ### Financial
 `FV`, `IPMT`, `IRR`, `NPER`, `NPV`, `PMT`, `PPMT`, `PV`, `RATE`

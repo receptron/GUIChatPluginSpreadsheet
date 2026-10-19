@@ -9,6 +9,7 @@
  */
 
 import { isObj } from "./guards";
+import { isSpreadsheetErrorValue } from "./spreadsheet-errors";
 
 /** True when a cell holds no value at all — absent, null, or an empty/whitespace
  *  string, in either the bare or the `{ v }` form. A cell containing the number
@@ -23,4 +24,10 @@ export function isEmptyCell(cell: unknown): boolean {
     return typeof value === "string" && value.trim() === "";
   }
   return false;
+}
+
+/** True when a cell holds nothing and is not a formula error. A calculated error is an object
+ *  without `v`, which `isEmptyCell` alone counts as empty — and a blank reads as 0. */
+export function isBlankCell(cell: unknown): boolean {
+  return !isSpreadsheetErrorValue(cell) && isEmptyCell(cell);
 }

@@ -10,6 +10,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   caretToPow,
+  separateRepeatedSigns,
   replaceConcatOperator,
   rewriteComparisonEq,
   isSafeArithmetic,
@@ -75,6 +76,35 @@ describe("caretToPow", () => {
   it("leaves an expression with no caret unchanged", () => {
     assert.equal(caretToPow("2+3*4"), "2+3*4");
     assert.equal(caretToPow(""), "");
+  });
+});
+
+describe("separateRepeatedSigns", () => {
+  it("puts a space between two equal signs in a row", () => {
+    assert.equal(separateRepeatedSigns("1--2"), "1- -2");
+    assert.equal(separateRepeatedSigns("--2"), "- -2");
+    assert.equal(separateRepeatedSigns("---2"), "- - -2");
+    assert.equal(separateRepeatedSigns("1++2"), "1+ +2");
+  });
+
+  it("leaves mixed signs, exponents and a single sign alone", () => {
+    assert.equal(separateRepeatedSigns("1-+-2"), "1-+-2");
+    assert.equal(separateRepeatedSigns("2**-2"), "2**-2");
+    assert.equal(separateRepeatedSigns("1-2"), "1-2");
+    assert.equal(separateRepeatedSigns(""), "");
+  });
+
+  it("treats a literal that is never closed as running to the end", () => {
+    assert.equal(separateRepeatedSigns('1--2&"a--b'), '1- -2&"a--b');
+    assert.equal(separateRepeatedSigns("1--2&'a--b"), "1- -2&'a--b");
+    assert.equal(separateRepeatedSigns('"a--b'), '"a--b');
+  });
+
+  it("leaves signs inside a string literal alone", () => {
+    assert.equal(separateRepeatedSigns('"a--b"+1--2'), '"a--b"+1- -2');
+    assert.equal(separateRepeatedSigns("'++'"), "'++'");
+    assert.equal(separateRepeatedSigns('"a\\\\"--1'), '"a\\\\"- -1', "an escaped backslash, and the quote after it closes the literal");
+    assert.equal(separateRepeatedSigns('"a\\"--1'), '"a\\"--1', "an escaped quote keeps the literal open");
   });
 });
 
@@ -224,6 +254,16 @@ describe("translation through the engine (characterization)", () => {
   it("concatenates strings and mixed operands", () => {
     assert.equal(calc('="a"&"b"'), "ab");
     assert.equal(calc('="x"&5'), "x5");
+  });
+
+  it("reads repeated signs one at a time, as Excel does", () => {
+    assert.equal(calc("=--2"), 2);
+    assert.equal(calc("=1--2"), 3);
+    assert.equal(calc("=1---2"), -1);
+    assert.equal(calc("=1+--2"), 3);
+    assert.equal(calc('="x"&--2'), "x2");
+    assert.equal(calc("=--2=2"), true);
+    assert.equal(calc('="a--b"'), "a--b");
   });
 
   it("evaluates plain arithmetic", () => {
