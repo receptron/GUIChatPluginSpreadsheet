@@ -69,26 +69,33 @@ describe("an error in an aggregate's arguments", () => {
   });
 });
 
-/** A context over fixed ranges whose evaluator counts how often each formula is evaluated. */
-function countingContext(values: Record<string, number>): { context: FunctionContext; counts: Map<string, number> } {
-  const counts = new Map<string, number>();
-  const evaluateFormula = (formula: string): number => {
-    counts.set(formula, (counts.get(formula) ?? 0) + 1);
-    return values[formula] ?? 0;
+/** A context over fixed ranges whose evaluator answers 1, 2, 3, … on successive calls, as a
+ *  volatile function would, and counts the calls. */
+function sequentialContext(name: string): { context: FunctionContext; calls: () => number } {
+  const state = { calls: 0 };
+  const evaluateFormula = (): number => {
+    state.calls += 1;
+    return state.calls;
   };
-  const range = (): number[] => [1, 2];
-  return { context: { functionName: "SUM", getCellValue: () => 0, getRangeValues: range, getRangeValuesRaw: range, evaluateFormula }, counts };
+  const range = (): number[] => [10, 20];
+  return { context: { functionName: name, getCellValue: () => 0, getRangeValues: range, getRangeValuesRaw: range, evaluateFormula }, calls: () => state.calls };
 }
 
 describe("looking for an error first", () => {
-  it("evaluates each argument once, so a second read cannot answer differently", () => {
-    ["SUM", "AVERAGE", "MAX", "STDEVP", "CORREL", "LARGE"].forEach((name) => {
+  it("evaluates each argument occurrence once, repeated text included", () => {
+    const cases: [string, string[], unknown, number][] = [
+      ["SUM", ["X()", "X()"], 3, 2],
+      ["SUM", ["X()", "A1:A2", "X()"], 33, 2],
+      ["AVERAGE", ["X()", "X()", "X()"], 2, 3],
+      ["MAX", ["X()", "X()"], 2, 2],
+      ["LARGE", ["A1:A2", "X()"], 20, 1],
+    ];
+    cases.forEach(([name, args, expected, expectedCalls]) => {
       const definition = functionRegistry.get(name);
       assert.ok(definition, name);
-      const { context, counts } = countingContext({ "NOW()": 45000, "2": 2 });
-      const args = name === "CORREL" ? ["A1:A2", "B1:B2"] : name === "LARGE" ? ["A1:A2", "2"] : ["NOW()", "A1:A2", "NOW()"];
-      definition.handler(args, { ...context, functionName: name });
-      counts.forEach((count, formula) => assert.equal(count, 1, `${name}: ${formula} evaluated ${count} times`));
+      const { context, calls } = sequentialContext(name);
+      assert.equal(definition.handler(args, context), expected, `${name}(${args.join(",")})`);
+      assert.equal(calls(), expectedCalls, `${name}(${args.join(",")}) calls`);
     });
   });
 });
@@ -100,7 +107,7 @@ const CELLS: SpreadsheetCell[] = [{ v: 1 }, { v: 4 }, { v: -2 }, { v: "a" }, { v
 const ERROR_OF: Record<string, string> = { "=1/0": "#DIV/0!", "=SQRT(-1)": "#NUM!" };
 
 describe(`errors scattered through a range (seed ${baseSeed})`, () => {
-  it("answers the first error in reading order, or a number when there is none", () => {
+  it("answers the first error in reading order, or what the function answers without one", () => {
     const random = seededRandom(baseSeed);
     Array.from({ length: GENERATED_CASES }).forEach(() => {
       const row = Array.from({ length: WIDTH }, () => pick(random, CELLS));
@@ -109,7 +116,8 @@ describe(`errors scattered through a range (seed ${baseSeed})`, () => {
       const firstError = row.map((cell) => ERROR_OF[String("v" in cell ? cell.v : "")]).find((error) => error !== undefined);
       const label = `seed ${baseSeed}: ${name} over ${JSON.stringify(row)}`;
       if (firstError) assert.equal(answer, firstError, label);
-      else assert.ok(typeof answer === "number" || answer === "#DIV/0!", `${label} → ${String(answer)}`);
+      // With no number left, AVERAGE and the spreads answer #DIV/0! and MEDIAN #NUM!, as before.
+      else assert.ok(typeof answer === "number" || answer === "#DIV/0!" || answer === "#NUM!", `${label} → ${String(answer)}`);
     });
   });
 });

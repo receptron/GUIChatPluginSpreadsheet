@@ -76,27 +76,33 @@ export const firstArgumentError = (args: string[], context: FunctionContext): Sp
     .map(({ value }) => value)
     .find(isSpreadsheetErrorValue);
 
-/** The context with each formula evaluated at most once, so a second read of an argument — NOW()
- *  or a workbook function included — answers what the first one did and costs nothing. */
-const evaluatingEachOnce = (context: FunctionContext): FunctionContext => {
-  const evaluated = new Map<string, CellValue>();
-  const evaluateFormula = (formula: string): CellValue => {
-    const known = evaluated.get(formula);
-    if (known !== undefined) return known;
+/** Two views of one context: the first records each evaluation, the second answers the n-th
+ *  evaluation of a formula with the n-th one recorded. Both passes evaluate the arguments in
+ *  argument order, so every occurrence is evaluated once, and `SUM(X,X)` still evaluates X twice. */
+function recordingThenReplaying(context: FunctionContext): { recording: FunctionContext; replaying: FunctionContext } {
+  const recorded = new Map<string, CellValue[]>();
+  const replayedCount = new Map<string, number>();
+  const record = (formula: string): CellValue => {
     const value = context.evaluateFormula(formula);
-    evaluated.set(formula, value);
+    recorded.set(formula, [...(recorded.get(formula) ?? []), value]);
     return value;
   };
-  return { ...context, evaluateFormula };
-};
+  const replay = (formula: string): CellValue => {
+    const occurrence = replayedCount.get(formula) ?? 0;
+    replayedCount.set(formula, occurrence + 1);
+    const known = recorded.get(formula)?.[occurrence];
+    return known !== undefined ? known : context.evaluateFormula(formula);
+  };
+  return { recording: { ...context, evaluateFormula: record }, replaying: { ...context, evaluateFormula: replay } };
+}
 
-/** The handler, answering the first error in its arguments before it computes anything. Both
- *  passes read the arguments through one context, so each is evaluated once. */
+/** The handler, answering the first error in its arguments before it computes anything. The
+ *  computation replays the values the search evaluated, so no argument is evaluated twice. */
 export const answeringArgumentErrors =
   (handler: FunctionHandler): FunctionHandler =>
   (args, context) => {
-    const once = evaluatingEachOnce(context);
-    return firstArgumentError(args, once) ?? handler(args, once);
+    const { recording, replaying } = recordingThenReplaying(context);
+    return firstArgumentError(args, recording) ?? handler(args, replaying);
   };
 
 export const collectNumericValues = (args: string[], context: FunctionContext): number[] =>
