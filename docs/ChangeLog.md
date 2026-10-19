@@ -1,5 +1,17 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@4.2.3 — 2026-10-19
+
+Three fixes found by a stress test of agents building analysis workbooks (receptron/mulmoterminal#3113). The first silently gave wrong numbers with no error showing.
+
+- **Text that only starts with a number stays text** (#141, fixes #140): a text cell such as `2023-01` was read by a formula as 2023, and text holding a comma (`Tokyo, Japan`) as 0, while the cell still showed the text. A `SUMIFS` over a month column written `2025-01` therefore matched every month and put the whole year's total in each. A number is now read only when the whole text is one as typed — plain, grouped in threes (`1,200`), a percentage (`25%`, `1,000%`) or a currency amount (`$1,000`, `-$5`, `$ 5`) — and anything else is text, as in Excel. One reading is shared by cell reads, aggregates, `COUNT`, criteria and text in arithmetic, so `SUM` and `COUNT` agree on the same cell. `YEAR`, `MONTH`, `DAY`, `HOUR`, `MINUTE`, `SECOND` and `DATEDIF` answer `#VALUE!` for text, as the calendar functions already did, rather than reading it as serial 0. `1,000%` is 10 (it was 0.01).
+- **`ROW`, `COLUMN`, `ROWS` and `COLUMNS`** (#139, fixes #137): they gave `#NAME?`. `ROW()` / `COLUMN()` answer for the cell the formula is in — also when another formula or another sheet calculates it first — and `ROW(ref)` / `COLUMN(ref)` for a reference's first cell. A whole-column reference is bounded to the sheet's data, so `ROWS(A:A)` counts the data's rows.
+- **Unquoted sheet names in any script** (#138, fixes #136): `=基準!B1`, `=Sheet_1!B1` and `=q1.data!B1` read B1 of the current sheet with the name left in front as text. One rule for an unquoted name (letters of any script, digits, `_`, `.`, not starting with a digit) is now shared by cell references, whole-column references and the `TRUE` / `FALSE` word boundary.
+
+Still open: date-like text that is not recognised as a date (`2023-01`, `1/2`, `Jan 2023`) stays text (#142).
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.2.3`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.2.3)
+
 ## @gui-chat-plugin/spreadsheet@4.2.2 — 2026-10-19
 
 Two more calculation fixes, where the evaluator read a formula as a JavaScript expression.
