@@ -14,6 +14,7 @@ import { isObj, isRecord } from "./guards";
 import { isBlankCell, isEmptyCell } from "./cellEmpty";
 import { isRangeNumber } from "./numericCoercion";
 import { splitSheetReference } from "./sheetReference";
+import type { CellCoordinates } from "./registry";
 import { boundWholeReferences, type SheetExtent } from "./wholeReferences";
 import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
@@ -201,6 +202,9 @@ function openSheet(
   // re-emit its error). Membership here means "read the cached value, do not
   // re-run".
   const evaluated = new Set<string>();
+  // The formula cells being calculated, innermost last: a formula reading another cell calculates
+  // it in between, so `ROW()` answers for whichever is on top.
+  const cellsBeingCalculated: CellCoordinates[] = [];
 
   // How far a sheet's data reaches, for bounding `A:A` and `1:1`; null for a sheet that does not exist.
   const extentOf = (name: string | null): SheetExtent | null => {
@@ -219,6 +223,7 @@ function openSheet(
     }
     if (evaluated.has(cellKey)) return cells[col];
     calculating.add(cellKey);
+    cellsBeingCalculated.push({ row, col });
     try {
       const result = evaluateFormula(boundWholeReferences(formulaText.substring(1), extentOf)); // drop leading "="
       cells[col] = result;
@@ -232,6 +237,7 @@ function openSheet(
       cells[col] = errorValue;
       return errorValue;
     } finally {
+      cellsBeingCalculated.pop();
       calculating.delete(cellKey);
       evaluated.add(cellKey);
     }
@@ -419,6 +425,7 @@ function openSheet(
       evaluateFormula,
       preferDDMMYYYY,
       isCellEmpty,
+      currentCell: cellsBeingCalculated.at(-1),
     });
   };
 

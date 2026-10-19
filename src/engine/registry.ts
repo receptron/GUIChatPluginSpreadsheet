@@ -29,6 +29,13 @@ export interface FunctionContext {
   isBlankReference?: ((arg: string) => boolean) | undefined;
   /** Read an ambiguous `01/02/2020` as day-first, as the sheet's own dates are. */
   preferDDMMYYYY?: boolean | undefined;
+  /** The cell whose formula is being calculated, 0-based; absent outside a sheet (`ROW()`). */
+  currentCell?: CellCoordinates | undefined;
+}
+
+export interface CellCoordinates {
+  row: number;
+  col: number;
 }
 
 /** The too-few-arguments error, raised by the evaluator from the registry's

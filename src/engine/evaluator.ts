@@ -4,7 +4,7 @@
  * Evaluates spreadsheet formulas including functions, cell references, and arithmetic
  */
 
-import { FUNCTION_NAME_SOURCE, functionRegistry, isCallableName, tooFewArgumentsError } from "./registry";
+import { FUNCTION_NAME_SOURCE, functionRegistry, isCallableName, tooFewArgumentsError, type CellCoordinates } from "./registry";
 
 const SIMPLE_CALL = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\((.*)\\)$`, "i");
 const CALL_START = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\(`, "i");
@@ -38,6 +38,7 @@ export interface EvaluatorContext {
   /** Whether the referenced cell holds nothing. `getCellValue` reads such a cell as 0, which
    *  is right for arithmetic and wrong for `&`, where a blank cell joins as "". */
   isCellEmpty?: ((ref: string) => boolean) | undefined;
+  currentCell?: CellCoordinates | undefined;
 }
 
 /** Render a cell's value as the text that stands in for it inside an
@@ -414,6 +415,7 @@ export function evaluateFormula(writtenFormula: string, context: EvaluatorContex
           return ref !== null && context.isCellEmpty?.(ref) === true;
         },
         preferDDMMYYYY: context.preferDDMMYYYY,
+        currentCell: context.currentCell,
       });
     }
 
