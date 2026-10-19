@@ -22,6 +22,8 @@ import {
   studentUpperTail,
 } from "../../src/engine/functions/distribution-math.ts";
 import { logBeta, logGamma } from "../../src/engine/functions/special-functions.ts";
+import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
+import { cellAt } from "./cellAccess.ts";
 import { valuesOf } from "./formulaColumns.ts";
 import { seededRandom } from "./seededRandom.ts";
 
