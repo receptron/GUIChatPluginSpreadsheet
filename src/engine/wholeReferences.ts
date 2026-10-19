@@ -72,7 +72,8 @@ function boundOutsideLiterals(code: string, extentOf: ExtentOf): string {
  * exist is left as written too, so it fails as any reference to that sheet does.
  */
 export function boundWholeReferences(formula: string, extentOf: ExtentOf): string {
-  // Splitting on the literal pattern keeps each literal at an odd index, with "" inside one.
-  const parts = formula.split(/("(?:[^"]|"")*")/);
+  // Splitting on the literal pattern keeps each literal at an odd index, with "" inside one. A
+  // quote that never closes runs to the end, so text after it is never read as a reference.
+  const parts = formula.split(/("(?:[^"]|"")*(?:"|$))/);
   return parts.map((part, index) => (index % 2 === 1 ? part : boundOutsideLiterals(part, extentOf))).join("");
 }

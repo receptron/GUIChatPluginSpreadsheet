@@ -5,23 +5,14 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import type { SpreadsheetCell } from "../../src/engine/types.ts";
-import { cellAt } from "./cellAccess.ts";
+import { formulaValuesOn } from "./formulaSheet.ts";
 import { pick, seededRandom, type Random } from "./seededRandom.ts";
 
 type Row = SpreadsheetCell[];
 
 /** The formulas' values, from a sheet "F" that reads the sheet "Data". */
-function formulaValues(dataRows: Row[], formulas: string[]): unknown[] {
-  const sheets: SheetData[] = [
-    { name: "Data", data: dataRows },
-    { name: "F", data: formulas.map((formula) => [{ v: formula }]) },
-  ];
-  const calculated = new SpreadsheetEngine().calculateWorkbook(sheets)[1];
-  assert.ok(calculated, "the formula sheet is calculated");
-  return formulas.map((_, row) => cellAt(calculated.data, row, 0));
-}
+const formulaValues = (dataRows: Row[], formulas: string[]): unknown[] => formulaValuesOn({ name: "Data", data: dataRows }, formulas);
 
 describe("a row that stops before the range does", () => {
   // Row 2 has only its A cell, as in the issue.

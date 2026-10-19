@@ -9,6 +9,7 @@ import { boundWholeReferences, type ExtentOf } from "../../src/engine/wholeRefer
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import type { SpreadsheetCell } from "../../src/engine/types.ts";
 import { cellAt } from "./cellAccess.ts";
+import { formulaValuesOn } from "./formulaSheet.ts";
 import { pick, seededRandom, type Random } from "./seededRandom.ts";
 
 const EXTENTS: Record<string, { rows: number; columns: number }> = {
@@ -63,6 +64,10 @@ describe("boundWholeReferences", () => {
     ["SUM(A:B1)", "SUM(A1B:C)", "SUM(2:3A)", "SUM(x2:3)", "SUM(A:B(1))"].forEach((formula) => assert.equal(bound(formula), formula, formula));
   });
 
+  it("leaves the rest of the formula as written after a quote that never closes", () => {
+    ['"A:A', 'SUM(1:1)&"A:A', '"say ""A:A'].forEach((formula) => assert.equal(bound(formula), formula.replace("SUM(1:1)", "SUM(A1:D1)"), formula));
+  });
+
   it("reads past a doubled quote inside a literal to the reference after it", () => {
     assert.equal(bound('"say ""A:A"" or 1:1"&B:B'), '"say ""A:A"" or 1:1"&B1:B3');
   });
@@ -75,16 +80,7 @@ describe("whole references in a sheet", () => {
     [{ v: 3 }, { v: "a" }, { v: 30 }],
   ];
 
-  /** The formulas' values, from a sheet "F" that reads the sheet "S". */
-  const valuesOf = (formulas: string[]): unknown[] => {
-    const sheets: SheetData[] = [
-      { name: "S", data },
-      { name: "F", data: formulas.map((formula) => [{ v: formula }]) },
-    ];
-    const calculated = new SpreadsheetEngine().calculateWorkbook(sheets)[1];
-    assert.ok(calculated, "the formula sheet is calculated");
-    return formulas.map((_, row) => cellAt(calculated.data, row, 0));
-  };
+  const valuesOf = (formulas: string[]): unknown[] => formulaValuesOn({ name: "S", data }, formulas);
 
   it("answers the issue's formulas as Excel does", () => {
     assert.deepEqual(valuesOf(["=SUM(S!A:A)", "=COUNT(S!A:A)", "=SUM(S!1:1)", "=AVERAGE(S!C:C)"]), [6, 3, 11, 20]);
@@ -155,14 +151,18 @@ describe(`whole references over generated formulas (seed ${baseSeed})`, () => {
       const cases = Array.from({ length: 8 }, () => handWrittenCase(random, rows));
       const whole = cases.map(([formula]) => formula);
       const written = cases.map(([, formula]) => formula);
-      assert.deepEqual(valuesOnData(data, whole), valuesOnData(data, written), `seed ${baseSeed} case ${index}: ${whole.join(" ")}`);
+      assert.deepEqual(
+        formulaValuesOn({ name: "Data", data }, whole),
+        formulaValuesOn({ name: "Data", data }, written),
+        `seed ${baseSeed} case ${index}: ${whole.join(" ")}`,
+      );
     });
   });
 });
 
 /** A formula with a whole reference to "Data", and the same formula with the range written out. */
 function handWrittenCase(random: Random, rows: number): [string, string] {
-  const [first, last] = [pick(random, ["A", "B", "C"]), pick(random, ["A", "B", "C"])].sort();
+  const [first, last] = [pick(random, ["A", "B", "C"]), pick(random, ["A", "B", "C"])].toSorted();
   const row = 1 + Math.floor(random() * rows);
   const pieces: [string, string][] = [
     [`Data!${first}:${last}`, `Data!${first}1:${last}${rows}`],
@@ -171,14 +171,4 @@ function handWrittenCase(random: Random, rows: number): [string, string] {
   const [whole, written] = pick(random, pieces);
   const call = pick(random, ["SUM", "COUNT", "COUNTA", "MAX", "AVERAGE"]);
   return [`=${call}(${whole})`, `=${call}(${written})`];
-}
-
-function valuesOnData(data: SpreadsheetCell[][], formulas: string[]): unknown[] {
-  const sheets: SheetData[] = [
-    { name: "Data", data },
-    { name: "F", data: formulas.map((formula) => [{ v: formula }]) },
-  ];
-  const calculated = new SpreadsheetEngine().calculateWorkbook(sheets)[1];
-  assert.ok(calculated, "the formula sheet is calculated");
-  return formulas.map((_, row) => cellAt(calculated.data, row, 0));
 }
