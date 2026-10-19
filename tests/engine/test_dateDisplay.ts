@@ -37,6 +37,7 @@ const sourceOf =
 describe("formulaShowsDate", () => {
   const source = sourceOf({
     "S!A1": { format: "MM/DD/YYYY" },
+    "S!H1": { format: "hh" },
     "S!B1": { format: "$#,##0.00" },
     "S!C1": { formula: "=DATE(2025,1,2)" },
     "S!D1": { formula: "=C1+1" },
@@ -60,6 +61,10 @@ describe("formulaShowsDate", () => {
     assert.equal(shows("=$A$1+30"), true);
     assert.equal(shows("=MAX(A1:A9)"), true);
     assert.equal(shows("=1+A1"), true, "the first reference, not the first term");
+  });
+
+  it("is true when the first reference has a time-only format", () => {
+    assert.equal(shows("=H1+1/24"), true);
   });
 
   it("follows the first reference into a formula that shows a date", () => {

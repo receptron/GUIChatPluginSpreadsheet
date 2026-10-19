@@ -115,6 +115,8 @@ The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to loa
 
 A formula without a format code shows its number as a date only when the number is a date by origin: the formula starts with DATE, TODAY, EDATE, EOMONTH or WORKDAY, or its first reference is a date (a cell with a date format, typed as a date, or itself such a formula, on any sheet). A total that lands on 52,345 stays a number. Give a formula a format code to choose its display yourself.
 
+A date format code is read as Excel reads it, for a cell's display and for TEXT alike: letters in any case (yyyy-mm-dd or YYYY-MM-DD), and m or mm as minutes when the part before it is an hour or the part after it a second (h:mm, h"時"mm"分"), the month otherwise.
+
 Dates are serial numbers on the real calendar, as in LibreOffice and Google Sheets. Excel counts a 1900-02-29 that never existed, so a serial before 61 (1900-03-01) is one day earlier here than in Excel; from 61 on they are the same.
 
 ### Logical
