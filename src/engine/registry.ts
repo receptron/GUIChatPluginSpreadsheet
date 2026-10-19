@@ -22,6 +22,8 @@ export interface FunctionContext {
   getRangeValues: RangeGetter;
   getRangeValuesRaw?: RawRangeGetter | undefined;
   getRangeValuesKeepingBlanks?: RawRangeGetter | undefined;
+  /** How many cells of a range hold something, a formula's "" included (COUNTA). */
+  countFilledCells?: ((range: string) => number) | undefined;
   evaluateFormula: (formula: string) => CellValue;
   /** Read an ambiguous `01/02/2020` as day-first, as the sheet's own dates are. */
   preferDDMMYYYY?: boolean | undefined;

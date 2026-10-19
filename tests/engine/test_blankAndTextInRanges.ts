@@ -100,3 +100,21 @@ describe("COUNTA counts what a cell holds, not its blanks", () => {
     assert.equal(evaluate("COUNTA(A1:A4)", ["", 5, "x", ""]), 2);
   });
 });
+
+describe('a formula that answers "" is text, not a number and not a blank', () => {
+  const column: StoredCellValue[] = ['=""', 5, '=IF(1>2,1,"")', 7];
+  it("COUNT, SUM and AVERAGE leave it out", () => {
+    assert.equal(evaluate("COUNT(A1:A4)", column), 2);
+    assert.equal(evaluate("SUM(A1:A4)", column), 12);
+    assert.equal(evaluate("AVERAGE(A1:A4)", column), 6);
+  });
+
+  it("COUNTA counts it, as a cell holding a formula", () => {
+    assert.equal(evaluate("COUNTA(A1:A4)", column), 4);
+    assert.equal(evaluate("COUNTA(A1:A6)", [...column, "", "x"]), 5);
+  });
+
+  it('COUNTIF with "" matches it and a blank alike', () => {
+    assert.equal(evaluate('COUNTIF(A1:A5,"")', [...column, ""]), 3);
+  });
+});

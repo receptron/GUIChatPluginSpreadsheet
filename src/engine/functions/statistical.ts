@@ -116,11 +116,21 @@ const varHandler: FunctionHandler = (args, context) => {
   return sampleVariance(collectNumericValues(args, context));
 };
 
-const countaHandler: FunctionHandler = (args, context) => {
-  const values = collectRawValues(args, context);
-  // Count non-empty cells
-  return values.filter((value) => value !== null && value !== undefined && value !== "").length;
+const isFilledValue = (value: CellValue): boolean => value !== null && value !== undefined && value !== "";
+
+/** COUNTA of one argument: the filled cells of a reference, or 1 for a non-empty scalar. A host
+ *  without `countFilledCells` reads the reference's values, which cannot tell a formula's ""
+ *  from a blank. */
+const countaOf = (arg: string, context: FunctionContext): number => {
+  if (isReference(arg) && context.countFilledCells) return context.countFilledCells(arg);
+  return collectRawValues([arg], context).filter(isFilledValue).length;
 };
+
+const countaHandler: FunctionHandler = (args, context) =>
+  args.reduce((count, rawArg) => {
+    const arg = rawArg?.trim();
+    return arg ? count + countaOf(arg, context) : count;
+  }, 0);
 
 const countifHandler: FunctionHandler = (args, context) => {
   const values = blankAwareRangeReader(context)(requiredArg(context, args, 0));
