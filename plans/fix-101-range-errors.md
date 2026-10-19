@@ -6,19 +6,15 @@
 
 ## 直したこと
 
-`statistical.ts` に、引数の中の最初の誤りを返す決まりを一つ足した（`firstArgumentError`）。範囲の誤りのセルも、誤りになった引数も見る。それを関数の前に置く包み（`answeringArgumentErrors`）を、次の関数に付けた。
+集計の関数は、引数を一度だけ読み、その読みで「数の並び」か「最初の誤り」を返す（`statistical.ts` の `collectNumbersOrError`・`overNumbers`）。誤りは、引数の順、範囲の中は読む順で探す。
 
-- SUM・AVERAGE・MAX・MIN・MEDIAN・MODE・STDEV・VAR（と別名）
-- STDEVP・VARP
-- LARGE・SMALL・PERCENTILE・QUARTILE
-- CORREL・SLOPE・INTERCEPT・RSQ
+- SUM・AVERAGE・MAX・MIN・MEDIAN・MODE・STDEV・VAR・STDEVP・VARP
+- LARGE・SMALL・PERCENTILE・QUARTILE・RANK（範囲を先に読み、順位の向きはその後）
+- 対の関数（`pairsFrom`）：CORREL・SLOPE・INTERCEPT・RSQ・FORECAST.LINEAR・STEYX・COVARIANCE
+- 条件付きの集計：SUMIF・AVERAGEIF・SUMIFS・AVERAGEIFS・MAXIFS・MINIFS。合った行の値が誤りなら、最初のものが答え。合わない行の誤りと、条件の範囲の誤りは読まない（Excel と同じ）
+- SKEW など（`shape.ts`）と T.TEST（`distributions.ts`）も、誤りを探す読みと計算の読みの二度読みをやめた
 
-COUNT は誤りを数えず、COUNTA は数える（Excel と同じ。前から）。
-
-## 対象外
-
-- 条件付きの集計（SUMIF・SUMIFS・AVERAGEIF(S)・COUNTIF(S)）。Excel は、合った行の値の誤りを返し、条件の範囲の誤りは「合わない」とする。読み方が違うので、別にする
-- RANK の範囲の誤り。Excel の答えを確かめられていない
+COUNT・COUNTIF(S) は誤りを数えず、COUNTA は数える（Excel と同じ。前から）。
 
 ## テスト（`tests/engine/test_rangeErrors.ts`）
 
