@@ -31,7 +31,7 @@ describe("parseNumericString — reads the formats the engine has always read", 
 
   // Text that only starts with a number is text, as Excel reads a typed cell (#140).
   it("returns null for text that only starts with a number", () => {
-    for (const text of ["12abc", "3.5kg", "2023-01", "5% off", "$5 each", "Tokyo, Japan", "1,2,3", "Infinity", "-$-1"]) {
+    for (const text of ["12abc", "3.5kg", "2023-01", "5% off", "$5 each", "Tokyo, Japan", "1,2,3", "Infinity", "-$-1", "1e999", "-1e999%"]) {
       assert.equal(parseNumericString(text), null, text);
     }
   });

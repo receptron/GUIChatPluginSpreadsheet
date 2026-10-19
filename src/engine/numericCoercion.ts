@@ -21,9 +21,11 @@ const GROUPED_NUMBER = /^[-+]?\d{1,3}(?:,\d{3})+(?:\.\d*)?$/;
 const PERCENTAGE = /^(.*?)\s*%$/;
 const CURRENCY = /^([-+]?)\$(.*)$/;
 
+const finiteOrNull = (num: number): number | null => (Number.isFinite(num) ? num : null);
+
 const wholeNumber = (text: string): number | null => {
-  if (PLAIN_NUMBER.test(text)) return Number(text);
-  return GROUPED_NUMBER.test(text) ? Number(text.replace(/,/g, "")) : null;
+  if (PLAIN_NUMBER.test(text)) return finiteOrNull(Number(text));
+  return GROUPED_NUMBER.test(text) ? finiteOrNull(Number(text.replace(/,/g, ""))) : null;
 };
 
 /**
