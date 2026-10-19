@@ -16,11 +16,16 @@ export interface SheetExtent {
 /** The extent of the sheet a reference names (`null` for the formula's own sheet), or null when there is no such sheet. */
 export type ExtentOf = (sheetName: string | null) => SheetExtent | null;
 
-// An optional sheet prefix (`Data!`, `'My Sheet'!`), then two column letters or two row
-// numbers joined by a colon. The lookbehind keeps `A1:B2` and `Data!A:A` from matching from
-// their middle; the lookahead keeps a function name or a longer token out.
+// An optional sheet prefix (`Data!`, `'My Sheet'!`), then two column letters or two row numbers
+// joined by a colon, standing alone as an operand: only what may sit beside an operand can touch
+// it, so a reference glued to another token (`A:B1`, `A:A:A`, `x.1:1`, `A:B(`) is left as written.
 const SHEET_PREFIX = String.raw`(?:'((?:[^']|'')+)'|([A-Za-z_][\w.]*))!`;
-const WHOLE_REFERENCE = new RegExp(String.raw`(?<![\w$.'!])(?:${SHEET_PREFIX})?(?:(\$?[A-Za-z]{1,3}):(\$?[A-Za-z]{1,3})|(\$?\d+):(\$?\d+))(?![\w.(!:])`, "g");
+const BEFORE_OPERAND = String.raw`[(,+\-*/^&=<>\s]`;
+const AFTER_OPERAND = String.raw`[),+\-*/^&=<>\s]`;
+const WHOLE_REFERENCE = new RegExp(
+  String.raw`(?<=^|${BEFORE_OPERAND})(?:${SHEET_PREFIX})?(?:(\$?[A-Za-z]{1,3}):(\$?[A-Za-z]{1,3})|(\$?\d+):(\$?\d+))(?=$|${AFTER_OPERAND})`,
+  "g",
+);
 
 const withoutAnchor = (part: string): string => part.replace("$", "").toUpperCase();
 

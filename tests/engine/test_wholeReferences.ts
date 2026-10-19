@@ -61,7 +61,9 @@ describe("boundWholeReferences", () => {
   });
 
   it("leaves a malformed reference as written, rather than reading part of it", () => {
-    ["SUM(A:B1)", "SUM(A1B:C)", "SUM(2:3A)", "SUM(x2:3)", "SUM(A:B(1))"].forEach((formula) => assert.equal(bound(formula), formula, formula));
+    ["SUM(A:B1)", "SUM(A1B:C)", "SUM(2:3A)", "SUM(x2:3)", "SUM(A:B(1))", "SUM(A:A:A)", "SUM(foo:A:A)", "SUM(1:1:2)", "SUM(x.1:1)"].forEach((formula) =>
+      assert.equal(bound(formula), formula, formula),
+    );
   });
 
   it("leaves the rest of the formula as written after a quote that never closes", () => {
@@ -134,12 +136,38 @@ const PLAIN_PIECES = [
   "TRUE",
 ];
 
+// Whole references on the formula's own sheet (3 rows, 4 columns), and how each is bounded.
+const BOUNDED: Record<string, string> = { "A:A": "A1:A3", "B:C": "B1:C3", "$D:$D": "D1:D3", "2:2": "A2:D2", "1:3": "A1:D3" };
+const WHOLE_TOKENS = Object.keys(BOUNDED);
+// Pieces that cannot form a whole reference with a neighbour, whatever joins them.
+const GLUE_SAFE_PIECES = ["A1", "B2", '"x"', "3.5", "LOG10(1)"];
+const SEPARATORS = ["+", ",", "&", " ", "*"];
+const GLUE = [":", ".", "#"];
+
 describe(`whole references over generated formulas (seed ${baseSeed})`, () => {
   it("leaves a formula without a whole reference exactly as written", () => {
     const random = seededRandom(baseSeed);
     Array.from({ length: GENERATED_CASES }).forEach(() => {
       const formula = Array.from({ length: 1 + Math.floor(random() * 8) }, () => pick(random, PLAIN_PIECES)).join("");
       assert.equal(bound(formula), formula, `seed ${baseSeed}: ${formula}`);
+    });
+  });
+
+  it("rewrites a whole reference exactly when it stands alone as an operand", () => {
+    const random = seededRandom(baseSeed + 2);
+    Array.from({ length: GENERATED_CASES }).forEach(() => {
+      const tokens = Array.from({ length: 1 + Math.floor(random() * 5) }, () => pick(random, [...WHOLE_TOKENS, ...GLUE_SAFE_PIECES]));
+      const joints = tokens.slice(1).map(() => pick(random, [...SEPARATORS, ...GLUE]));
+      const formula = `SUM(${tokens.map((token, index) => `${index > 0 ? joints[index - 1] : ""}${token}`).join("")})`;
+      const expected = `SUM(${tokens
+        .map((token, index) => {
+          const standsAlone =
+            (index === 0 || SEPARATORS.includes(joints[index - 1] ?? "")) && (index === tokens.length - 1 || SEPARATORS.includes(joints[index] ?? ""));
+          const written = standsAlone ? (BOUNDED[token] ?? token) : token;
+          return `${index > 0 ? joints[index - 1] : ""}${written}`;
+        })
+        .join("")})`;
+      assert.equal(bound(formula), expected, `seed ${baseSeed}: ${formula}`);
     });
   });
 
