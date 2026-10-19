@@ -17,6 +17,12 @@ describe("compareText", () => {
     assert.ok(compareText("a", "B") < 0);
   });
 
+  it("treats a composed and a decomposed accent as the same", () => {
+    assert.equal(compareText("é", "e\u0301"), 0);
+    assert.equal(compareText("É", "e\u0301"), 0);
+    assert.ok(compareText("e\u0301", "f") < 0);
+  });
+
   it("counts accents, after the base letters", () => {
     assert.ok(compareText("e", "é") < 0);
     assert.ok(compareText("é", "f") < 0);

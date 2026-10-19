@@ -124,19 +124,21 @@ const EXCEL_OPERATOR: Readonly<Record<ComparisonOperator, ExcelComparisonOperato
   "<": "<",
 };
 
-/** A blank cell reaches a condition as "", and Excel compares a blank as whatever the other side
- *  is: 0 beside a number, FALSE beside a boolean, "" beside text. Read as plain text instead, a
- *  blank would sort after every number (`blank > 5` TRUE). */
-function asBlankBeside(value: CellValue, other: CellValue): CellValue {
-  if (value !== "") return value;
+/** A side with nothing written on it (`>5`) is a blank, and Excel compares a blank as whatever
+ *  the other side is: 0 beside a number, FALSE beside a boolean, "" beside text. A blank CELL
+ *  arrives already read as 0, and a written or calculated "" is text, so neither is changed. */
+const blankBeside = (other: CellValue): CellValue => {
   if (typeof other === "number") return 0;
-  return typeof other === "boolean" ? false : value;
-}
+  return typeof other === "boolean" ? false : "";
+};
 
 /** Excel's comparison, the one the evaluator uses (textComparison.ts): numbers before text before
- *  booleans, text without regard to case. */
-function applyOperator(operator: ComparisonOperator, left: CellValue, right: CellValue): boolean {
-  return applyComparison(EXCEL_OPERATOR[operator], asBlankBeside(left, right), asBlankBeside(right, left));
+ *  booleans, text without regard to case. Each side is read by `read`. */
+function compareSides(comparison: Comparison, read: (operand: string) => CellValue): boolean {
+  const [left, right] = [read(comparison.left), read(comparison.right)];
+  const leftValue = comparison.left === "" ? blankBeside(right) : left;
+  const rightValue = comparison.right === "" ? blankBeside(left) : right;
+  return applyComparison(EXCEL_OPERATOR[comparison.operator], leftValue, rightValue);
 }
 
 /** Whether a resolved condition value counts as satisfied. Mirrors the
@@ -158,7 +160,7 @@ export function isTruthyCondition(raw: string): boolean {
 export function evaluateCondition(condition: string): boolean {
   const comparison = splitComparison(condition);
   if (!comparison) return isTruthyCondition(condition);
-  return applyOperator(comparison.operator, readOperand(comparison.left), readOperand(comparison.right));
+  return compareSides(comparison, readOperand);
 }
 
 /** Like `evaluateCondition`, but each operand is resolved by `evaluate` — so a
@@ -169,7 +171,7 @@ export function evaluateCondition(condition: string): boolean {
 export function evaluateConditionValues(condition: string, evaluate: (operand: string) => CellValue): boolean {
   const comparison = splitComparison(condition);
   if (!comparison) return valueIsTruthy(evaluate(stripOuterParens(condition)));
-  return applyOperator(comparison.operator, evaluate(comparison.left), evaluate(comparison.right));
+  return compareSides(comparison, evaluate);
 }
 
 /** Render a cell's value as an operand for a condition string. A string is

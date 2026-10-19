@@ -19,7 +19,7 @@ function isIgnorable(character: string): boolean {
   const code = character.codePointAt(0) ?? 0;
   return code <= LAST_C0_BEFORE_TAB || (code >= FIRST_C0_AFTER_CR && code <= LAST_C0) || code === DELETE;
 }
-const COMBINING_MARKS = /[̀-ͯ]/g;
+const COMBINING_MARK = /^[\u0300-\u036f]$/u;
 
 interface CollationKey {
   /** One weight per character: its base letter's place, accents and case removed. */
@@ -36,13 +36,20 @@ function characterWeight(base: string): number {
 }
 
 function collationKey(text: string): CollationKey {
-  // By code point, so a character outside the BMP is one character and not two halves.
-  const characters = Array.from(text).filter((character) => !isIgnorable(character));
-  const decomposed = characters.map((character) => character.normalize("NFD"));
-  return {
-    primary: decomposed.map((parts) => characterWeight(Array.from(parts.replace(COMBINING_MARKS, "").toLowerCase())[0] ?? parts)),
-    accents: decomposed.map((parts) => (parts.match(COMBINING_MARKS) ?? []).join("")),
-  };
+  // The whole text is decomposed first, so a composed é and an e followed by U+0301 are the same
+  // base letter and accent. Each base character then takes the combining marks after it.
+  const key: CollationKey = { primary: [], accents: [] };
+  Array.from(text.normalize("NFD"))
+    .filter((character) => !isIgnorable(character))
+    .forEach((character) => {
+      if (COMBINING_MARK.test(character) && key.accents.length > 0) {
+        key.accents[key.accents.length - 1] += character;
+        return;
+      }
+      key.primary.push(characterWeight(character.toLowerCase()));
+      key.accents.push("");
+    });
+  return key;
 }
 
 function compareSequences<T extends number | string>(left: readonly T[], right: readonly T[]): number {

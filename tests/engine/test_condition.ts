@@ -207,11 +207,19 @@ describe("evaluateCondition — comparisons", () => {
     assert.equal(evaluateCondition("1E9<FALSE"), true);
   });
 
-  it("compares a blank as whatever the other side is", () => {
+  it("compares a side with nothing written on it as a blank: whatever the other side is", () => {
     assert.equal(evaluateCondition("<1"), true, "blank is 0 beside a number");
     assert.equal(evaluateCondition("=0"), true);
     assert.equal(evaluateCondition("=FALSE"), true, "blank is FALSE beside a boolean");
     assert.equal(evaluateCondition('<"a"'), true, 'blank is "" beside text');
+    assert.equal(evaluateCondition("5>"), true, "on the right as well");
+  });
+
+  // A written "" is text, the same as in the evaluator: text sorts after every number.
+  it("compares a written empty text as text, not as a blank", () => {
+    assert.equal(evaluateCondition('""<1'), false);
+    assert.equal(evaluateCondition('""=0'), false);
+    assert.equal(evaluateCondition('""=FALSE'), false);
   });
 });
 
@@ -343,8 +351,19 @@ describe("IFS compares the way the rest of the engine does", () => {
     assert.equal(ifs("x", '=IFS(A1<>"X","y",TRUE,"n")'), "n");
   });
 
-  it("orders a number before text, and a blank like 0", () => {
+  it("orders a number before text, and a blank cell like 0", () => {
     assert.equal(ifs(5, '=IFS(A1<"a","y",TRUE,"n")'), "y");
     assert.equal(ifs("", '=IFS(A1<1,"y",TRUE,"n")'), "y");
+  });
+
+  it("compares a written empty text as text, as IF does", () => {
+    assert.equal(ifs(0, '=IFS(""<1,"y",TRUE,"n")'), "n");
+    assert.equal(ifs(0, '=IF(""<1,"y","n")'), "n");
+  });
+
+  // A cell whose formula answers "" is read as 0 by every reader of a cell (the engine's
+  // getRawValue), so IFS and IF agree on it too.
+  it("agrees with IF on a cell whose formula answers nothing", () => {
+    assert.equal(ifs('=""', '=IFS(A1<1,"y",TRUE,"n")'), ifs('=""', '=IF(A1<1,"y","n")'));
   });
 });
