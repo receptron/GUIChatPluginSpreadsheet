@@ -326,26 +326,26 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
     const values: CellValue[] = [];
     for (const { row, col } of coords) {
       const gridRow = row >= 0 ? sheetData[row] : undefined;
-      if (gridRow && col >= 0 && col < gridRow.length) {
-        const cell = gridRow[col];
-        // Pass the position only if current sheet (for recursive evaluation)
-        const rawValue = getRawValue(cell, isCurrentSheet ? { cells: gridRow, row, col } : undefined);
+      // A position past the end of a short row, or below the last row, is a blank cell. Skipping
+      // it would shorten a positional read, and every row after it would pair with the wrong one.
+      const cell = gridRow && col >= 0 ? gridRow[col] : undefined;
+      // Pass the position only if current sheet (for recursive evaluation)
+      const rawValue = getRawValue(cell, gridRow && isCurrentSheet ? { cells: gridRow, row, col } : undefined);
 
-        if (rangeOptions.numericOnly) {
-          // A blank cell is not a value. Dropping it from the NUMERIC list keeps
-          // SUM unchanged (a blank read as 0) while stopping it from inflating
-          // AVERAGE's denominator and COUNT's tally (#2358). The raw list keeps
-          // every cell so SUMIF/AVERAGEIF's criteria and value ranges stay
-          // row-aligned; dropping there would shift indexes and aggregate the
-          // wrong rows (Codex review).
-          if (!isEmptyCell(cell) && isRangeNumber(rawValue)) {
-            values.push(rawValue);
-          }
-        } else {
-          // A calculated error has no `v`, so isEmptyCell would call it blank; it is a value.
-          const isBlank = isEmptyCell(cell) && !isSpreadsheetErrorValue(cell);
-          values.push(rangeOptions.keepBlanks && isBlank ? "" : rawValue);
+      if (rangeOptions.numericOnly) {
+        // A blank cell is not a value. Dropping it from the NUMERIC list keeps
+        // SUM unchanged (a blank read as 0) while stopping it from inflating
+        // AVERAGE's denominator and COUNT's tally (#2358). The raw list keeps
+        // every cell so SUMIF/AVERAGEIF's criteria and value ranges stay
+        // row-aligned; dropping there would shift indexes and aggregate the
+        // wrong rows (Codex review).
+        if (!isEmptyCell(cell) && isRangeNumber(rawValue)) {
+          values.push(rawValue);
         }
+      } else {
+        // A calculated error has no `v`, so isEmptyCell would call it blank; it is a value.
+        const isBlank = isEmptyCell(cell) && !isSpreadsheetErrorValue(cell);
+        values.push(rangeOptions.keepBlanks && isBlank ? "" : rawValue);
       }
     }
     return values;
