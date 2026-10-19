@@ -61,10 +61,10 @@ describe("argument rules", () => {
     assert.deepEqual(valuesOf(["=STANDARDIZE(1,0,0)", "=STANDARDIZE(1,0,-1)"]), ["#NUM!", "#NUM!"]);
   });
 
-  it("answers #N/A for an x outside the data and #NUM! for fewer than one digit", () => {
+  it("answers #N/A for an x outside the data, and #NUM! for no data or fewer than one digit", () => {
     assert.deepEqual(
       valuesOf(["=PERCENTRANK.INC(A1:A3,0)", "=PERCENTRANK.INC(A1:A3,4)", "=PERCENTRANK.INC(A1:A3,2,0)", "=PERCENTRANK.INC(A5:A6,1)"], [1, 2, 3]),
-      ["#N/A", "#N/A", "#NUM!", "#N/A"],
+      ["#N/A", "#N/A", "#NUM!", "#NUM!"],
     );
   });
 
