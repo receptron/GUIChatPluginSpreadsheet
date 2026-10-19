@@ -1,9 +1,6 @@
 /**
- * Excel date and time format codes for the TEXT function.
- *
- * Separate from `formatter.formatDate`, which renders CELL display formats with
- * case-sensitive tokens of its own (`mm` is always minutes there): reading those
- * the Excel way would change how stored workbooks display.
+ * Excel date and time format codes, read as Excel reads them. Used by the TEXT
+ * function and by a cell's display format.
  */
 
 import { serialToDate, MONTH_NAMES_SHORT, MONTH_NAMES_FULL, DAY_NAMES_SHORT, DAY_NAMES_FULL, type NameList } from "./date-utils";
@@ -23,16 +20,16 @@ const INITIAL_WIDTH = 5;
 interface Scan {
   tokens: DateToken[];
   index: number;
-  hasDigitPlaceholder: boolean;
+  declined: boolean;
 }
 
 // `[h]` elapsed time and `[$-409]` locale codes are not rendered.
 const UNSUPPORTED_CHARACTER = "[";
 // An unquoted `0` or `#` makes it a number code (`0.00 d`, `$#,##0 USD`), whose
-// letters are text; that also declines fractional seconds (`ss.0`).
-const DIGIT_PLACEHOLDERS = "0#";
-// Between an hour and `m`, or `m` and a second, Excel allows a separator only.
-const SEPARATOR = /^[^\p{L}\p{N}]$/u;
+// letters are text; that also declines fractional seconds (`ss.0`). An unquoted
+// Latin letter that is no date part (`Standard`, the era codes `e`, `g`, `b`) is
+// not a code this reads either.
+const DECLINED_CHARACTER = /^[0#A-Za-z]$/;
 
 const runLength = (pattern: string, start: number, letter: string): number => {
   const rest = Array.from(pattern.slice(start).toLowerCase());
@@ -71,21 +68,20 @@ const readLiteral = (pattern: string, scan: Scan): number => {
     scan.tokens.push({ kind: "literal", text: pattern[scan.index + 1] ?? "" });
     return scan.index + 2;
   }
-  if (DIGIT_PLACEHOLDERS.includes(char)) scan.hasDigitPlaceholder = true;
+  if (DECLINED_CHARACTER.test(char)) scan.declined = true;
   scan.tokens.push({ kind: "literal", text: char });
   return scan.index + 1;
 };
 
-const isSeparator = (token: DateToken): boolean => token.kind === "literal" && SEPARATOR.test(token.text);
-
-/** The nearest token from `start` stepping by `step`, past separators only. */
+/** The nearest date or time part from `start` stepping by `step`, past any text. */
 const neighbour = (tokens: DateToken[], start: number, step: number): DateToken | undefined => {
   const rest = step < 0 ? tokens.slice(0, start + 1).reverse() : tokens.slice(start);
-  return rest.find((token) => !isSeparator(token));
+  return rest.find((token) => token.kind !== "literal");
 };
 
-// Excel reads `m` / `mm` as minutes right after an hour or right before a second;
-// anywhere else it is the month.
+// Excel reads `m` / `mm` as minutes when the part before it is an hour or the
+// part after it a second, whatever text stands between: its own Japanese time
+// format `h"時"mm"分"` shows minutes. Anywhere else it is the month.
 const resolveMinutes = (tokens: DateToken[]): DateToken[] =>
   tokens.map((token, index) => {
     if (token.kind !== "month" || token.width > 2) return token;
@@ -100,9 +96,9 @@ const resolveMinutes = (tokens: DateToken[]): DateToken[] =>
  */
 export const parseDatePattern = (pattern: string): DateToken[] | null => {
   if (pattern.includes(UNSUPPORTED_CHARACTER)) return null;
-  const scan: Scan = { tokens: [], index: 0, hasDigitPlaceholder: false };
+  const scan: Scan = { tokens: [], index: 0, declined: false };
   while (scan.index < pattern.length) readToken(pattern, scan);
-  if (scan.hasDigitPlaceholder) return null;
+  if (scan.declined) return null;
   const tokens = resolveMinutes(scan.tokens);
   return tokens.some((token) => token.kind !== "literal") ? tokens : null;
 };

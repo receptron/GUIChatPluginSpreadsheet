@@ -5,6 +5,7 @@
  */
 
 import { serialToDate, MONTH_NAMES_SHORT, MONTH_NAMES_FULL, DAY_NAMES_SHORT, DAY_NAMES_FULL } from "./date-utils";
+import { parseDatePattern, renderDatePattern } from "./textDateFormat";
 
 /**
  * Check if a format code is for dates
@@ -78,6 +79,14 @@ function formatDate(serial: number, format: string): string {
   return format.replace(DATE_TOKEN_RE, (token) => replacements[token] ?? token);
 }
 
+/** A date code read the way Excel reads it (any letter case, `m` as minutes beside
+ *  an hour or a second), as TEXT does. A code that reader declines (`[h]:mm`, one
+ *  carrying `0` or `#`) keeps the case-sensitive reading it always displayed with. */
+function formatExcelDate(serial: number, format: string): string {
+  const tokens = parseDatePattern(format);
+  return tokens ? renderDatePattern(serial, tokens) : formatDate(serial, format);
+}
+
 const THOUSANDS_GROUP_SIZE = 3;
 
 /**
@@ -119,7 +128,7 @@ export function formatNumber(value: number, format: string): string {
   try {
     // Check if it's a date format
     if (isDateFormat(format)) {
-      return formatDate(value, format);
+      return formatExcelDate(value, format);
     }
 
     // Handle currency formats

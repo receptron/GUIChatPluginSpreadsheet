@@ -47,8 +47,10 @@ describe("TEXT date codes — each part", () => {
     assert.equal(text(JAN_15_2025, "mmm"), "Jan");
   });
 
-  it("reads m as the month when text, not a separator, stands between it and the hour", () => {
-    assert.equal(text(JAN_15_2025 + SIX_PM, 'h"h"m'), "18h1");
+  it('reads m as minutes past text between it and the hour, as Excel\'s own h"時"mm"分" does', () => {
+    assert.equal(text(JAN_15_2025 + SIX_PM + 5 / 1440, 'h"時"mm"分"'), "18時05分");
+    assert.equal(text(JAN_15_2025 + SIX_PM + 5 / 1440, "h時mm分ss秒"), "18時05分00秒");
+    assert.equal(text(JAN_15_2025, 'yyyy"年"m"月"d"日"'), "2025年1月15日");
   });
 
   it("uses the 12-hour clock only with AM/PM", () => {
@@ -72,7 +74,9 @@ describe("TEXT date codes — each part", () => {
 
 describe("TEXT date codes — what is not a date code", () => {
   it("leaves a code with no date part to the number formats", () => {
-    ["0.00", "#,##0", "$#,##0.00", "0%", "General", '"yyyy"'].forEach((pattern) => assert.equal(parseDatePattern(pattern), null, pattern));
+    ["0.00", "#,##0", "$#,##0.00", "0%", "General", '"yyyy"', "Standard", "ge.m.d"].forEach((pattern) =>
+      assert.equal(parseDatePattern(pattern), null, pattern),
+    );
   });
 
   it("leaves a number code with letters in its text to the number formats", () => {

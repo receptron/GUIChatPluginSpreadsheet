@@ -69,6 +69,27 @@ describe("formatNumber — time formats", () => {
   });
 });
 
+describe("formatNumber — date codes read the way Excel reads them", () => {
+  // Lowercase codes used to come out as "yyyy-00-dd" and "m/d/yyyy": the cell
+  // display read only uppercase years and days, and took `mm` for minutes always.
+  it("reads lowercase codes", () => {
+    assert.equal(formatNumber(MAR_4_2025, "yyyy-mm-dd"), "2025-03-04");
+    assert.equal(formatNumber(MAR_4_2025, "m/d/yyyy"), "3/4/2025");
+    assert.equal(formatNumber(MAR_4_2025, "mmm d, yyyy"), "Mar 4, 2025");
+    assert.equal(formatNumber(MAR_4_2025, 'yyyy"年"m"月"d"日"'), "2025年3月4日");
+  });
+
+  it("reads M beside an hour as minutes, as Excel does", () => {
+    assert.equal(formatNumber(serialOf(2025, 3, 4, 9, 5), "HH:MM"), "09:05");
+    assert.equal(formatNumber(serialOf(2025, 3, 4, 9, 5), 'h"時"mm"分"'), "9時05分");
+  });
+
+  it("keeps the old reading for a code the Excel reader declines", () => {
+    assert.equal(formatNumber(serialOf(2025, 3, 4, 13, 45), "[h]:mm"), "[13]:45");
+    assert.equal(formatNumber(MAR_4_2025, "Standard"), "Standard");
+  });
+});
+
 describe("formatNumber — currency", () => {
   it("renders a currency amount with separators and decimals", () => {
     assert.equal(formatNumber(1234.5, "$#,##0.00"), "$1,234.50");
