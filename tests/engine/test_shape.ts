@@ -7,17 +7,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { geometricMean, harmonicMean, kurtosis, percentRank, skewness } from "../../src/engine/functions/shape-math.ts";
-import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
-import { cellAt } from "./cellAccess.ts";
+import { valuesOf as valuesOfColumns } from "./formulaColumns.ts";
 import { seededRandom } from "./seededRandom.ts";
 
 /** Each formula's value, with `column` down column A and the formulas down column B. */
-function valuesOf(formulas: string[], column: (number | string)[] = []): unknown[] {
-  const height = Math.max(formulas.length, column.length);
-  const data = Array.from({ length: height }, (_, row) => [{ v: column[row] ?? "" }, { v: formulas[row] ?? "" }]);
-  const grid = new SpreadsheetEngine().calculate({ name: "S", data } satisfies SheetData).data;
-  return formulas.map((_, row) => cellAt(grid, row, 1));
-}
+const valuesOf = (formulas: string[], column: (number | string)[] = []): unknown[] => valuesOfColumns(formulas, [column]);
 
 const roundedTo = (digits: number, value: unknown): number => Number(Number(value).toFixed(digits));
 

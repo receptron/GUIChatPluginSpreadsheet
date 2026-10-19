@@ -16,6 +16,8 @@ const ALIASES: Readonly<Record<string, string>> = {
   "RANK.EQ": "RANK",
   TTEST: "T.TEST",
   PERCENTRANK: "PERCENTRANK.INC",
+  FORECAST: "FORECAST.LINEAR",
+  PEARSON: "CORREL",
 };
 
 Object.entries(ALIASES).forEach(([alias, name]) => {
