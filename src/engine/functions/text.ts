@@ -2,7 +2,7 @@
  * Text Functions
  */
 
-import { functionRegistry, requiredArg, toString, type FunctionHandler } from "../registry";
+import { functionRegistry, requiredArg, toString, type FunctionContext, type FunctionHandler } from "../registry";
 import { VALUE_ERROR, isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
 import { formatWithPattern } from "../textFormat";
 
@@ -62,11 +62,16 @@ export const substituteText = (text: string, oldText: string, newText: string, i
   return replaceNthOccurrence(text, oldText, newText, nth);
 };
 
+/** An argument as text. A reference to a blank cell is "", as Excel reads it in a text function,
+ *  where evaluating the reference reads it as 0. */
+const textOf = (context: FunctionContext, arg: string): string => (context.isBlankReference?.(arg) ? "" : toString(context.evaluateFormula(arg)));
+
+const textArg = (context: FunctionContext, args: string[], index: number): string => textOf(context, requiredArg(context, args, index));
+
 const concatenateHandler: FunctionHandler = (args, context) => {
   return args
     .map((arg) => {
-      const value = context.evaluateFormula(arg.trim());
-      return toString(value);
+      return textOf(context, arg.trim());
     })
     .join("");
 };
@@ -74,14 +79,14 @@ const concatenateHandler: FunctionHandler = (args, context) => {
 const concatHandler: FunctionHandler = concatenateHandler; // Alias
 
 const leftHandler: FunctionHandler = (args, context) => {
-  const text = toString(context.evaluateFormula(requiredArg(context, args, 0)));
+  const text = textArg(context, args, 0);
   const numChars = args.length === 2 ? Number(context.evaluateFormula(requiredArg(context, args, 1))) : 1;
 
   return takeLeft(text, numChars);
 };
 
 const rightHandler: FunctionHandler = (args, context) => {
-  const text = toString(context.evaluateFormula(requiredArg(context, args, 0)));
+  const text = textArg(context, args, 0);
   const numChars = args.length === 2 ? Number(context.evaluateFormula(requiredArg(context, args, 1))) : 1;
 
   return takeRight(text, numChars);
@@ -100,7 +105,7 @@ export const takeMid = (text: string, start: number, count: number): string | Sp
 };
 
 const midHandler: FunctionHandler = (args, context) => {
-  const text = toString(context.evaluateFormula(requiredArg(context, args, 0)));
+  const text = textArg(context, args, 0);
   const start = Number(context.evaluateFormula(requiredArg(context, args, 1)));
   const numChars = Number(context.evaluateFormula(requiredArg(context, args, 2)));
 
@@ -108,45 +113,45 @@ const midHandler: FunctionHandler = (args, context) => {
 };
 
 const lenHandler: FunctionHandler = (args, context) => {
-  const text = toString(context.evaluateFormula(requiredArg(context, args, 0)));
+  const text = textArg(context, args, 0);
   return text.length;
 };
 
 const upperHandler: FunctionHandler = (args, context) => {
-  const text = toString(context.evaluateFormula(requiredArg(context, args, 0)));
+  const text = textArg(context, args, 0);
   return text.toUpperCase();
 };
 
 const lowerHandler: FunctionHandler = (args, context) => {
-  const text = toString(context.evaluateFormula(requiredArg(context, args, 0)));
+  const text = textArg(context, args, 0);
   return text.toLowerCase();
 };
 
 const properHandler: FunctionHandler = (args, context) => {
-  const text = toString(context.evaluateFormula(requiredArg(context, args, 0)));
+  const text = textArg(context, args, 0);
   return toProperCase(text);
 };
 
 const trimHandler: FunctionHandler = (args, context) => {
-  const text = toString(context.evaluateFormula(requiredArg(context, args, 0)));
+  const text = textArg(context, args, 0);
   // Trim leading/trailing spaces and replace multiple spaces with single space
   return text.trim().replace(/\s+/g, " ");
 };
 
 const substituteHandler: FunctionHandler = (args, context) => {
-  const text = toString(context.evaluateFormula(requiredArg(context, args, 0)));
-  const oldText = toString(context.evaluateFormula(requiredArg(context, args, 1)));
-  const newText = toString(context.evaluateFormula(requiredArg(context, args, 2)));
+  const text = textArg(context, args, 0);
+  const oldText = textArg(context, args, 1);
+  const newText = textArg(context, args, 2);
   const instance = args.length === 4 ? Number(context.evaluateFormula(requiredArg(context, args, 3))) : undefined;
 
   return substituteText(text, oldText, newText, instance);
 };
 
 const replaceHandler: FunctionHandler = (args, context) => {
-  const oldText = toString(context.evaluateFormula(requiredArg(context, args, 0)));
+  const oldText = textArg(context, args, 0);
   const startPos = Number(context.evaluateFormula(requiredArg(context, args, 1))) - 1; // 1-indexed to 0-indexed
   const numChars = Number(context.evaluateFormula(requiredArg(context, args, 2)));
-  const newText = toString(context.evaluateFormula(requiredArg(context, args, 3)));
+  const newText = textArg(context, args, 3);
 
   return oldText.substring(0, startPos) + newText + oldText.substring(startPos + numChars);
 };
@@ -164,8 +169,8 @@ export const locateSubstring = (find: string, within: string, start: number, opt
 const makeLocateHandler =
   (caseInsensitive: boolean): FunctionHandler =>
   (args, context) => {
-    const findText = toString(context.evaluateFormula(requiredArg(context, args, 0)));
-    const withinText = toString(context.evaluateFormula(requiredArg(context, args, 1)));
+    const findText = textArg(context, args, 0);
+    const withinText = textArg(context, args, 1);
     const startPos = args.length === 3 ? Number(context.evaluateFormula(requiredArg(context, args, 2))) - 1 : 0;
 
     return locateSubstring(findText, withinText, startPos, { caseInsensitive });
@@ -221,8 +226,8 @@ const valueHandler: FunctionHandler = (args, context) => {
 };
 
 const exactHandler: FunctionHandler = (args, context) => {
-  const text1 = toString(context.evaluateFormula(requiredArg(context, args, 0)));
-  const text2 = toString(context.evaluateFormula(requiredArg(context, args, 1)));
+  const text1 = textArg(context, args, 0);
+  const text2 = textArg(context, args, 1);
 
   return text1 === text2;
 };

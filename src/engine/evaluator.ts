@@ -18,6 +18,7 @@ import { standsAloneInConcat } from "./concatOperand";
 import { stripOuterParens } from "./condition";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
+import { withBlankSides } from "./blankOperands";
 
 /**
  * Evaluation context for formulas
@@ -288,6 +289,25 @@ function comparisonOperandValue(operand: string): CellValue | null {
 
 const isCellValue = (value: CellValue | null): value is CellValue => value !== null;
 
+/** For each side of a top-level comparison, whether it is nothing but a reference to a blank
+ *  cell. Read before the substitution, which reads a blank as 0; null without a comparison. */
+function blankComparisonSides(expr: string, context: EvaluatorContext): boolean[] | null {
+  const comparison = splitTopLevelComparisons(expr);
+  const isCellEmpty = context.isCellEmpty;
+  if (!comparison || !isCellEmpty) return null;
+  return comparison.operands.map((operand) => {
+    const ref = loneReference(operand);
+    return ref !== null && isCellEmpty(ref);
+  });
+}
+
+/** The reference an operand is, perhaps in brackets, or null when it is anything more. */
+export function loneReference(operand: string): string | null {
+  const inner = stripOuterParens(operand).trim();
+  const [only, ...rest] = findCellRefs(inner);
+  return only && rest.length === 0 && only.start === 0 && only.ref.length === inner.length ? only.ref : null;
+}
+
 /**
  * Evaluate a formula string
  *
@@ -366,6 +386,10 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
         getRangeValuesKeepingBlanks: context.getRangeValuesKeepingBlanks,
         countFilledCells: context.countFilledCells,
         evaluateFormula: context.evaluateFormula,
+        isBlankReference: (arg) => {
+          const ref = loneReference(arg);
+          return ref !== null && context.isCellEmpty?.(ref) === true;
+        },
         preferDDMMYYYY: context.preferDDMMYYYY,
       });
     }
@@ -475,6 +499,7 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
   }
 
   const expressionWithRefs = expr;
+  const blankSides = blankComparisonSides(expressionWithRefs, context);
   expr = substituteCellRefs(expr, cellRefs, (ref, start) => {
     if (standsAloneInConcat(expressionWithRefs, start, start + ref.length) && context.isCellEmpty?.(ref)) return '""';
     const value = context.getCellValue(ref);
@@ -506,7 +531,8 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
   const comparison = splitTopLevelComparisons(expr);
   if (comparison) {
     const values = comparison.operands.map(comparisonOperandValue);
-    if (values.every(isCellValue)) return foldComparisons(values, comparison.operators);
+    const sidesMatch = blankSides?.length === values.length;
+    if (values.every(isCellValue)) return foldComparisons(sidesMatch ? withBlankSides(values, blankSides) : values, comparison.operators);
   }
 
   const joined = evaluateConcat(expr);
