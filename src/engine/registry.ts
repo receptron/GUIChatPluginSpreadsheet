@@ -215,9 +215,9 @@ export function parseCriteria(criteria: string, preferDDMMYYYY = false): (value:
 }
 
 /** The number a criteria compares against: a date's serial (cells hold dates as serials), else
- *  what `parseFloat` reads — which took only the `1` of `1/2/2020`. */
+ *  the number the text holds, read the way a cell's is (`"5%"` is 0.05, `"1,200"` is 1200). */
 function criteriaNumber(text: string, preferDDMMYYYY: boolean): number {
-  return parseDate(text, preferDDMMYYYY) ?? parseFloat(text);
+  return parseDate(text, preferDDMMYYYY) ?? parseNumericString(text) ?? NaN;
 }
 
 /** A value matches when its text matches the criteria (case-insensitively, with
@@ -238,5 +238,8 @@ function matchesTextOrNumber(criteria: string, preferDDMMYYYY: boolean): (value:
  *  built with `&` matched nothing and the function answered a silent 0. */
 export function criteriaArg(context: FunctionContext, args: string[], index: number): ((value: CellValue) => boolean) | SpreadsheetError {
   const criteria = context.evaluateFormula(requiredArg(context, args, index));
-  return isSpreadsheetErrorValue(criteria) ? criteria : parseCriteria(String(criteria), context.preferDDMMYYYY);
+  if (isSpreadsheetErrorValue(criteria)) return criteria;
+  // A logical criteria matches logical cells only, not the text "TRUE".
+  if (typeof criteria === "boolean") return (value) => value === criteria;
+  return parseCriteria(String(criteria), context.preferDDMMYYYY);
 }

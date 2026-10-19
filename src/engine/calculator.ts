@@ -340,7 +340,9 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
             values.push(rawValue);
           }
         } else {
-          values.push(rangeOptions.keepBlanks && isEmptyCell(cell) ? "" : rawValue);
+          // A calculated error has no `v`, so isEmptyCell would call it blank; it is a value.
+          const isBlank = isEmptyCell(cell) && !isSpreadsheetErrorValue(cell);
+          values.push(rangeOptions.keepBlanks && isBlank ? "" : rawValue);
         }
       }
     }

@@ -53,6 +53,26 @@ describe("criteria compare numbers with numbers", () => {
   });
 });
 
+describe("criteria read like the cells they compare", () => {
+  it("a formatted number in a criteria is that number", () => {
+    assert.equal(evaluate('COUNTIF(A1:A3,">=5%")', [0.04, 0.05, 0.5]), 2);
+    assert.equal(evaluate('COUNTIF(A1:A3,"=1,200")', [1, 1200, 12]), 1);
+  });
+
+  it("a logical criteria matches logical cells, not the text TRUE", () => {
+    assert.equal(evaluate("COUNTIF(A1:A3,TRUE())", [true, "TRUE", false]), 1);
+    assert.equal(evaluate("COUNTIF(A1:A3,1=1)", [true, "TRUE", false]), 1);
+  });
+});
+
+describe("a calculated error in a range is a value, not a blank", () => {
+  it("COUNTA counts an error read from another sheet", () => {
+    const summary: SheetData = { name: "S", data: [[{ v: "=COUNTA(T!A1:A2)" }]] };
+    const source: SheetData = { name: "T", data: [[{ v: "=1/0" }], [{ v: 5 }]] };
+    assert.equal(cellAt(new SpreadsheetEngine().calculate(summary, [summary, source]).data, 0, 0), 2);
+  });
+});
+
 describe("AVERAGEIF averages only the numbers it matched", () => {
   it("skips a blank or text value in the average range", () => {
     assert.equal(evaluate('AVERAGEIF(A1:A4,"=1",B1:B4)', [1, 1, 1, 1], [10, "x", "", 20]), 15);
