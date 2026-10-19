@@ -1,0 +1,101 @@
+// Rounding a decimal the way it is written, not the way binary stores it.
+// 1.005 is 1.00499999999999989... in a double, so ROUND(1.005, 2) came back 1
+// where Excel answers 1.01, and FLOOR(0.3, 0.1) came back 0.2. The generated
+// half checks ROUND / ROUNDUP / ROUNDDOWN against exact integer arithmetic on
+// the decimal digits; ROUNDING_SEED=<seed> replays a run.
+
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { ceilingToSignificance, floorToSignificance, power, roundDownTo, roundTo, roundUpTo } from "../../src/engine/math-ops.ts";
+import { DIV_ZERO_ERROR, NUM_ERROR } from "../../src/engine/spreadsheet-errors.ts";
+import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
+import { cellAt } from "./cellAccess.ts";
+
+describe("rounding works on the written decimal", () => {
+  it("ROUND breaks a written half away from zero", () => {
+    assert.equal(roundTo(1.005, 2), 1.01);
+    assert.equal(roundTo(-1.005, 2), -1.01);
+    assert.equal(roundTo(0.285, 2), 0.29);
+    assert.equal(roundTo(1.255, 2), 1.26);
+  });
+
+  it("ROUNDDOWN and ROUNDUP keep digits that are already exact", () => {
+    assert.equal(roundDownTo(523.685, 3), 523.685);
+    assert.equal(roundDownTo(-523.685, 3), -523.685);
+    assert.equal(roundUpTo(0.1 + 0.2, 1), 0.3);
+  });
+
+  it("TRUNC keeps exact digits too", () => {
+    const sheet: SheetData = { name: "S", data: [[{ v: "=TRUNC(-523.685, 3)" }]] };
+    assert.equal(cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 0), -523.685);
+  });
+
+  it("FLOOR and CEILING land on the multiple the significance names", () => {
+    assert.equal(floorToSignificance(0.3, 0.1), 0.3);
+    assert.equal(ceilingToSignificance(0.7, 0.1), 0.7);
+    assert.equal(floorToSignificance(1.58, 0.1), 1.5);
+  });
+});
+
+describe("POWER outside its range is an error, not a number", () => {
+  it("0 to a negative power divides by zero", () => {
+    assert.equal(power(0, -1), DIV_ZERO_ERROR);
+  });
+
+  it("0 to the power 0 is #NUM!", () => {
+    assert.equal(power(0, 0), NUM_ERROR);
+  });
+
+  it("a result too large for a number is #NUM!, not Infinity", () => {
+    assert.equal(power(10, 400), NUM_ERROR);
+  });
+});
+
+const ROUNDS = 2000;
+const MAX_MANTISSA = 1_000_000_000;
+const MAX_DECIMALS = 6;
+const SEED = Number(process.env.ROUNDING_SEED ?? Date.now() % 1_000_000);
+
+const random = (() => {
+  let state = SEED;
+  return (): number => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return state / 2147483648;
+  };
+})();
+const randomInt = (below: number): number => Math.floor(random() * below);
+
+type Direction = "half" | "up" | "down";
+
+/** `mantissa / 10^decimals` rounded to `digits` decimals, exactly, as the integer count of
+ *  10^-digits units. Half and up go away from zero; down goes toward it. */
+const exactUnits = (mantissa: bigint, decimals: number, digits: number, direction: Direction): bigint => {
+  const dropped = decimals - digits;
+  if (dropped <= 0) return mantissa * 10n ** BigInt(-dropped);
+  const divisor = 10n ** BigInt(dropped);
+  const magnitude = mantissa < 0n ? -mantissa : mantissa;
+  const kept = magnitude / divisor;
+  const rest = magnitude % divisor;
+  const roundsAway = direction === "up" ? rest > 0n : direction === "half" ? rest * 2n >= divisor : false;
+  const units = roundsAway ? kept + 1n : kept;
+  return mantissa < 0n ? -units : units;
+};
+
+const DIRECTIONS: Direction[] = ["half", "up", "down"];
+const ROUNDERS: Record<Direction, (value: number, digits: number) => number> = { half: roundTo, up: roundUpTo, down: roundDownTo };
+
+describe(`rounding over generated decimals (ROUNDING_SEED=${SEED})`, () => {
+  it("ROUND, ROUNDUP and ROUNDDOWN agree with exact decimal arithmetic", () => {
+    const failures = Array.from({ length: ROUNDS }, () => {
+      const mantissa = BigInt(randomInt(2 * MAX_MANTISSA) - MAX_MANTISSA);
+      const decimals = randomInt(MAX_DECIMALS + 1);
+      const digits = randomInt(decimals + 1);
+      const direction = DIRECTIONS[randomInt(DIRECTIONS.length)] ?? "half";
+      const value = Number(mantissa) / 10 ** decimals;
+      const expected = Number(exactUnits(mantissa, decimals, digits, direction)) / 10 ** digits;
+      const got = ROUNDERS[direction](value, digits);
+      return got === expected ? [] : [`${direction}(${value}, ${digits}) gave ${got}, expected ${expected}`];
+    }).flat();
+    assert.deepEqual(failures.slice(0, 5), [], `seed ${SEED}: ${failures.length} disagreements`);
+  });
+});
