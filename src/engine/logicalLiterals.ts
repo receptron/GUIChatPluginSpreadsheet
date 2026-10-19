@@ -4,10 +4,12 @@
  * read alike. A function call (`TRUE()`), a sheet name (`TRUE!A1`) and text in quotes are left.
  */
 
+import { NAME_CHARACTER } from "./sheetReference";
+
 // A double-quoted literal ("" inside it, or a \ escape) or a single-quoted sheet name, each kept as written.
 const QUOTED = /("(?:[^"\\]|\\.|"")*"?|'(?:[^']|'')*'?)/;
 // The word alone: not part of a longer name or a reference, not a call and not a sheet prefix.
-const LOGICAL_WORD = /(?<![\w$.!])(TRUE|FALSE)(?![\w$.]|\s*[(!])/gi;
+const LOGICAL_WORD = new RegExp(String.raw`(?<!${NAME_CHARACTER}|[$.!])(TRUE|FALSE)(?!${NAME_CHARACTER}|[$.]|\s*[(!])`, "giu");
 
 export function logicalLiteralsAsBooleans(formula: string): string {
   return formula

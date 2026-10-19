@@ -23,6 +23,16 @@ describe("an unquoted sheet name outside A-Z and digits (#136)", () => {
     assert.deepEqual(calculated("基準", ["=見当たらない!B1", "=Missing!B1"]).map(String), ["#REF!", "#REF!"]);
   });
 
+  it("reads a whole column of that sheet, as a cell of it is read", () => {
+    assert.deepEqual(calculated("基準", ["=SUM(基準!B:C)"]), [45936]);
+    assert.deepEqual(calculated("Sheet_1", ["=COUNT(Sheet_1!B:B)"]), [1]);
+  });
+
+  it("reads a name that begins with TRUE or FALSE as a sheet, not as a logical value", () => {
+    assert.deepEqual(calculated("TRUEデータ", ["=TRUEデータ!B1", "=FALSE集計!B1"]).map(String), ["45929", "#REF!"]);
+  });
+
+  // Guards, not regressions: these already worked and must keep working.
   it("still reads a quoted name and a name starting with a digit only when quoted", () => {
     assert.deepEqual(calculated("2024年", ["='2024年'!B1"]), [45929]);
   });
