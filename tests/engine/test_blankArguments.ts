@@ -45,6 +45,10 @@ describe("a blank cell", () => {
     assert.deepEqual(valuesOf(["=A1=0", "=A1<1", "=A1=FALSE", '=A1>"a"', '=""=A1', '=(A1)=""', '=A1<>""']), [true, true, true, false, true, true, false]);
   });
 
+  it("is a {} cell as well", () => {
+    assert.deepEqual(valuesOf(["=A4=0", '=A4=""', "=LEN(A4)", '=CONCATENATE(A4,"x")', "=A4=A1"]), [true, true, 0, "x", true]);
+  });
+
   it("compares equal to another blank cell", () => {
     assert.deepEqual(valuesOf(["=A1=A1", "=A1<>A1"]), [true, false]);
   });
