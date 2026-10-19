@@ -9,7 +9,7 @@ import { evaluateFormula as evaluateFormulaFn } from "./evaluator";
 import { expandRangeOrCell, parseSingleCellRef } from "./formulaRefs";
 import { parseDate, getDefaultDateFormat } from "./date-parser";
 import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaInfo, SpreadsheetCell, CalculateOptions } from "./types";
-import { isObj } from "./guards";
+import { isObj, isRecord } from "./guards";
 import { isBlankCell, isEmptyCell } from "./cellEmpty";
 import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
@@ -318,10 +318,15 @@ export function calculateSheet(sheet: SheetData, allSheets?: SheetData[], option
   };
 
   /** Whether a reference names a cell that holds nothing — outside the grid included. A formula
-   *  cell is not empty until it has been calculated; if it answers "", it then reads as empty. */
+   *  cell is judged by what it answers, calculated here if it has not been yet: judged by its
+   *  source it read as not empty only until it was calculated, so the answer depended on order. */
   const isCellEmpty = (ref: string): boolean => {
     const located = locateCell(ref);
-    return located === null || isBlankCell(located.cell);
+    if (located === null) return true;
+    const { cell, position } = located;
+    const source = isRecord(cell) ? cell["v"] : undefined;
+    const isFormula = typeof source === "string" && source.startsWith("=");
+    return isBlankCell(isFormula ? getRawValue(cell, position) : cell);
   };
 
   const collectRangeValues = (range: string, rangeOptions: { numericOnly: boolean }): CellValue[] => {

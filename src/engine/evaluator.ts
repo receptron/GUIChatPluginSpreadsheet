@@ -470,7 +470,7 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
 
   const expressionWithRefs = expr;
   expr = substituteCellRefs(expr, cellRefs, (ref, start) => {
-    if (context.isCellEmpty?.(ref) && standsAloneInConcat(expressionWithRefs, start, start + ref.length)) return '""';
+    if (standsAloneInConcat(expressionWithRefs, start, start + ref.length) && context.isCellEmpty?.(ref)) return '""';
     const value = context.getCellValue(ref);
     // A referenced cell holding an error poisons the whole expression:
     // rendering it would produce `"#DIV/0!"+1` garbage, so propagate the error
