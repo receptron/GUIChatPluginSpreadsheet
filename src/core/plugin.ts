@@ -11,7 +11,7 @@ import { TOOL_DEFINITION, SYSTEM_PROMPT } from "./definition";
 import { artifactsFileOps, executeSpreadsheetDispatch, isSpreadsheetDispatchArgs } from "./dispatch";
 import { spreadsheetArtifactPath } from "./paths";
 import { loadCustomFunctions } from "../engine/customFunctions";
-import { calculationErrors, calculationErrorsNote } from "./calculationErrors";
+import { calculationErrors, calculationErrorsNote, ERROR_SAMPLES } from "./calculationErrors";
 
 // Re-export for convenience
 export { TOOL_NAME, TOOL_DEFINITION, SYSTEM_PROMPT } from "./definition";
@@ -54,7 +54,10 @@ async function workbookNotes(sheets: SpreadsheetSheet[]): Promise<string> {
     const problems =
       functions.problems.length === 0
         ? ""
-        : ` These functions could not be used and calls to them show #NAME?: ${functions.problems.map(({ name, reason }) => `${name} (${reason})`).join("; ")}.`;
+        : ` These functions could not be used and calls to them show #NAME?: ${functions.problems
+            .slice(0, ERROR_SAMPLES)
+            .map(({ name, reason }) => `${name} (${reason})`)
+            .join("; ")}.`;
     return problems + calculationErrorsNote(calculationErrors(sheets, functions));
   } finally {
     functions.dispose();

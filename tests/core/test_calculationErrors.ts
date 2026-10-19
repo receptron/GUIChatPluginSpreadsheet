@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { calculationErrors, calculationErrorsNote, ERROR_SAMPLES } from "../../src/core/calculationErrors.js";
+import { calculationErrors, calculationErrorsNote, ERROR_SAMPLES, FORMULA_QUOTE_LIMIT } from "../../src/core/calculationErrors.js";
 import { calculatedRange } from "../../src/core/rangeValues.js";
 import { executeSpreadsheet } from "../../src/core/plugin.js";
 import { loadCustomFunctions } from "../../src/engine/customFunctions.js";
@@ -31,8 +31,15 @@ describe("calculationErrors", () => {
     assert.deepEqual(result.samples, ["S!B1 = #DIV/0! (=1/A1)", "S!B2 = #N/A (=VLOOKUP(9,A1:A2,1,FALSE))"]);
   });
 
-  it("does not count text that merely spells an error", () => {
-    assert.equal(calculationErrors([sheet([["#N/A", "#DIV/0!"]])]).count, 0);
+  it("does not count text that merely spells an error, typed or returned by a formula", () => {
+    assert.equal(calculationErrors([sheet([["#N/A", "#DIV/0!", '="#N/A"', '=IF(1>0,"#VALUE!","")']])]).count, 0);
+  });
+
+  it("quotes a long formula only in part", () => {
+    const long = `=1/(${"0+".repeat(100)}0)`;
+    const [sample] = calculationErrors([sheet([[long]])]).samples;
+    assert.ok(sample !== undefined && sample.length < long.length);
+    assert.match(sample, new RegExp(`\\(=1/\\(0\\+.{${FORMULA_QUOTE_LIMIT - 6}}…\\)$`));
   });
 
   it("names at most a few and counts the rest", () => {

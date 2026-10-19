@@ -54,7 +54,14 @@ let quickJSVariant: Promise<QuickJSSyncVariant> | null = null;
  *  is unusable: shared, it would take every later workbook's functions with it. Instantiating one is
  *  a few milliseconds; only the code is loaded once, and only when a workbook has functions. */
 const newQuickJSModule = async (): Promise<QuickJSWASMModule> => {
-  quickJSVariant ??= import("@jitl/quickjs-singlefile-mjs-release-sync").then((variant) => variant.default);
+  // A failed import is not kept: the next workbook with functions tries again.
+  quickJSVariant ??= import("@jitl/quickjs-singlefile-mjs-release-sync").then(
+    (variant) => variant.default,
+    (error: unknown) => {
+      quickJSVariant = null;
+      throw error;
+    },
+  );
   return newQuickJSWASMModuleFromVariant(await quickJSVariant);
 };
 
