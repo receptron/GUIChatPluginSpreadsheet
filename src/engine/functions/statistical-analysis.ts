@@ -5,7 +5,7 @@
  */
 
 import { blankAwareRangeReader, criteriaArg, functionRegistry, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
-import { answeringArgumentErrors, collectNumericValues } from "./statistical";
+import { collectNumbersOrError, collectNumericValues, overNumbers } from "./statistical";
 import {
   correlation,
   intercept,
@@ -36,7 +36,9 @@ const scalarArg = (args: string[], context: FunctionContext, index: number): num
 /** `(known_y, known_x)` read raw, so the two ranges stay paired by position. */
 const pairsFrom = (args: string[], context: FunctionContext): NumericPairs | SpreadsheetError => {
   const readRaw = blankAwareRangeReader(context);
-  return numericPairs(readRaw(requiredArg(context, args, 0)), readRaw(requiredArg(context, args, 1)));
+  const [yValues, xValues] = [readRaw(requiredArg(context, args, 0)), readRaw(requiredArg(context, args, 1))];
+  // The first error in either range is the answer; the pairing alone would skip it.
+  return [...yValues, ...xValues].find(isSpreadsheetErrorValue) ?? numericPairs(yValues, xValues);
 };
 
 const pairedHandler =
@@ -50,8 +52,10 @@ const pairedHandler =
 const rankedHandler =
   (rule: (values: number[], k: number) => number | SpreadsheetError): FunctionHandler =>
   (args, context) => {
+    const values = collectNumbersOrError([requiredArg(context, args, 0)], context);
+    if (!Array.isArray(values)) return values;
     const k = scalarArg(args, context, 1);
-    return typeof k === "number" ? rule(collectNumericValues([requiredArg(context, args, 0)], context), k) : k;
+    return typeof k === "number" ? rule(values, k) : k;
   };
 
 const rankHandler: FunctionHandler = (args, context) => {
@@ -116,7 +120,7 @@ interface AnalysisFunction {
 const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   {
     name: "CORREL",
-    handler: answeringArgumentErrors(pairedHandler(correlation)),
+    handler: pairedHandler(correlation),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the correlation coefficient of two ranges",
@@ -124,7 +128,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "SLOPE",
-    handler: answeringArgumentErrors(pairedHandler(slope)),
+    handler: pairedHandler(slope),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the slope of the least-squares line through known_y and known_x",
@@ -132,7 +136,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "INTERCEPT",
-    handler: answeringArgumentErrors(pairedHandler(intercept)),
+    handler: pairedHandler(intercept),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns where the least-squares line crosses the y axis",
@@ -140,7 +144,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "RSQ",
-    handler: answeringArgumentErrors(pairedHandler(rSquared)),
+    handler: pairedHandler(rSquared),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the square of the correlation coefficient",
@@ -148,7 +152,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "PERCENTILE",
-    handler: answeringArgumentErrors(rankedHandler(percentileInclusive)),
+    handler: rankedHandler(percentileInclusive),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the k-th percentile (k from 0 to 1), interpolated like PERCENTILE.INC",
@@ -156,7 +160,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "QUARTILE",
-    handler: answeringArgumentErrors(rankedHandler(quartileInclusive)),
+    handler: rankedHandler(quartileInclusive),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns a quartile (0 to 4), interpolated like QUARTILE.INC",
@@ -164,7 +168,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "LARGE",
-    handler: answeringArgumentErrors(rankedHandler(kthLargest)),
+    handler: rankedHandler(kthLargest),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the k-th largest value",
@@ -172,7 +176,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "SMALL",
-    handler: answeringArgumentErrors(rankedHandler(kthSmallest)),
+    handler: rankedHandler(kthSmallest),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the k-th smallest value",
@@ -188,7 +192,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "STDEVP",
-    handler: answeringArgumentErrors((args, context) => populationStdev(collectNumericValues(args, context))),
+    handler: overNumbers(populationStdev),
     minArgs: 1,
     maxArgs: MAX_AGGREGATE_ARGS,
     description: "Returns the population standard deviation",
@@ -196,7 +200,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "VARP",
-    handler: answeringArgumentErrors((args, context) => populationVariance(collectNumericValues(args, context))),
+    handler: overNumbers(populationVariance),
     minArgs: 1,
     maxArgs: MAX_AGGREGATE_ARGS,
     description: "Returns the population variance",

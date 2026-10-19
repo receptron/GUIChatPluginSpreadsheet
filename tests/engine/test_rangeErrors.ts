@@ -69,33 +69,46 @@ describe("an error in an aggregate's arguments", () => {
   });
 });
 
-/** A context over fixed ranges whose evaluator answers 1, 2, 3, … on successive calls, as a
- *  volatile function would, and counts the calls. */
-function sequentialContext(name: string): { context: FunctionContext; calls: () => number } {
-  const state = { calls: 0 };
+/** A context whose evaluator answers 1, 2, 3, … on successive calls, as a volatile function would,
+ *  and whose range readers each answer [10, 20]; it counts both. */
+function countingContext(name: string): { context: FunctionContext; calls: { evaluations: number; rangeReads: number } } {
+  const calls = { evaluations: 0, rangeReads: 0 };
   const evaluateFormula = (): number => {
-    state.calls += 1;
-    return state.calls;
+    calls.evaluations += 1;
+    return calls.evaluations;
   };
-  const range = (): number[] => [10, 20];
-  return { context: { functionName: name, getCellValue: () => 0, getRangeValues: range, getRangeValuesRaw: range, evaluateFormula }, calls: () => state.calls };
+  const range = (): number[] => {
+    calls.rangeReads += 1;
+    return [10, 20];
+  };
+  const context: FunctionContext = {
+    functionName: name,
+    getCellValue: () => 0,
+    getRangeValues: range,
+    getRangeValuesRaw: range,
+    getRangeValuesKeepingBlanks: range,
+    evaluateFormula,
+  };
+  return { context, calls };
 }
 
-describe("looking for an error first", () => {
-  it("evaluates each argument occurrence once, repeated text included", () => {
-    const cases: [string, string[], unknown, number][] = [
-      ["SUM", ["X()", "X()"], 3, 2],
-      ["SUM", ["X()", "A1:A2", "X()"], 33, 2],
-      ["AVERAGE", ["X()", "X()", "X()"], 2, 3],
-      ["MAX", ["X()", "X()"], 2, 2],
-      ["LARGE", ["A1:A2", "X()"], 20, 1],
+describe("reading an aggregate's arguments", () => {
+  it("evaluates each argument and reads each range once, repeated text included", () => {
+    const cases: [string, string[], unknown, { evaluations: number; rangeReads: number }][] = [
+      ["SUM", ["X()", "X()"], 3, { evaluations: 2, rangeReads: 0 }],
+      ["SUM", ["X()", "A1:A2", "X()"], 33, { evaluations: 2, rangeReads: 1 }],
+      ["AVERAGE", ["X()", "X()", "X()"], 2, { evaluations: 3, rangeReads: 0 }],
+      ["MAX", ["A1:A2", "B1:B2"], 20, { evaluations: 0, rangeReads: 2 }],
+      ["STDEVP", ["A1:A2"], 5, { evaluations: 0, rangeReads: 1 }],
+      ["LARGE", ["A1:A2", "X()"], 20, { evaluations: 1, rangeReads: 1 }],
+      ["CORREL", ["A1:A2", "B1:B2"], 1, { evaluations: 0, rangeReads: 2 }],
     ];
     cases.forEach(([name, args, expected, expectedCalls]) => {
       const definition = functionRegistry.get(name);
       assert.ok(definition, name);
-      const { context, calls } = sequentialContext(name);
+      const { context, calls } = countingContext(name);
       assert.equal(definition.handler(args, context), expected, `${name}(${args.join(",")})`);
-      assert.equal(calls(), expectedCalls, `${name}(${args.join(",")}) calls`);
+      assert.deepEqual(calls, expectedCalls, `${name}(${args.join(",")})`);
     });
   });
 });

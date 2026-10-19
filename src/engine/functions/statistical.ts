@@ -5,7 +5,6 @@
 import {
   functionRegistry,
   blankAwareRangeReader,
-  rawRangeReader,
   requiredArg,
   toNumber,
   criteriaArg,
@@ -15,7 +14,7 @@ import {
 } from "../registry";
 import { computeAverage, computeMedian, computeMode, sampleStdev, sampleVariance } from "./statistical-math";
 import { DIV_ZERO_ERROR, isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
-import { holdsNumber } from "../numericCoercion";
+import { holdsNumber, isRangeNumber } from "../numericCoercion";
 import type { CellValue } from "../types";
 
 // Excel accepts up to 255 arguments for its aggregate functions.
@@ -69,40 +68,23 @@ const collectArgumentValues = (args: string[], context: FunctionContext, readRan
   return collected;
 };
 
-/** The first error among the arguments, in argument order: an error cell in a range, or an
- *  argument that evaluated to one. The numeric reads skip it, but Excel's aggregates answer it. */
-export const firstArgumentError = (args: string[], context: FunctionContext): SpreadsheetError | undefined =>
-  collectArgumentValues(args, context, rawRangeReader(context))
-    .map(({ value }) => value)
-    .find(isSpreadsheetErrorValue);
+/** The numbers an aggregate reads from its arguments, or the first error among them in argument
+ *  order — an error cell in a range, or an argument that evaluated to one — read in one pass, so
+ *  no argument is read or evaluated twice. A range keeps only the cells that hold a number, as the
+ *  numeric read does; a host without the blank-aware read gets the numeric read, without errors. */
+export const collectNumbersOrError = (args: string[], context: FunctionContext): number[] | SpreadsheetError => {
+  const collected = collectArgumentValues(args, context, context.getRangeValuesKeepingBlanks ?? context.getRangeValues);
+  const firstError = collected.map(({ value }) => value).find(isSpreadsheetErrorValue);
+  if (firstError) return firstError;
+  return collected.filter(({ value, isScalar }) => isScalar || isRangeNumber(value)).map(({ value }) => toNumber(value));
+};
 
-/** Two views of one context: the first records each evaluation, the second answers the n-th
- *  evaluation of a formula with the n-th one recorded. Both passes evaluate the arguments in
- *  argument order, so every occurrence is evaluated once, and `SUM(X,X)` still evaluates X twice. */
-function recordingThenReplaying(context: FunctionContext): { recording: FunctionContext; replaying: FunctionContext } {
-  const recorded = new Map<string, CellValue[]>();
-  const replayedCount = new Map<string, number>();
-  const record = (formula: string): CellValue => {
-    const value = context.evaluateFormula(formula);
-    recorded.set(formula, [...(recorded.get(formula) ?? []), value]);
-    return value;
-  };
-  const replay = (formula: string): CellValue => {
-    const occurrence = replayedCount.get(formula) ?? 0;
-    replayedCount.set(formula, occurrence + 1);
-    const known = recorded.get(formula)?.[occurrence];
-    return known !== undefined ? known : context.evaluateFormula(formula);
-  };
-  return { recording: { ...context, evaluateFormula: record }, replaying: { ...context, evaluateFormula: replay } };
-}
-
-/** The handler, answering the first error in its arguments before it computes anything. The
- *  computation replays the values the search evaluated, so no argument is evaluated twice. */
-export const answeringArgumentErrors =
-  (handler: FunctionHandler): FunctionHandler =>
+/** The handler's rule over the numbers of its arguments, or the first error among them. */
+export const overNumbers =
+  (rule: (values: number[]) => CellValue): FunctionHandler =>
   (args, context) => {
-    const { recording, replaying } = recordingThenReplaying(context);
-    return firstArgumentError(args, recording) ?? handler(args, replaying);
+    const values = collectNumbersOrError(args, context);
+    return Array.isArray(values) ? rule(values) : values;
   };
 
 export const collectNumericValues = (args: string[], context: FunctionContext): number[] =>
@@ -113,23 +95,14 @@ export const collectNumericValues = (args: string[], context: FunctionContext): 
 const collectRawValues = (args: string[], context: FunctionContext): CellValue[] =>
   collectArgumentValues(args, context, blankAwareRangeReader(context)).map(({ value }) => value);
 
-const sumHandler: FunctionHandler = (args, context) => {
-  const values = collectNumericValues(args, context);
-  return values.reduce((sum: number, value) => sum + value, 0);
-};
+const sumHandler = overNumbers((values) => values.reduce((sum, value) => sum + value, 0));
 
 // Multi-argument collection (#2360) feeding the empty-range error rule (#2501).
-const averageHandler: FunctionHandler = (args, context) => computeAverage(collectNumericValues(args, context));
+const averageHandler = overNumbers(computeAverage);
 
-const maxHandler: FunctionHandler = (args, context) => {
-  const values = collectNumericValues(args, context);
-  return values.length > 0 ? Math.max(...values) : 0;
-};
+const maxHandler = overNumbers((values) => (values.length > 0 ? Math.max(...values) : 0));
 
-const minHandler: FunctionHandler = (args, context) => {
-  const values = collectNumericValues(args, context);
-  return values.length > 0 ? Math.min(...values) : 0;
-};
+const minHandler = overNumbers((values) => (values.length > 0 ? Math.min(...values) : 0));
 
 // COUNT counts NUMBERS, so it cannot go through the lenient numeric collection
 // the other aggregates share: `toNumber("text")` is 0, which made COUNT("text")
@@ -139,19 +112,13 @@ const countsAsNumber = ({ value, isScalar }: ArgumentValue): boolean => !isScala
 
 const countHandler: FunctionHandler = (args, context) => collectArgumentValues(args, context, context.getRangeValues).filter(countsAsNumber).length;
 
-const medianHandler: FunctionHandler = (args, context) => computeMedian(collectNumericValues(args, context));
+const medianHandler = overNumbers(computeMedian);
 
-const modeHandler: FunctionHandler = (args, context) => {
-  return computeMode(collectNumericValues(args, context));
-};
+const modeHandler = overNumbers(computeMode);
 
-const stdevHandler: FunctionHandler = (args, context) => {
-  return sampleStdev(collectNumericValues(args, context));
-};
+const stdevHandler = overNumbers(sampleStdev);
 
-const varHandler: FunctionHandler = (args, context) => {
-  return sampleVariance(collectNumericValues(args, context));
-};
+const varHandler = overNumbers(sampleVariance);
 
 const isFilledValue = (value: CellValue): boolean => value !== null && value !== undefined && value !== "";
 
@@ -221,7 +188,7 @@ const averageifHandler: FunctionHandler = (args, context) => {
 // Register all statistical functions
 functionRegistry.register({
   name: "SUM",
-  handler: answeringArgumentErrors(sumHandler),
+  handler: sumHandler,
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the sum of all numbers in a range",
@@ -231,7 +198,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "AVERAGE",
-  handler: answeringArgumentErrors(averageHandler),
+  handler: averageHandler,
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the average (arithmetic mean) of numbers in a range",
@@ -241,7 +208,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "MAX",
-  handler: answeringArgumentErrors(maxHandler),
+  handler: maxHandler,
   minArgs: 1,
   description: "Returns the largest value in a range",
   examples: ["MAX(A1:A10)", "MAX(B2:B20)"],
@@ -250,7 +217,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "MIN",
-  handler: answeringArgumentErrors(minHandler),
+  handler: minHandler,
   minArgs: 1,
   description: "Returns the smallest value in a range",
   examples: ["MIN(A1:A10)", "MIN(B2:B20)"],
@@ -269,7 +236,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "MEDIAN",
-  handler: answeringArgumentErrors(medianHandler),
+  handler: medianHandler,
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the median (middle) value in a range",
@@ -279,7 +246,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "MODE",
-  handler: answeringArgumentErrors(modeHandler),
+  handler: modeHandler,
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the most frequently occurring value in a range",
@@ -289,7 +256,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "STDEV",
-  handler: answeringArgumentErrors(stdevHandler),
+  handler: stdevHandler,
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the standard deviation of numbers in a range",
@@ -299,7 +266,7 @@ functionRegistry.register({
 
 functionRegistry.register({
   name: "VAR",
-  handler: answeringArgumentErrors(varHandler),
+  handler: varHandler,
   minArgs: 1,
   maxArgs: MAX_AGGREGATE_ARGS,
   description: "Returns the variance of numbers in a range",
