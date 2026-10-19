@@ -14,23 +14,48 @@ const DECIMAL_BASE = 10;
 
 const scale = (digits: number): number => Math.pow(DECIMAL_BASE, digits);
 
+// Excel works to 15 significant digits. A product like 1.005 * 100 is
+// 100.49999999999999 in binary, which rounds the wrong way unless it is first
+// read back at that precision, as 100.5.
+const EXCEL_SIGNIFICANT_DIGITS = 15;
+const atExcelPrecision = (value: number): number => Number(value.toPrecision(EXCEL_SIGNIFICANT_DIGITS));
+
+/** Round |value| at `digits` decimals with `step` (round, ceil or floor), keeping the sign.
+ *  A value that is already a whole number of those units, or too large to scale, has
+ *  nothing to round: it is returned as it is, so an exact integer above 15 digits keeps
+ *  its digits and 1e300 at 20 decimals does not overflow to Infinity. */
+const roundMagnitude = (value: number, digits: number, step: (scaled: number) => number): number => {
+  // So many negative digits that 10^digits underflows: every finite value is nearer 0 than one unit.
+  if (scale(digits) === 0) return 0;
+  const scaled = Math.abs(value) * scale(digits);
+  if (!Number.isFinite(scaled) || (Number.isInteger(scaled) && scaled !== 0)) return value;
+  return (Math.sign(value) * step(atExcelPrecision(scaled))) / scale(digits);
+};
+
+/** The multiple of `significance` that `step` picks for `value`. When `value` is already a
+ *  multiple, or the quotient overflows, it is returned unchanged for the same reason. */
+const toMultiple = (value: number, significance: number, step: (quotient: number) => number): number => {
+  const quotient = value / significance;
+  if (!Number.isFinite(quotient) || Number.isInteger(quotient)) return value;
+  return atExcelPrecision(step(atExcelPrecision(quotient)) * significance);
+};
+
 /** Excel ROUND: half away from zero (JS `Math.round` breaks half toward +∞, so
  *  `ROUND(-2.5, 0)` came back -2 instead of -3). */
 export function roundTo(value: number, digits: number): number {
-  const factor = scale(digits);
-  return (Math.sign(value) * Math.round(Math.abs(value) * factor)) / factor;
+  return roundMagnitude(value, digits, Math.round);
 }
 
 /** Excel ROUNDUP: away from zero. */
-export function roundUpTo(value: number, digits: number): number {
-  const factor = scale(digits);
-  return (Math.sign(value) * Math.ceil(Math.abs(value) * factor)) / factor;
+export function roundUpTo(value: number, digits: number): number | SpreadsheetError {
+  // Away from zero, one such unit is 10^-digits, past the largest number there is.
+  if (scale(digits) === 0 && value !== 0) return NUM_ERROR;
+  return roundMagnitude(value, digits, Math.ceil);
 }
 
 /** Excel ROUNDDOWN: toward zero. */
 export function roundDownTo(value: number, digits: number): number {
-  const factor = scale(digits);
-  return (Math.sign(value) * Math.floor(Math.abs(value) * factor)) / factor;
+  return roundMagnitude(value, digits, Math.floor);
 }
 
 /** Whether `value` and `significance` point the same way; opposite signs are the
@@ -43,7 +68,7 @@ const sameSign = (value: number, significance: number): boolean => value === 0 |
 export function floorToSignificance(value: number, significance: number): number | SpreadsheetError {
   if (significance === 0) return DIV_ZERO_ERROR;
   if (!sameSign(value, significance)) return NUM_ERROR;
-  return Math.floor(value / significance) * significance;
+  return toMultiple(value, significance, Math.floor);
 }
 
 /** Excel CEILING: nearest multiple of `significance` away from zero; opposite
@@ -52,7 +77,7 @@ export function floorToSignificance(value: number, significance: number): number
 export function ceilingToSignificance(value: number, significance: number): number | SpreadsheetError {
   if (significance === 0) return 0;
   if (!sameSign(value, significance)) return NUM_ERROR;
-  return Math.ceil(value / significance) * significance;
+  return toMultiple(value, significance, Math.ceil);
 }
 
 /** Excel MOD: result takes the divisor's sign (`MOD(-3, 2) === 1`); dividing by
@@ -63,10 +88,15 @@ export function modulo(value: number, divisor: number): number | SpreadsheetErro
 }
 
 /** Excel POWER: a negative base with a non-integer exponent has no real root, so
- *  it is #NUM! rather than JS's NaN. */
+ *  it is #NUM! rather than JS's NaN. 0 to a negative power divides by zero
+ *  (#DIV/0!), 0^0 is #NUM!, and a result too large for a number is #NUM! where
+ *  JS answers Infinity. */
 export function power(base: number, exponent: number): number | SpreadsheetError {
   if (base < 0 && !Number.isInteger(exponent)) return NUM_ERROR;
-  return Math.pow(base, exponent);
+  if (base === 0 && exponent < 0) return DIV_ZERO_ERROR;
+  if (base === 0 && exponent === 0) return NUM_ERROR;
+  const result = Math.pow(base, exponent);
+  return Number.isFinite(result) ? result : NUM_ERROR;
 }
 
 /** Natural log guarded to its domain: `LN(x)` for `x <= 0` is #NUM!, not

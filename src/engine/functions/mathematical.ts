@@ -79,8 +79,7 @@ const intHandler: FunctionHandler = (args, context) => {
 const truncHandler: FunctionHandler = (args, context) => {
   const number = toNumber(context.evaluateFormula(requiredArg(context, args, 0)));
   const digits = args.length === 2 ? toNumber(context.evaluateFormula(requiredArg(context, args, 1))) : 0;
-  const multiplier = Math.pow(10, digits);
-  return Math.trunc(number * multiplier) / multiplier;
+  return roundDownTo(number, digits);
 };
 
 const signHandler: FunctionHandler = (args, context) => {
