@@ -12,6 +12,7 @@ import { contentVersion, isStaleBase } from "../../src/core/contentVersion.js";
 import { executeSpreadsheetDispatch, isSpreadsheetDispatchArgs } from "../../src/core/dispatch.js";
 import { readLoadReply, readSaveReply } from "../../src/core/dispatchReplies.js";
 import type { SpreadsheetFileData, SpreadsheetSheet } from "../../src/core/types.js";
+import { seededRandom } from "../engine/seededRandom.ts";
 
 const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
 
@@ -187,17 +188,6 @@ describe("readLoadReply and readSaveReply", () => {
     );
   });
 });
-
-/** mulberry32: a small seeded generator so a failing run can be replayed. */
-function seededRandom(seed: number): () => number {
-  const state = { value: seed >>> 0 };
-  return () => {
-    state.value = (state.value + 0x6d2b79f5) >>> 0;
-    const mixed = Math.imul(state.value ^ (state.value >>> 15), 1 | state.value);
-    const scrambled = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed;
-    return ((scrambled ^ (scrambled >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 const MAX_PAUSE_TURNS = 4;
 const STEPS_PER_VIEW = 6;

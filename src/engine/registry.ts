@@ -109,9 +109,10 @@ export const functionRegistry = new FunctionRegistry();
  *  registered or not (an unknown one reports #NAME?). A name with digits is only
  *  when registered: LOG10 is also shaped like a cell reference, so `A1(2)` is not. */
 /** A function name as a formula spells it: letters and digits, with `.`-joined
- *  parts for the names current Excel uses (`PERCENTILE.INC`, `STDEV.S`). Used as
- *  a regex SOURCE by every place that looks for a call. */
-export const FUNCTION_NAME_SOURCE = "[A-Z][A-Z0-9]*(?:\\.[A-Z][A-Z0-9]*)*";
+ *  parts for the names current Excel uses (`PERCENTILE.INC`, `STDEV.S`). A part may
+ *  start with a digit (`T.DIST.2T`). Used as a regex SOURCE by every place that
+ *  looks for a call. */
+export const FUNCTION_NAME_SOURCE = "[A-Z][A-Z0-9]*(?:\\.[A-Z0-9]+)*";
 
 export const isCallableName = (name: string): boolean => /^[A-Z]+(?:\.[A-Z]+)*$/i.test(name) || functionRegistry.hasFunction(name);
 

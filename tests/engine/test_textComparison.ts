@@ -17,6 +17,7 @@ import {
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import type { CellValue } from "../../src/engine/types.ts";
 import { cellAt } from "./cellAccess.ts";
+import { seededRandom, pick, type Random } from "./seededRandom.ts";
 
 describe("splitTopLevelComparisons", () => {
   it("splits on each of Excel's six operators, two-character ones first", () => {
@@ -108,20 +109,6 @@ describe("applyComparison and foldComparisons", () => {
     assert.equal(foldComparisons(["x"], []), "x");
   });
 });
-
-/** mulberry32: a small seeded generator so a failing case can be replayed. */
-function seededRandom(seed: number): () => number {
-  const state = { value: seed >>> 0 };
-  return () => {
-    state.value = (state.value + 0x6d2b79f5) >>> 0;
-    const mixed = Math.imul(state.value ^ (state.value >>> 15), 1 | state.value);
-    const scrambled = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed;
-    return ((scrambled ^ (scrambled >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-type Random = () => number;
-const pick = <T>(random: Random, items: readonly T[]): T => items[Math.floor(random() * items.length)];
 
 const TEXTS = ["", "a", "A", "ab", "Ab", "b", "B", "x", "12", "1", "TRUE", "true", "z9", "Z9"];
 const randomValue = (random: Random): string | number | boolean => {
