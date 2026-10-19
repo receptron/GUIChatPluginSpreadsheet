@@ -56,7 +56,7 @@ export const TOOL_DEFINITION: ToolDefinition = {
             functions: {
               type: "array",
               description:
-                "Optional. Functions this workbook defines, for an analysis no built-in function does (a moving average, a custom score). A formula on any sheet calls one by name, e.g. =MOVING.AVG(B2:B100, 7), and it recalculates like any formula. Each is a JavaScript function body run in a sandbox with no network, files, DOM or timers, at most 50 ms per call. A range argument arrives as rows of cells (an array of arrays; a blank cell is null); a single cell and any other argument as its value. Whole columns (A:A) are not supported; give a range such as A2:A500. Return a number, text or true/false; anything else, a thrown error or a time-out shows as an error in the cell.",
+                "Optional. Functions this workbook defines, for an analysis no built-in function does (a moving average, a custom score). A formula on any sheet calls one by name, e.g. =MOVING.AVG(B2:B100, 7), and it recalculates like any formula. Each is a JavaScript function body run in a sandbox with no network, files, DOM or timers, at most 50 ms per call. A range argument arrives as rows of cells (an array of arrays; a blank cell is null); a single cell and any other argument as its value. A whole column (A:A) arrives as the rows its sheet's data reaches. Return a number, text or true/false; anything else, a thrown error or a time-out shows as an error in the cell.",
               items: {
                 type: "object",
                 properties: {
