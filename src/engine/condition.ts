@@ -10,6 +10,7 @@
 import type { CellValue } from "./types";
 import { isSpreadsheetErrorValue } from "./spreadsheet-errors";
 import { applyComparison, type ExcelComparisonOperator } from "./textComparison";
+import { blankBeside } from "./blankOperands";
 
 export type ComparisonOperator = ">=" | "<=" | "<>" | "!=" | "==" | "=" | ">" | "<";
 
@@ -124,16 +125,9 @@ const EXCEL_OPERATOR: Readonly<Record<ComparisonOperator, ExcelComparisonOperato
   "<": "<",
 };
 
-/** A side with nothing written on it (`>5`) is a blank, and Excel compares a blank as whatever
- *  the other side is: 0 beside a number, FALSE beside a boolean, "" beside text. A blank CELL
- *  arrives already read as 0, and a written or calculated "" is text, so neither is changed. */
-const blankBeside = (other: CellValue): CellValue => {
-  if (typeof other === "number") return 0;
-  return typeof other === "boolean" ? false : "";
-};
-
 /** Excel's comparison, the one the evaluator uses (textComparison.ts): numbers before text before
- *  booleans, text without regard to case. Each side is read by `read`. */
+ *  booleans, text without regard to case. Each side is read by `read`; a side with nothing written
+ *  on it (`>5`) is a blank and compares as `blankBeside` the other. */
 function compareSides(comparison: Comparison, read: (operand: string) => CellValue): boolean {
   const [left, right] = [read(comparison.left), read(comparison.right)];
   const leftValue = comparison.left === "" ? blankBeside(right) : left;
