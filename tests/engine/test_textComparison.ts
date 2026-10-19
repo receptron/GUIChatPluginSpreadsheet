@@ -78,6 +78,13 @@ describe("compareCellValues", () => {
     assert.ok(compareCellValues("", "a") < 0);
   });
 
+  it("orders text by language, not by character code", () => {
+    assert.ok(compareCellValues("_", "1") < 0, "punctuation before digits");
+    assert.ok(compareCellValues("e", "é") < 0 && compareCellValues("é", "f") < 0, "é between e and f");
+    assert.notEqual(compareCellValues("é", "e"), 0, "accents count");
+    assert.equal(compareCellValues("É", "é"), 0, "case does not");
+  });
+
   it("never finds a number equal to its own text", () => {
     assert.notEqual(compareCellValues(12, "12"), 0);
     assert.notEqual(compareCellValues(true, "TRUE"), 0);
@@ -212,6 +219,15 @@ describe("comparisons through the engine", () => {
     assert.equal(calc("=D1>FALSE"), true);
   });
 
+  it("reads a side wrapped in brackets", () => {
+    assert.equal(calc('=("a")="a"'), true);
+    assert.equal(calc("=('a')='A'"), true);
+    assert.equal(calc('=(("x"))=C1'), true);
+    assert.equal(calc('=(C1)="X"'), true);
+    assert.equal(calc('="a"<("b")'), true);
+    assert.equal(typeof calc('=("a"="a"'), "string", "unbalanced brackets are not read");
+  });
+
   it("reads a chain left to right", () => {
     assert.equal(calc('="a"="a"=TRUE'), true);
     assert.equal(calc('=C1="y"=FALSE'), true);
@@ -293,11 +309,17 @@ function writtenAtom(random: Random, allowBooleanWord: boolean): WrittenOperand 
   return { text: flag ? "TRUE" : "FALSE", value: flag };
 }
 
-function writtenOperand(random: Random): WrittenOperand {
+function unwrappedOperand(random: Random): WrittenOperand {
   if (random() < 0.6) return writtenAtom(random, true);
   const first = writtenAtom(random, false);
   const second = writtenAtom(random, false);
   return { text: `${first.text}&${second.text}`, value: asJoinedText(first.value) + asJoinedText(second.value) };
+}
+
+// Brackets that wrap a whole side change nothing, so a side is sometimes written in them.
+function writtenOperand(random: Random): WrittenOperand {
+  const operand = unwrappedOperand(random);
+  return random() < 0.3 ? { ...operand, text: `(${operand.text})` } : operand;
 }
 
 describe("engine comparisons over generated operands", () => {

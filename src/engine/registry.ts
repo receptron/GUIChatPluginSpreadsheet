@@ -80,17 +80,39 @@ export interface FunctionDefinition {
 
 class FunctionRegistry {
   private functions = new Map<string, FunctionDefinition>();
+  // A workbook's own functions, visible only while that workbook is being calculated. The
+  // registry is one for the whole app, and two open workbooks must not see each other's.
+  private overlay: ReadonlyMap<string, FunctionDefinition> | null = null;
 
   register(def: FunctionDefinition): void {
     this.functions.set(def.name.toUpperCase(), def);
   }
 
   get(name: string): FunctionDefinition | undefined {
-    return this.functions.get(name.toUpperCase());
+    const key = name.toUpperCase();
+    return this.functions.get(key) ?? this.overlay?.get(key);
   }
 
   hasFunction(name: string): boolean {
+    const key = name.toUpperCase();
+    return this.functions.has(key) || (this.overlay?.has(key) ?? false);
+  }
+
+  /** Whether `name` is one of the engine's own functions, which a workbook may not redefine. */
+  isBuiltIn(name: string): boolean {
     return this.functions.has(name.toUpperCase());
+  }
+
+  /** Run `calculate` with `functions` (keyed by upper-case name) visible as well. Only for a
+   *  synchronous calculation: nothing else can run between setting the overlay and taking it off. */
+  withOverlay<T>(functions: ReadonlyMap<string, FunctionDefinition>, calculate: () => T): T {
+    const previous = this.overlay;
+    this.overlay = functions;
+    try {
+      return calculate();
+    } finally {
+      this.overlay = previous;
+    }
   }
 
   getAllFunctions(): FunctionDefinition[] {
@@ -118,9 +140,10 @@ export const functionRegistry = new FunctionRegistry();
  *  registered or not (an unknown one reports #NAME?). A name with digits is only
  *  when registered: LOG10 is also shaped like a cell reference, so `A1(2)` is not. */
 /** A function name as a formula spells it: letters and digits, with `.`-joined
- *  parts for the names current Excel uses (`PERCENTILE.INC`, `STDEV.S`). Used as
- *  a regex SOURCE by every place that looks for a call. */
-export const FUNCTION_NAME_SOURCE = "[A-Z][A-Z0-9]*(?:\\.[A-Z][A-Z0-9]*)*";
+ *  parts for the names current Excel uses (`PERCENTILE.INC`, `STDEV.S`). A part may
+ *  start with a digit (`T.DIST.2T`). Used as a regex SOURCE by every place that
+ *  looks for a call. */
+export const FUNCTION_NAME_SOURCE = "[A-Z][A-Z0-9]*(?:\\.[A-Z0-9]+)*";
 
 export const isCallableName = (name: string): boolean => /^[A-Z]+(?:\.[A-Z]+)*$/i.test(name) || functionRegistry.hasFunction(name);
 

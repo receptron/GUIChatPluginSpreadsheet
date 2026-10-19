@@ -113,6 +113,8 @@ The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to loa
 ### Date & Time
 `DATE`, `DATEDIF`, `DAY`, `DAYS`, `EDATE`, `EOMONTH`, `HOUR`, `MINUTE`, `MONTH`, `NETWORKDAYS`, `NOW`, `SECOND`, `TIME`, `TODAY`, `WEEKDAY`, `WORKDAY`, `YEAR`
 
+A formula without a format code shows its number as a date only when the number is a date by origin: the formula starts with DATE, TODAY, EDATE, EOMONTH or WORKDAY, or its first reference is a date (a cell with a date format, typed as a date, or itself such a formula, on any sheet). A total that lands on 52,345 stays a number. Give a formula a format code to choose its display yourself.
+
 Dates are serial numbers on the real calendar, as in LibreOffice and Google Sheets. Excel counts a 1900-02-29 that never existed, so a serial before 61 (1900-03-01) is one day earlier here than in Excel; from 61 on they are the same.
 
 ### Logical
@@ -122,10 +124,34 @@ Dates are serial numbers on the real calendar, as in LibreOffice and Google Shee
 `HLOOKUP`, `INDEX`, `MATCH`, `VLOOKUP`, `XLOOKUP`
 
 ### Statistical
-`AVERAGE`, `AVERAGEIF`, `AVERAGEIFS`, `CORREL`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `INTERCEPT`, `LARGE`, `MAX`, `MEDIAN`, `MIN`, `MODE`, `PERCENTILE`, `PERCENTILE.INC`, `QUARTILE`, `QUARTILE.INC`, `RANK`, `RANK.EQ`, `RSQ`, `SLOPE`, `SMALL`, `STDEV`, `STDEV.P`, `STDEV.S`, `STDEVP`, `SUM`, `SUMIF`, `SUMIFS`, `VAR`, `VAR.P`, `VAR.S`, `VARP`
+`AVERAGE`, `AVERAGEIF`, `AVERAGEIFS`, `CONFIDENCE.NORM`, `CONFIDENCE.T`, `CORREL`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `COVARIANCE.P`, `COVARIANCE.S`, `FORECAST`, `FORECAST.LINEAR`, `GEOMEAN`, `HARMEAN`, `INTERCEPT`, `KURT`, `LARGE`, `MAX`, `MAXIFS`, `MEDIAN`, `MIN`, `MINIFS`, `MODE`, `NORM.DIST`, `NORM.INV`, `NORM.S.DIST`, `NORM.S.INV`, `PEARSON`, `PERCENTILE`, `PERCENTILE.INC`, `PERCENTRANK`, `PERCENTRANK.INC`, `QUARTILE`, `QUARTILE.INC`, `RANK`, `RANK.EQ`, `RSQ`, `SKEW`, `SLOPE`, `SMALL`, `STANDARDIZE`, `STDEV`, `STDEV.P`, `STDEV.S`, `STDEVP`, `STEYX`, `SUM`, `SUMIF`, `SUMIFS`, `T.DIST`, `T.DIST.2T`, `T.DIST.RT`, `T.INV`, `T.INV.2T`, `T.TEST`, `TREND`, `TTEST`, `VAR`, `VAR.P`, `VAR.S`, `VARP`
 
 ### Financial
 `FV`, `IPMT`, `IRR`, `NPER`, `NPV`, `PMT`, `PPMT`, `PV`, `RATE`
+
+## Workbook functions
+
+A workbook can define functions of its own, for an analysis no built-in function does. Each sheet may carry an optional `functions` list; a function defined on any sheet is callable from every sheet of that workbook:
+
+```json
+{
+  "name": "Data",
+  "functions": [
+    {
+      "name": "MOVING.AVG",
+      "params": ["values", "n"],
+      "body": "const xs = values.flat().filter((v) => typeof v === 'number'); const tail = xs.slice(-n); return tail.reduce((a, b) => a + b, 0) / tail.length;"
+    }
+  ],
+  "data": [[{ "v": 100 }, { "v": "=MOVING.AVG(A1:A30, 7)" }]]
+}
+```
+
+- A function body is JavaScript, run in [QuickJS](https://github.com/justjake/quickjs-emscripten) (WebAssembly) with no DOM, network, file system or timers, at most 50 ms per call, 2 s per calculation and 16 MB of memory. Each function has a global scope of its own.
+- A range argument arrives as rows of cells (an array of arrays, a blank cell as `null`); a single cell and any other argument as its value. A whole column or row (`A:A`, `2:2`) is `#VALUE!`: the engine does not read those. An argument that is an error is passed on without calling the function.
+- Return a number, text or `true`/`false`. A time-out or a non-finite number shows `#NUM!`; a thrown error or any other return value shows `#VALUE!`.
+- A name is letters and digits, parts joined by dots, and cannot be a built-in function's. `presentSpreadsheet` says in its reply which definitions could not be used.
+- QuickJS loads only for a workbook that defines functions. The View and `readCalculatedRange` load it themselves; a host calling `calculatedRange` directly passes the set from `loadCustomFunctions`.
 
 ## Development
 

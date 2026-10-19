@@ -12,9 +12,10 @@ import type { CellValue } from "./types";
 import { parseDate } from "./date-parser";
 import { concatOperands, concatToSum } from "./concatPrecedence";
 import { isEscapedAt } from "./escapes";
-import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison } from "./translateFormula";
+import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison, separateRepeatedSigns } from "./translateFormula";
 import { foldComparisons, splitTopLevelComparisons } from "./textComparison";
 import { standsAloneInConcat } from "./concatOperand";
+import { stripOuterParens } from "./condition";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
 
@@ -240,7 +241,7 @@ function evalValidatedExpression(jsExpr: string): CellValue {
   let result: unknown;
   try {
     // eslint-disable -- sonarjs/code-eval
-    result = new Function(`return (${jsExpr})`)();
+    result = new Function(`return (${separateRepeatedSigns(jsExpr)})`)();
   } catch {
     throw unknownError();
   }
@@ -280,7 +281,8 @@ function comparisonOperandValue(operand: string): CellValue | null {
   if (booleanWord !== undefined) return booleanWord.toLowerCase() === "true";
   const joined = evaluateConcat(operand);
   if (joined !== null) return joined;
-  if (isSafeArithmetic(operand) || isLoneLiteral(operand)) return evalValidatedExpression(operand);
+  // A literal may come wrapped, `("a")` or a text cell as `(A1)`; brackets that wrap all of it change nothing.
+  if (isSafeArithmetic(operand) || isLoneLiteral(stripOuterParens(operand))) return evalValidatedExpression(operand);
   return null;
 }
 

@@ -42,6 +42,21 @@ export function replaceConcatOperator(expr: string): string {
   return out.join("");
 }
 
+/** A space between two `+` or two `-` in a row, outside string literals. JS reads `--` and `++`
+ *  as decrement and increment, so `=1--2` and `=--2` failed to parse; Excel reads each sign on
+ *  its own (`1- -2` is 3). Applied to the expression handed to `new Function` only. */
+export function separateRepeatedSigns(expr: string): string {
+  const out: string[] = [];
+  const state = { openQuote: "" };
+  expr.split("").forEach((char, index) => {
+    if ((char === '"' || char === "'") && !isEscapedAt(expr, index)) state.openQuote = toggleQuote(state.openQuote, char);
+    const previous = out.at(-1);
+    if (state.openQuote === "" && (char === "-" || char === "+") && previous === char) out.push(" ");
+    out.push(char);
+  });
+  return out.join("");
+}
+
 /** Excel `=` equality → JS `==`, without disturbing `<=`, `>=` or `!=`. A single
  *  `=` is rewritten only when flanked by a non-`<>!` char on the left and a
  *  non-`=` on the right.
