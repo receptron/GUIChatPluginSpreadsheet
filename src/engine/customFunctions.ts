@@ -45,8 +45,6 @@ const SHEET = "(?:(?:'(?:[^']|'')+'|[^!'\"(),]+)!)?";
 // A range: `$B$2:$C$9`, `Data!B2:B9`. A single cell (`B2`) is a value, not a range.
 const RANGE = new RegExp(`^${SHEET}\\$?[A-Z]+\\$?\\d+:\\$?[A-Z]+\\$?\\d+$`, "i");
 const SINGLE_CELL = new RegExp(`^${SHEET}\\$?[A-Z]+\\$?\\d+$`, "i");
-// A whole column or row (`A:A`, `2:2`). The engine reads neither, so a function is not handed one.
-const WHOLE_LINE = new RegExp(`^${SHEET}(?:\\$?[A-Z]+:\\$?[A-Z]+|\\$?\\d+:\\$?\\d+)$`, "i");
 
 let quickJS: Promise<QuickJSWASMModule> | null = null;
 
@@ -222,7 +220,6 @@ const toJsonCell = (value: CellValue): JsonCell | SpreadsheetError => {
 
 /** One argument: a range as rows of cells, anything else — a single cell included — as its value. */
 function argumentValue(arg: string, context: FunctionContext): ArgumentValue {
-  if (WHOLE_LINE.test(arg)) return VALUE_ERROR;
   if (RANGE.test(arg)) return rangeRows(arg, context);
   // Read like a range's cells, so a blank one is null here too rather than the 0 a formula reads.
   if (SINGLE_CELL.test(arg)) return toJsonCell(cellsReader(context)(arg)[0] ?? "");

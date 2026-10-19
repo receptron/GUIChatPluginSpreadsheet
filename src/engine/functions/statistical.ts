@@ -13,8 +13,8 @@ import {
   type RangeGetter,
 } from "../registry";
 import { computeAverage, computeMedian, computeMode, sampleStdev, sampleVariance } from "./statistical-math";
-import { DIV_ZERO_ERROR } from "../spreadsheet-errors";
-import { holdsNumber } from "../numericCoercion";
+import { DIV_ZERO_ERROR, isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
+import { holdsNumber, isRangeNumber } from "../numericCoercion";
 import type { CellValue } from "../types";
 
 // Excel accepts up to 255 arguments for its aggregate functions.
@@ -68,6 +68,44 @@ export const collectArgumentValues = (args: string[], context: FunctionContext, 
   return collected;
 };
 
+/** The numbers an aggregate reads from its arguments, or the first error among them in argument
+ *  order — an error cell in a range, or an argument that evaluated to one — read in one pass, so
+ *  no argument is read or evaluated twice. A range keeps only the cells that hold a number, as the
+ *  numeric read does. */
+export const collectNumbersOrError = (args: string[], context: FunctionContext): number[] | SpreadsheetError => {
+  if (!context.getRangeValuesKeepingBlanks) return numbersOrErrorWithoutBlankRead(args, context);
+  const collected = collectArgumentValues(args, context, context.getRangeValuesKeepingBlanks);
+  const firstError = collected.map(({ value }) => value).find(isSpreadsheetErrorValue);
+  if (firstError) return firstError;
+  return collected.filter(({ value, isScalar }) => isScalar || isRangeNumber(value)).map(({ value }) => toNumber(value));
+};
+
+/** A host without the blank-aware read cannot tell a blank from a 0 in one read, so its errors
+ *  come from the raw read and its numbers from the numeric read — two reads, for that host only. */
+function numbersOrErrorWithoutBlankRead(args: string[], context: FunctionContext): number[] | SpreadsheetError {
+  const perArgument = args
+    .map((rawArg) => rawArg?.trim() ?? "")
+    .filter((arg) => arg !== "")
+    .map((arg): { error?: SpreadsheetError; numbers: number[] } => {
+      if (isReference(arg))
+        return { error: context.getRangeValuesRaw?.(arg).find(isSpreadsheetErrorValue), numbers: context.getRangeValues(arg).map(toNumber) };
+      const value = context.evaluateFormula(arg);
+      return isSpreadsheetErrorValue(value) ? { error: value, numbers: [] } : { numbers: [toNumber(value)] };
+    });
+  return perArgument.find(({ error }) => error)?.error ?? perArgument.flatMap(({ numbers }) => numbers);
+}
+
+/** The cells of a range read blank-aware that hold a number, as numbers — what the numeric read keeps. */
+export const rangeNumbers = (values: CellValue[]): number[] => values.filter(isRangeNumber).map(toNumber);
+
+/** The handler's rule over the numbers of its arguments, or the first error among them. */
+export const overNumbers =
+  (rule: (values: number[]) => CellValue): FunctionHandler =>
+  (args, context) => {
+    const values = collectNumbersOrError(args, context);
+    return Array.isArray(values) ? rule(values) : values;
+  };
+
 export const collectNumericValues = (args: string[], context: FunctionContext): number[] =>
   collectArgumentValues(args, context, context.getRangeValues).map(({ value }) => toNumber(value));
 
@@ -76,23 +114,14 @@ export const collectNumericValues = (args: string[], context: FunctionContext): 
 const collectRawValues = (args: string[], context: FunctionContext): CellValue[] =>
   collectArgumentValues(args, context, blankAwareRangeReader(context)).map(({ value }) => value);
 
-const sumHandler: FunctionHandler = (args, context) => {
-  const values = collectNumericValues(args, context);
-  return values.reduce((sum: number, value) => sum + value, 0);
-};
+const sumHandler = overNumbers((values) => values.reduce((sum, value) => sum + value, 0));
 
 // Multi-argument collection (#2360) feeding the empty-range error rule (#2501).
-const averageHandler: FunctionHandler = (args, context) => computeAverage(collectNumericValues(args, context));
+const averageHandler = overNumbers(computeAverage);
 
-const maxHandler: FunctionHandler = (args, context) => {
-  const values = collectNumericValues(args, context);
-  return values.length > 0 ? Math.max(...values) : 0;
-};
+const maxHandler = overNumbers((values) => (values.length > 0 ? Math.max(...values) : 0));
 
-const minHandler: FunctionHandler = (args, context) => {
-  const values = collectNumericValues(args, context);
-  return values.length > 0 ? Math.min(...values) : 0;
-};
+const minHandler = overNumbers((values) => (values.length > 0 ? Math.min(...values) : 0));
 
 // COUNT counts NUMBERS, so it cannot go through the lenient numeric collection
 // the other aggregates share: `toNumber("text")` is 0, which made COUNT("text")
@@ -102,19 +131,13 @@ const countsAsNumber = ({ value, isScalar }: ArgumentValue): boolean => !isScala
 
 const countHandler: FunctionHandler = (args, context) => collectArgumentValues(args, context, context.getRangeValues).filter(countsAsNumber).length;
 
-const medianHandler: FunctionHandler = (args, context) => computeMedian(collectNumericValues(args, context));
+const medianHandler = overNumbers(computeMedian);
 
-const modeHandler: FunctionHandler = (args, context) => {
-  return computeMode(collectNumericValues(args, context));
-};
+const modeHandler = overNumbers(computeMode);
 
-const stdevHandler: FunctionHandler = (args, context) => {
-  return sampleStdev(collectNumericValues(args, context));
-};
+const stdevHandler = overNumbers(sampleStdev);
 
-const varHandler: FunctionHandler = (args, context) => {
-  return sampleVariance(collectNumericValues(args, context));
-};
+const varHandler = overNumbers(sampleVariance);
 
 const isFilledValue = (value: CellValue): boolean => value !== null && value !== undefined && value !== "";
 
@@ -153,29 +176,39 @@ const readConditionalRanges = (args: string[], context: FunctionContext) => {
   };
 };
 
+interface MatchedTotals {
+  sum: number;
+  count: number;
+  /** The first matched value that is an error, which is then the answer, as in Excel. */
+  error?: SpreadsheetError;
+}
+
 /** Sum the values whose row in `criteriaRange` matches, and count the matched values that are
  *  numbers. The two ranges stay row-aligned, so a matched row with no number adds 0 to the sum
- *  and nothing to the count: AVERAGEIF skips a blank or text value as Excel does. */
-const aggregateMatchedRows = (criteriaRange: CellValue[], valueRange: CellValue[], matches: (value: CellValue) => boolean) =>
-  criteriaRange.reduce(
-    (totals, criteriaValue, index) => {
-      if (!matches(criteriaValue)) return totals;
-      const value = valueRange[index] ?? "";
-      return { sum: totals.sum + toNumber(value), count: totals.count + (holdsNumber(value) ? 1 : 0) };
-    },
-    { sum: 0, count: 0 },
-  );
+ *  and nothing to the count: AVERAGEIF skips a blank or text value as Excel does. An error in an
+ *  unmatched row, or in the criteria range, is not read. */
+const aggregateMatchedRows = (criteriaRange: CellValue[], valueRange: CellValue[], matches: (value: CellValue) => boolean): MatchedTotals => {
+  const none: MatchedTotals = { sum: 0, count: 0 };
+  return criteriaRange.reduce((totals, criteriaValue, index) => {
+    if (!matches(criteriaValue)) return totals;
+    const value = valueRange[index] ?? "";
+    if (isSpreadsheetErrorValue(value)) return { ...totals, error: totals.error ?? value };
+    return { ...totals, sum: totals.sum + toNumber(value), count: totals.count + (holdsNumber(value) ? 1 : 0) };
+  }, none);
+};
 
 const sumifHandler: FunctionHandler = (args, context) => {
   const { criteriaRange, valueRange, matches } = readConditionalRanges(args, context);
   if (typeof matches !== "function") return matches;
-  return aggregateMatchedRows(criteriaRange, valueRange, matches).sum;
+  const { sum, error } = aggregateMatchedRows(criteriaRange, valueRange, matches);
+  return error ?? sum;
 };
 
 const averageifHandler: FunctionHandler = (args, context) => {
   const { criteriaRange, valueRange, matches } = readConditionalRanges(args, context);
   if (typeof matches !== "function") return matches;
-  const { sum, count } = aggregateMatchedRows(criteriaRange, valueRange, matches);
+  const { sum, count, error } = aggregateMatchedRows(criteriaRange, valueRange, matches);
+  if (error) return error;
   // Excel returns #DIV/0! when no cell matches (the average of nothing is
   // undefined), rather than a silent 0.
   return count > 0 ? sum / count : DIV_ZERO_ERROR;
