@@ -1,5 +1,23 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@4.2.1 — 2026-10-19
+
+Calculation fixes, found by generated tests and by a stress test of agents building analysis workbooks (receptron/mulmoterminal#3113). Formulas that used to give a wrong number, `0` or text now calculate as Excel does.
+
+- **Sheets that read each other** (#134, fixes #130): a sheet that refers to another sheet that refers back — data → settings → data — calculated the other sheet whole, again from inside each other, so one formula could run thousands of times and workbook functions ran out of time. Each formula cell is now calculated once per calculation, and only the cells a reference needs are read. A cycle across sheets now reads `0` with a `circular` error, as a cycle on one sheet does (it used to read `#ERROR!`).
+- **Workbook functions no longer take later calculations down, and `presentSpreadsheet` reports formula errors** (#131, fixes #129): a workbook whose functions ran out of time could abort the shared QuickJS module, so every later read threw. Each set of functions now gets its own module, and freeing one never throws. The tool's reply now names the formula cells that calculate to an error (up to five, then a count), so the agent that wrote them can fix them before handing the workbook over.
+- **Range positions across short rows** (#120, fixes #115): a range passing rows shorter than the range shifted the positions, so `SUMIF` paired the wrong cells.
+- **Whole-column and whole-row references** (#121, fixes #118): `SUM(A:A)` and `1:1` read nothing and gave `0`.
+- **`{v: null}` and `{}` cells after a formula** (#123, fixes #100): they showed as `"null"` or `[object Object]`.
+- **Errors inside a range** (#124, fixes #101): aggregates skipped error cells (`=SUM(A1:B1)` gave `2` beside a `#DIV/0!`); the error now propagates.
+- **`TRUE` / `FALSE` in a formula** (#125, fixes #109, #91): they were read as text, so `=TRUE+1` did not calculate.
+- **Sheet names containing `'`** (#126, fixes #122): `'It''s'!A1` could not be read.
+- **Blank cells as arguments and in comparisons** (#127, fixes #99): a blank read as `0` where Excel reads an empty string, so `=A1=""` was `FALSE` and `LEN(A1)` was `1`.
+- **`VLOOKUP`, `HLOOKUP` and `INDEX` over `$` or lowercase ranges** (#133, fixes #132): a range written `$A$2:$C$10` or `a2:c10` could not be read, so the lookup gave `#ERROR!`.
+- **Values written directly into aggregates** (#128, fixes #116): `=SUM("x",1)` and `=AVERAGE(TRUE,3)` now follow Excel — a logical counts as 1/0, and text that is not a number gives `#VALUE!`.
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.2.1`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.2.1)
+
 ## @gui-chat-plugin/spreadsheet@4.2.0 — 2026-10-19
 
 Workbook functions, more analysis functions, and a long list of calculations brought in line with Excel.
