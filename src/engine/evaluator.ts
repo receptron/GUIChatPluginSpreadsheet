@@ -9,6 +9,7 @@ import { FUNCTION_NAME_SOURCE, functionRegistry, isCallableName, tooFewArguments
 const SIMPLE_CALL = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\((.*)\\)$`, "i");
 const CALL_START = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\(`, "i");
 import type { CellValue } from "./types";
+import { endOfQuotedSheetName } from "./sheetReference";
 import { parseDate } from "./date-parser";
 import { concatOperands, concatToSum } from "./concatPrecedence";
 import { isEscapedAt } from "./escapes";
@@ -18,7 +19,6 @@ import { standsAloneInConcat } from "./concatOperand";
 import { stripOuterParens } from "./condition";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
-import { endOfQuotedSheetName } from "./sheetReference";
 
 /**
  * Evaluation context for formulas
