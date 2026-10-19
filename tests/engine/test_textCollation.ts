@@ -29,6 +29,19 @@ describe("compareText", () => {
     assert.ok(compareText("ä", "a b") < 0, "the base letters decide before the accent does");
   });
 
+  it("orders the accents as ICU's English does, not by code point", () => {
+    assert.ok(compareText("á", "à") < 0, "U+0301 has the larger code point, and still sorts first");
+    assert.ok(compareText("a\u0301", "a\u0300") < 0);
+    assert.ok(compareText("â", "ä") < 0);
+    assert.ok(compareText("a\u0327", "ą") < 0, "the cedilla before the ogonek");
+  });
+
+  it("ignores the grapheme joiner, and reads a superscript letter as that letter", () => {
+    assert.equal(compareText("e\u034f", "e"), 0);
+    assert.equal(compareText("a\u0364", "ae"), 0);
+    assert.ok(compareText("a\u0364", "af") < 0);
+  });
+
   it("puts punctuation before digits before letters", () => {
     assert.ok(compareText("_", "1") < 0);
     assert.ok(compareText("9", "a") < 0);
@@ -68,6 +81,7 @@ describe("compareText", () => {
 
 const ASCII_PRINTABLE = Array.from({ length: 95 }, (_, index) => String.fromCharCode(32 + index));
 const ACCENTED = ["é", "É", "è", "ä", "Ö", "ñ", "ç"];
+const COMBINING_MARKS = Array.from({ length: 0x70 }, (_, index) => String.fromCodePoint(0x300 + index));
 const baseSeed = Number(process.env.COLLATION_SEED ?? Date.now() % 1_000_000);
 const GENERATED_PAIRS = 3000;
 
@@ -82,6 +96,25 @@ describe(`compareText over generated text (seed ${baseSeed})`, () => {
     Array.from({ length: GENERATED_PAIRS }).forEach(() => {
       const [left, right] = [generatedText(random, ASCII_PRINTABLE), generatedText(random, ASCII_PRINTABLE)];
       assert.equal(sign(compareText(left, right)), sign(icu.compare(left, right)), `seed ${baseSeed}: ${JSON.stringify(left)} vs ${JSON.stringify(right)}`);
+    });
+  });
+
+  it("orders accented Latin text, composed or decomposed, as this runtime's Intl.Collator('en') does", () => {
+    const icu = new Intl.Collator("en", { sensitivity: "accent" });
+    const random = seededRandom(baseSeed + 3);
+    const accentedLetter = (): string => {
+      const letter = pick(random, ["a", "E", "o", "n", "c", "x", " ", "-"]);
+      const marks = Array.from({ length: Math.floor(random() * 3) }, () => pick(random, COMBINING_MARKS)).join("");
+      const text = letter + marks;
+      return random() < 0.5 ? text.normalize("NFC") : text;
+    };
+    Array.from({ length: GENERATED_PAIRS }).forEach(() => {
+      const [left, right] = [0, 1].map(() => Array.from({ length: 1 + Math.floor(random() * 3) }, accentedLetter).join(""));
+      assert.equal(
+        sign(compareText(left ?? "", right ?? "")),
+        sign(icu.compare(left ?? "", right ?? "")),
+        `seed ${baseSeed}: ${JSON.stringify(left)} vs ${JSON.stringify(right)}`,
+      );
     });
   });
 

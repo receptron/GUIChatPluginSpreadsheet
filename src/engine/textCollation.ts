@@ -21,11 +21,72 @@ function isIgnorable(character: string): boolean {
 }
 const COMBINING_MARK = /^[\u0300-\u036f]$/u;
 
+// ICU's English order for the combining marks U+0300–U+0362, as measured from Intl.Collator("en"):
+// one entry per rank, marks that compare equal sharing an entry. The first rank (U+034F, the
+// grapheme joiner) is ignorable. An accent compares by these ranks, not by code point, so á
+// sorts before à as it does there.
+const MARK_RANKS: readonly string[] = [
+  "34f",
+  "332",
+  "313 343",
+  "314",
+  "301 341",
+  "300 340",
+  "306",
+  "302",
+  "30c",
+  "30a",
+  "342",
+  "308",
+  "344",
+  "30b",
+  "303",
+  "307",
+  "338",
+  "327",
+  "328",
+  "304",
+  "30d 30e 312 315 31a 33d 33e 33f 346 34a 34b 34c 350 351 352 357 35b 35d 35e",
+  "316 317 318 319 31c 31d 31e 31f 320 329 32a 32b 32c 32f 333 33a 33b 33c 347 348 349 34d 34e 353 354 355 356 359 35a 35c 35f 362",
+  "336 337",
+  "335",
+  "305",
+  "309",
+  "30f",
+  "310",
+  "311",
+  "31b",
+  "321",
+  "322",
+  "323",
+  "324",
+  "325",
+  "326",
+  "32d",
+  "32e",
+  "330",
+  "331",
+  "334",
+  "339",
+  "345",
+  "358",
+  "360",
+  "361",
+];
+const IGNORABLE_MARK_RANK = 0;
+// U+0363–U+036F are small letters written above another; ICU weighs each as the letter itself.
+const SUPERSCRIPT_LETTERS = "aeioucdhmrtvx";
+const FIRST_SUPERSCRIPT_LETTER = 0x363;
+const asLetter = (character: string): string => SUPERSCRIPT_LETTERS.charAt((character.codePointAt(0) ?? 0) - FIRST_SUPERSCRIPT_LETTER) || character;
+const MARK_RANK = new Map<string, number>(
+  MARK_RANKS.flatMap((group, rank) => group.split(" ").map((hex): [string, number] => [String.fromCodePoint(Number.parseInt(hex, 16)), rank])),
+);
+
 interface CollationKey {
   /** One weight per character: its base letter's place, accents and case removed. */
   primary: number[];
-  /** The accents of each character, compared only when every primary weight ties. */
-  accents: string[];
+  /** The ranks of each character's accents, compared only when every primary weight ties. */
+  accents: number[][];
 }
 
 function characterWeight(base: string): number {
@@ -41,13 +102,16 @@ function collationKey(text: string): CollationKey {
   const key: CollationKey = { primary: [], accents: [] };
   Array.from(text.normalize("NFD"))
     .filter((character) => !isIgnorable(character))
+    .map(asLetter)
     .forEach((character) => {
-      if (COMBINING_MARK.test(character) && key.accents.length > 0) {
-        key.accents[key.accents.length - 1] += character;
+      const accentsSoFar = key.accents.at(-1);
+      if (COMBINING_MARK.test(character) && accentsSoFar !== undefined) {
+        const rank = MARK_RANK.get(character) ?? IGNORABLE_MARK_RANK;
+        if (rank !== IGNORABLE_MARK_RANK) accentsSoFar.push(rank);
         return;
       }
       key.primary.push(characterWeight(character.toLowerCase()));
-      key.accents.push("");
+      key.accents.push([]);
     });
   return key;
 }
@@ -61,8 +125,13 @@ function compareSequences<T extends number | string>(left: readonly T[], right: 
   return left.length - right.length;
 }
 
+/** Character by character, the first that differs in its accents decides. Called once the primary weights tie, so both hold one entry per character. */
+function compareAccents(left: readonly number[][], right: readonly number[][]): number {
+  return left.reduce((decided, accents, index) => decided || compareSequences(accents, right[index] ?? []), 0);
+}
+
 /** Negative, zero or positive as `left` sorts before, with or after `right`. */
 export function compareText(left: string, right: string): number {
   const [leftKey, rightKey] = [collationKey(left), collationKey(right)];
-  return compareSequences(leftKey.primary, rightKey.primary) || compareSequences(leftKey.accents, rightKey.accents);
+  return compareSequences(leftKey.primary, rightKey.primary) || compareAccents(leftKey.accents, rightKey.accents);
 }
