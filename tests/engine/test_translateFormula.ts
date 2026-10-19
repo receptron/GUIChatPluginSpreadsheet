@@ -94,6 +94,12 @@ describe("separateRepeatedSigns", () => {
     assert.equal(separateRepeatedSigns(""), "");
   });
 
+  it("treats a literal that is never closed as running to the end", () => {
+    assert.equal(separateRepeatedSigns('1--2&"a--b'), '1- -2&"a--b');
+    assert.equal(separateRepeatedSigns("1--2&'a--b"), "1- -2&'a--b");
+    assert.equal(separateRepeatedSigns('"a--b'), '"a--b');
+  });
+
   it("leaves signs inside a string literal alone", () => {
     assert.equal(separateRepeatedSigns('"a--b"+1--2'), '"a--b"+1- -2');
     assert.equal(separateRepeatedSigns("'++'"), "'++'");
