@@ -84,6 +84,11 @@ describe("formatNumber — date codes read the way Excel reads them", () => {
     assert.equal(formatNumber(serialOf(2025, 3, 4, 9, 5), 'h"時"mm"分"'), "9時05分");
   });
 
+  it("treats a time-only code as a date code", () => {
+    assert.equal(formatNumber(serialOf(2025, 3, 4, 9, 5, 30), "ss"), "30");
+    assert.equal(formatNumber(serialOf(2025, 3, 4, 21, 5), "h A/P"), "9 P");
+  });
+
   it("keeps the old reading for a code the Excel reader declines", () => {
     assert.equal(formatNumber(serialOf(2025, 3, 4, 13, 45), "[h]:mm"), "[13]:45");
     assert.equal(formatNumber(MAR_4_2025, "Standard"), "Standard");
