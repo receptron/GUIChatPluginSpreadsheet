@@ -19,7 +19,9 @@ export default defineConfig({
     rollupOptions: {
       // gui-chat-protocol must stay the host's copy: useRuntime/createUseT find the
       // runtime by injection Symbol, and a bundled copy has a different one.
-      external: ["vue", /^gui-chat-protocol(\/.*)?$/],
+      // QuickJS stays a dependency the host resolves: bundled here, Vite swaps Node's `module` for a
+      // browser stub and the WebAssembly loader stops working under Node (readCalculatedRange).
+      external: ["vue", /^gui-chat-protocol(\/.*)?$/, "quickjs-emscripten-core", /^@jitl\/quickjs-/],
       output: {
         exports: "named",
         globals: {

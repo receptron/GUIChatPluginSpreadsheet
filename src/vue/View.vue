@@ -122,6 +122,8 @@ import { useT } from "../lang";
 import { createSheetSession, type LoadOutcome } from "./sheetSession";
 import { readLoadReply, readSaveReply, type LoadedWorkbook, type SaveReply } from "../core/dispatchReplies";
 import { fileChangeAction } from "./fileFollow";
+import { useCustomFunctions } from "./useCustomFunctions";
+import { calculateWith } from "../engine/customFunctions";
 
 // Import all spreadsheet functions to populate the function registry
 import "../engine/functions";
@@ -179,6 +181,8 @@ const engine = new SpreadsheetEngine();
 const loading = ref(false);
 const errorMessage = ref("");
 const resolvedSheets = ref<SpreadsheetSheet[]>([]);
+// The workbook's own functions (#114), visible to its formulas while it is calculated.
+const customFunctions = useCustomFunctions(resolvedSheets);
 
 // Declared before fetchSheets, which writes it once a load lands.
 const editableData = ref(JSON.stringify(resolvedSheets.value || [], null, 2));
@@ -409,7 +413,7 @@ const calculateFormulas = (data: StorableCell[][], sheetName?: string): CellValu
   // Read the date order from the current locale on every calculation, so a
   // locale switch takes effect without rebuilding the engine.
   engine.setOptions({ preferDDMMYYYY: prefersDayFirst(locale.value) });
-  const result = engine.calculate(sheet, allSheets);
+  const result = calculateWith(customFunctions.value, () => engine.calculate(sheet, allSheets));
 
   return result.data;
 };
