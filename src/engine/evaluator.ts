@@ -18,6 +18,7 @@ import { standsAloneInConcat } from "./concatOperand";
 import { stripOuterParens } from "./condition";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
+import { booleansAsNumbers, logicalLiteralsAsBooleans, loneBoolean } from "./logicalLiterals";
 
 /**
  * Evaluation context for formulas
@@ -305,7 +306,9 @@ const isCellValue = (value: CellValue | null): value is CellValue => value !== n
  * @param context - Evaluation context with cell/range accessors
  * @returns Evaluated result (number or string)
  */
-export function evaluateFormula(formula: string, context: EvaluatorContext): CellValue {
+export function evaluateFormula(writtenFormula: string, context: EvaluatorContext): CellValue {
+  // TRUE written in the formula reads as a logical cell does from here on.
+  const formula = logicalLiteralsAsBooleans(writtenFormula);
   // A formula that is one string literal is its text. Only one: `"a"="b"` also
   // starts and ends with a quote, and is a comparison.
   const trimmed = formula.trim();
@@ -511,6 +514,11 @@ export function evaluateFormula(formula: string, context: EvaluatorContext): Cel
 
   const joined = evaluateConcat(expr);
   if (joined !== null) return joined;
+
+  // A logical value alone, perhaps in brackets, is that value; in arithmetic TRUE reads as 1.
+  const referencedBoolean = loneBoolean(expr);
+  if (referencedBoolean !== null) return referencedBoolean;
+  expr = booleansAsNumbers(expr);
 
   // Safely evaluate comparison expressions (e.g., 5=6, (5)>(6)). The allowlist
   // (numbers, `= != < > <= >=`, parens, whitespace) gates the evaluation. It is
