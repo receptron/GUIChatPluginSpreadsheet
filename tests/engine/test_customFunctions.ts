@@ -127,11 +127,19 @@ describe("calling a workbook's functions", () => {
     assert.equal(cellAt(out, 0, 2), "object:null");
   });
 
-  it("answers #VALUE! for a whole column or row, which the engine does not read", () => {
-    const out = calculate([[{ v: "=SHAPE.OF(A:A)" }, { v: "=SHAPE.OF(1:1)" }, { v: "=SHAPE.OF(Data!B:B)" }]]);
+  it("hands a whole column or row as the range it covers in its sheet's data", () => {
+    const other: SheetData = {
+      name: "Other",
+      data: [
+        [{ v: "x" }, { v: 5 }],
+        [{ v: "y" }, { v: 6 }, { v: 7 }],
+      ],
+    };
+    const rows: SheetData["data"] = [[{ v: 1 }, { v: "=SHAPE(A:A)" }, { v: "=SHAPE(Other!B:B)" }, { v: "=SHAPE(Other!2:2)" }], [{ v: 2 }]];
+    const out = calculate(rows, [other]);
     assert.deepEqual(
-      [0, 1, 2].map((col) => cellAt(out, 0, col)),
-      ["#VALUE!", "#VALUE!", "#VALUE!"],
+      [1, 2, 3].map((col) => cellAt(out, 0, col)),
+      ["2x1:[[1],[2]]", "2x1:[[5],[6]]", '1x3:[["y",6,7]]'],
     );
   });
 

@@ -5,11 +5,12 @@
  * #NUM! — and registers the names.
  */
 
-import { blankAwareRangeReader, functionRegistry, rawRangeReader, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
+import { blankAwareRangeReader, functionRegistry, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
 import { coerceToBoolean } from "../coerce-boolean";
 import { toScalarNumber } from "../numericCoercion";
 import { DIV_ZERO_ERROR, isSpreadsheetErrorValue, NUM_ERROR, type SpreadsheetError } from "../spreadsheet-errors";
-import { collectNumericValues } from "./statistical";
+import type { CellValue } from "../types";
+import { rangeNumbers } from "./statistical";
 import { numericPairs } from "./analysis-math";
 import {
   normalCdf,
@@ -105,19 +106,20 @@ const PAIRED = 1;
 const EQUAL_VARIANCE = 2;
 const UNEQUAL_VARIANCE = 3;
 
-/** The paired t: the rows where both ranges hold a number, differenced. A blank reads as "", not
- *  0, so its row drops out as it does from CORREL. */
-function pairedStatistic(args: string[], context: FunctionContext): TStatistic | SpreadsheetError {
-  const readRaw = blankAwareRangeReader(context);
-  const pairs = numericPairs(readRaw(requiredArg(context, args, 0)), readRaw(requiredArg(context, args, 1)));
+/** The two sample ranges, each read once and blank-aware (a blank as "", so a paired row with one
+ *  drops out as it does from CORREL). */
+type Samples = [CellValue[], CellValue[]];
+
+/** The paired t: the rows where both ranges hold a number, differenced. */
+function pairedStatistic([first, second]: Samples): TStatistic | SpreadsheetError {
+  const pairs = numericPairs(first, second);
   return "ys" in pairs ? pairedT(pairs.ys.map((y, index) => y - (pairs.xs[index] ?? 0))) : pairs;
 }
 
 /** The two-sample t, pooled or Welch, over the numbers of each range. */
-function twoSampleStatistic(args: string[], context: FunctionContext, type: number): TStatistic | SpreadsheetError {
-  const first = collectNumericValues([requiredArg(context, args, 0)], context);
-  const second = collectNumericValues([requiredArg(context, args, 1)], context);
-  return type === EQUAL_VARIANCE ? pooledT(summarize(first), summarize(second)) : welchT(summarize(first), summarize(second));
+function twoSampleStatistic([first, second]: Samples, type: number): TStatistic | SpreadsheetError {
+  const [firstSummary, secondSummary] = [summarize(rangeNumbers(first)), summarize(rangeNumbers(second))];
+  return type === EQUAL_VARIANCE ? pooledT(firstSummary, secondSummary) : welchT(firstSummary, secondSummary);
 }
 
 /** A statistic that does not come out finite — fewer than two values, or a sample that never
@@ -125,22 +127,18 @@ function twoSampleStatistic(args: string[], context: FunctionContext, type: numb
 const finiteStatistic = (statistic: TStatistic | SpreadsheetError): TStatistic | SpreadsheetError =>
   "t" in statistic && !(Number.isFinite(statistic.t) && Number.isFinite(statistic.df)) ? DIV_ZERO_ERROR : statistic;
 
-/** The first error cell in the two sample ranges, in argument order. Excel's T.TEST answers it;
- *  the numeric readers below skip any cell without a number, errors included. */
-function sampleRangeError(args: string[], context: FunctionContext): SpreadsheetError | undefined {
-  const readRaw = rawRangeReader(context);
-  return [0, 1].flatMap((index) => readRaw(requiredArg(context, args, index))).find(isSpreadsheetErrorValue);
-}
-
 const tTest: FunctionHandler = (args, context) => {
-  const rangeError = sampleRangeError(args, context);
+  const readRaw = blankAwareRangeReader(context);
+  const samples: Samples = [readRaw(requiredArg(context, args, 0)), readRaw(requiredArg(context, args, 1))];
+  // The first error cell in the two ranges, in argument order, is Excel's answer.
+  const rangeError = samples.flat().find(isSpreadsheetErrorValue);
   if (rangeError) return rangeError;
   const tailsAndType = [numberArg(args, context, 2), numberArg(args, context, 3)];
   const firstError = tailsAndType.find((value): value is SpreadsheetError => typeof value !== "number");
   if (firstError) return firstError;
   const [tails, type] = tailsAndType.map((value) => Math.trunc(Number(value)));
   if ((tails !== 1 && tails !== 2) || type === undefined || type < PAIRED || type > UNEQUAL_VARIANCE) return NUM_ERROR;
-  const statistic = finiteStatistic(type === PAIRED ? pairedStatistic(args, context) : twoSampleStatistic(args, context, type));
+  const statistic = finiteStatistic(type === PAIRED ? pairedStatistic(samples) : twoSampleStatistic(samples, type));
   return "t" in statistic ? tTestProbability(statistic, tails === 1 ? 1 : 2) : statistic;
 };
 

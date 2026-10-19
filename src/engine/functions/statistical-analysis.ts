@@ -5,7 +5,7 @@
  */
 
 import { blankAwareRangeReader, criteriaArg, functionRegistry, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
-import { collectNumericValues } from "./statistical";
+import { collectNumbersOrError, overNumbers } from "./statistical";
 import {
   correlation,
   intercept,
@@ -36,7 +36,9 @@ export const scalarArg = (args: string[], context: FunctionContext, index: numbe
 /** `(known_y, known_x)` from argument `first` on, read raw so the two ranges stay paired by position. */
 export const pairsFrom = (args: string[], context: FunctionContext, first = 0): NumericPairs | SpreadsheetError => {
   const readRaw = blankAwareRangeReader(context);
-  return numericPairs(readRaw(requiredArg(context, args, first)), readRaw(requiredArg(context, args, first + 1)));
+  const [yValues, xValues] = [readRaw(requiredArg(context, args, first)), readRaw(requiredArg(context, args, first + 1))];
+  // The first error in either range is the answer; the pairing alone would skip it.
+  return [...yValues, ...xValues].find(isSpreadsheetErrorValue) ?? numericPairs(yValues, xValues);
 };
 
 export const pairedHandler =
@@ -50,16 +52,20 @@ export const pairedHandler =
 const rankedHandler =
   (rule: (values: number[], k: number) => number | SpreadsheetError): FunctionHandler =>
   (args, context) => {
+    const values = collectNumbersOrError([requiredArg(context, args, 0)], context);
+    if (!Array.isArray(values)) return values;
     const k = scalarArg(args, context, 1);
-    return typeof k === "number" ? rule(collectNumericValues([requiredArg(context, args, 0)], context), k) : k;
+    return typeof k === "number" ? rule(values, k) : k;
   };
 
 const rankHandler: FunctionHandler = (args, context) => {
   const target = scalarArg(args, context, 0);
   if (typeof target !== "number") return target;
+  const values = collectNumbersOrError([requiredArg(context, args, 1)], context);
+  if (!Array.isArray(values)) return values;
   const order = args.length > 2 ? scalarArg(args, context, 2) : 0;
   if (typeof order !== "number") return order;
-  return rankOf(target, collectNumericValues([requiredArg(context, args, 1)], context), order !== 0);
+  return rankOf(target, values, order !== 0);
 };
 
 /** The `range, criteria` pairs starting at `first`, or the first error a
@@ -80,7 +86,10 @@ const matchedValues = (args: string[], context: FunctionContext): CellValue[] | 
   const conditions = conditionsFrom(args, context, 1);
   if (!Array.isArray(conditions)) return conditions;
   const matched = rowsMeetingAll(values.length, conditions);
-  return Array.isArray(matched) ? values.filter((_, row) => matched[row]) : matched;
+  if (!Array.isArray(matched)) return matched;
+  const matchedRows = values.filter((_, row) => matched[row]);
+  // A matched value that is an error is the answer; one in an unmatched row is not read.
+  return matchedRows.find(isSpreadsheetErrorValue) ?? matchedRows;
 };
 
 const sumifsHandler: FunctionHandler = (args, context) => {
@@ -172,7 +181,14 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
     description: "Returns a quartile (0 to 4), interpolated like QUARTILE.INC",
     examples: ["QUARTILE(A2:A100, 1)"],
   },
-  { name: "LARGE", handler: rankedHandler(kthLargest), minArgs: 2, maxArgs: 2, description: "Returns the k-th largest value", examples: ["LARGE(A2:A100, 3)"] },
+  {
+    name: "LARGE",
+    handler: rankedHandler(kthLargest),
+    minArgs: 2,
+    maxArgs: 2,
+    description: "Returns the k-th largest value",
+    examples: ["LARGE(A2:A100, 3)"],
+  },
   {
     name: "SMALL",
     handler: rankedHandler(kthSmallest),
@@ -191,7 +207,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "STDEVP",
-    handler: (args, context) => populationStdev(collectNumericValues(args, context)),
+    handler: overNumbers(populationStdev),
     minArgs: 1,
     maxArgs: MAX_AGGREGATE_ARGS,
     description: "Returns the population standard deviation",
@@ -199,7 +215,7 @@ const ANALYSIS_FUNCTIONS: AnalysisFunction[] = [
   },
   {
     name: "VARP",
-    handler: (args, context) => populationVariance(collectNumericValues(args, context)),
+    handler: overNumbers(populationVariance),
     minArgs: 1,
     maxArgs: MAX_AGGREGATE_ARGS,
     description: "Returns the population variance",

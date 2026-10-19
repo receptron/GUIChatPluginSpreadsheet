@@ -3,10 +3,10 @@
  * read as SUM reads them, and the rules in shape-math.ts.
  */
 
-import { functionRegistry, rawRangeReader, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
+import { functionRegistry, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
 import { toScalarNumber } from "../numericCoercion";
-import { isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
-import { collectArgumentValues, collectNumericValues } from "./statistical";
+import type { SpreadsheetError } from "../spreadsheet-errors";
+import { collectNumbersOrError } from "./statistical";
 import { geometricMean, harmonicMean, kurtosis, percentRank, skewness, standardize } from "./shape-math";
 
 const MAX_AGGREGATE_ARGS = 255;
@@ -15,20 +15,10 @@ const DEFAULT_SIGNIFICANCE = 3;
 const numberArg = (args: string[], context: FunctionContext, index: number): number | SpreadsheetError =>
   toScalarNumber(context.evaluateFormula(requiredArg(context, args, index)));
 
-/** The numbers of the arguments, as SUM reads them, or the first error among them in argument
- *  order — a cell inside a range or a scalar. SUM's reader skips an error cell and reads an
- *  error scalar as 0, so a sample with #DIV/0! in it answered as if it were shorter. */
-function sampleOrError(args: string[], context: FunctionContext): number[] | SpreadsheetError {
-  const firstError = collectArgumentValues(args, context, rawRangeReader(context))
-    .map(({ value }) => value)
-    .find(isSpreadsheetErrorValue);
-  return firstError ?? collectNumericValues(args, context);
-}
-
 const sampleHandler =
   (rule: (values: number[]) => number | SpreadsheetError): FunctionHandler =>
   (args, context) => {
-    const values = sampleOrError(args, context);
+    const values = collectNumbersOrError(args, context);
     return Array.isArray(values) ? rule(values) : values;
   };
 
@@ -45,7 +35,7 @@ const percentRankHandler: FunctionHandler = (args, context) => {
   if (typeof x !== "number") return x;
   const significance = args.length > 2 ? numberArg(args, context, 2) : DEFAULT_SIGNIFICANCE;
   if (typeof significance !== "number") return significance;
-  const values = sampleOrError([requiredArg(context, args, 0)], context);
+  const values = collectNumbersOrError([requiredArg(context, args, 0)], context);
   return Array.isArray(values) ? percentRank(values, x, significance) : values;
 };
 
