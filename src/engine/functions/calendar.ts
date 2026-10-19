@@ -2,18 +2,19 @@
  * Calendar functions: WEEKDAY, DAYS, EDATE, EOMONTH, WORKDAY, NETWORKDAYS. The
  * rules live in date-calendar.ts; this file reads the arguments.
  *
- * Arguments are read strictly, as Excel does: a date given as text has already
- * become a serial when the argument is evaluated, so text that is still text is
- * #VALUE!, and an error in an argument is the function's answer.
+ * Arguments are read as Excel reads them: a date written as text (`2025-01`) is
+ * that date (dateText.ts), other text is #VALUE!, and an error in an argument is
+ * the function's answer.
  */
 
 import { functionRegistry, rawRangeReader, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
 import { addMonths, addWorkdays, countWorkdays, daysBetween, endOfMonth, weekdayOf } from "../date-calendar";
-import { holdsNumber, toScalarNumber } from "../numericCoercion";
+import { holdsNumber } from "../numericCoercion";
+import { dateArgument } from "../dateText";
 import { isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
 
 const numberArg = (args: string[], context: FunctionContext, index: number): number | SpreadsheetError =>
-  toScalarNumber(context.evaluateFormula(requiredArg(context, args, index)));
+  dateArgument(context.evaluateFormula(requiredArg(context, args, index)), context.preferDDMMYYYY);
 
 /** The numbers, or the first error among them. */
 const numbersOrError = (values: (number | SpreadsheetError)[]): number[] | SpreadsheetError =>

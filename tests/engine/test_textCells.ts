@@ -36,9 +36,9 @@ describe("a text cell read by a formula (#140)", () => {
     assert.deepEqual(read("12abc", ["=A1+1", "=SUM(A1:A1)", "=COUNT(A1:A1)"]).map(String), ["#VALUE!", "0", "0"]);
   });
 
-  it("is #VALUE! to a date function rather than serial 0, as calendar functions already answer", () => {
+  it("is #VALUE! to a date function rather than serial 0, when it is not a date either", () => {
     assert.deepEqual(
-      read("2023-01", ["=YEAR(A1)", "=MONTH(A1)", "=DAY(A1)", "=HOUR(A1)", '=DATEDIF(A1,45000,"D")', "=WEEKDAY(A1)"]).map(String),
+      read("12abc", ["=YEAR(A1)", "=MONTH(A1)", "=DAY(A1)", "=HOUR(A1)", '=DATEDIF(A1,45000,"D")', "=WEEKDAY(A1)"]).map(String),
       Array(6).fill("#VALUE!"),
     );
   });

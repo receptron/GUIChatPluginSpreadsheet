@@ -12,6 +12,7 @@
 
 import type { SpreadsheetCell } from "./types.js";
 import { FUNCTION_NAME_SOURCE, isCallableName } from "./registry.js";
+import { dateSerialFromText } from "./dateText.js";
 // Registers the functions, so isCallableName knows LOG10 before any sheet is calculated.
 import "./functions/index.js";
 
@@ -67,6 +68,8 @@ export function looksLikeFormula(input: string): boolean {
 export function parseNonStringInput(raw: string): number | string {
   const input = raw.trim();
   if (input === "") return "";
+  // A date typed in (`2025-01-15`, `2025-01`) is a date, not a subtraction; the calculation reads it as one.
+  if (dateSerialFromText(input) !== null) return input;
   if (looksLikeFormula(input)) return `=${input}`;
   return STRICT_NUMBER.test(input) ? Number(input) : input;
 }
