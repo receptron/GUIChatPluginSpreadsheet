@@ -37,6 +37,30 @@ describe("rounding works on the written decimal", () => {
   });
 });
 
+describe("a value with nothing to round is returned as it is", () => {
+  const BEYOND_SAFE_INTEGER = 9007199254740992;
+  it("an integer above 15 digits keeps its digits", () => {
+    assert.equal(roundTo(BEYOND_SAFE_INTEGER, 0), BEYOND_SAFE_INTEGER);
+    assert.equal(roundDownTo(BEYOND_SAFE_INTEGER, 0), BEYOND_SAFE_INTEGER);
+    assert.equal(floorToSignificance(BEYOND_SAFE_INTEGER, 1e-20), BEYOND_SAFE_INTEGER);
+  });
+
+  it("a scale or quotient that overflows does not make Infinity", () => {
+    assert.equal(roundTo(1e300, 20), 1e300);
+    assert.equal(roundUpTo(1e300, 20), 1e300);
+    assert.equal(roundDownTo(-1e300, 20), -1e300);
+    assert.equal(floorToSignificance(1e300, 1e-20), 1e300);
+    assert.equal(ceilingToSignificance(1e300, 1e-20), 1e300);
+  });
+
+  it("rounds to tens and hundreds with negative digits", () => {
+    assert.equal(roundTo(1235, -1), 1240);
+    assert.equal(roundTo(-1235, -1), -1240);
+    assert.equal(roundDownTo(1299, -2), 1200);
+    assert.equal(roundUpTo(1201, -2), 1300);
+  });
+});
+
 describe("POWER outside its range is an error, not a number", () => {
   it("0 to a negative power divides by zero", () => {
     assert.equal(power(0, -1), DIV_ZERO_ERROR);
@@ -54,6 +78,7 @@ describe("POWER outside its range is an error, not a number", () => {
 const ROUNDS = 2000;
 const MAX_MANTISSA = 1_000_000_000;
 const MAX_DECIMALS = 6;
+const MAX_NEGATIVE_DIGITS = 3;
 const SEED = Number(process.env.ROUNDING_SEED ?? Date.now() % 1_000_000);
 
 const random = (() => {
@@ -82,6 +107,10 @@ const exactUnits = (mantissa: bigint, decimals: number, digits: number, directio
 };
 
 const DIRECTIONS: Direction[] = ["half", "up", "down"];
+/** A count of 10^-digits units as a number; multiplying by 10^|digits| keeps tens exact,
+ *  where dividing by 0.1 would not. */
+const fromUnits = (units: bigint, digits: number): number => (digits >= 0 ? Number(units) / 10 ** digits : Number(units) * 10 ** -digits);
+
 const ROUNDERS: Record<Direction, (value: number, digits: number) => number> = { half: roundTo, up: roundUpTo, down: roundDownTo };
 
 describe(`rounding over generated decimals (ROUNDING_SEED=${SEED})`, () => {
@@ -89,10 +118,10 @@ describe(`rounding over generated decimals (ROUNDING_SEED=${SEED})`, () => {
     const failures = Array.from({ length: ROUNDS }, () => {
       const mantissa = BigInt(randomInt(2 * MAX_MANTISSA) - MAX_MANTISSA);
       const decimals = randomInt(MAX_DECIMALS + 1);
-      const digits = randomInt(decimals + 1);
+      const digits = randomInt(decimals + 1 + MAX_NEGATIVE_DIGITS) - MAX_NEGATIVE_DIGITS;
       const direction = DIRECTIONS[randomInt(DIRECTIONS.length)] ?? "half";
       const value = Number(mantissa) / 10 ** decimals;
-      const expected = Number(exactUnits(mantissa, decimals, digits, direction)) / 10 ** digits;
+      const expected = fromUnits(exactUnits(mantissa, decimals, digits, direction), digits);
       const got = ROUNDERS[direction](value, digits);
       return got === expected ? [] : [`${direction}(${value}, ${digits}) gave ${got}, expected ${expected}`];
     }).flat();
