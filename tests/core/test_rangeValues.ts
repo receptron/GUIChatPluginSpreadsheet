@@ -4,6 +4,7 @@ import type { FileOps } from "gui-chat-protocol";
 import { calculatedRange, MAX_RANGE_CELLS, readCalculatedRange } from "../../src/core/index.js";
 import { parseRange, rangeCellValue } from "../../src/core/rangeValues.js";
 import type { SpreadsheetSheet } from "../../src/core/types.js";
+import { NO_CUSTOM_FUNCTIONS } from "../../src/engine/customFunctions.js";
 
 const DATA: SpreadsheetSheet = {
   name: "Data",
@@ -126,6 +127,14 @@ describe("readCalculatedRange", () => {
     ];
     const artifacts = filesHolding({ "spreadsheets/2026/10/fn.json": JSON.stringify(workbook) });
     assert.deepEqual(await readCalculatedRange(artifacts, "artifacts/spreadsheets/2026/10/fn.json", "Data!A1:B1"), [[3, 6]]);
+  });
+
+  // Both passes (raw and display) are one read, with one time budget between them.
+  it("starts the functions' clock once for both passes", () => {
+    const starts: number[] = [];
+    const counted = { ...NO_CUSTOM_FUNCTIONS, startCalculation: () => void starts.push(1) };
+    calculatedRange([DATA], "Data!A1:A2", counted);
+    assert.equal(starts.length, 1);
   });
 
   it("reads the saved workbook through files.artifacts", async () => {

@@ -40,8 +40,13 @@ export const MAX_ARGUMENT_CELLS = 100_000;
 // handle by handle on this side.
 const CALLER_SOURCE = "(fn, args) => fn(...JSON.parse(args))";
 
-// A reference, with an optional sheet: `B2`, `$B$2:$C$9`, `Data!B2:B9`, `'My data'!B2`.
-const REFERENCE = /^(?:(?:'[^']+'|[^!'"(),]+)!)?\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?$/i;
+// An optional sheet before a reference: `Data!`, `'My data'!`.
+const SHEET = "(?:(?:'[^']+'|[^!'\"(),]+)!)?";
+// A range: `$B$2:$C$9`, `Data!B2:B9`. A single cell (`B2`) is a value, not a range.
+const RANGE = new RegExp(`^${SHEET}\\$?[A-Z]+\\$?\\d+:\\$?[A-Z]+\\$?\\d+$`, "i");
+const SINGLE_CELL = new RegExp(`^${SHEET}\\$?[A-Z]+\\$?\\d+$`, "i");
+// A whole column or row (`A:A`, `2:2`). The engine reads neither, so a function is not handed one.
+const WHOLE_LINE = new RegExp(`^${SHEET}(?:\\$?[A-Z]+:\\$?[A-Z]+|\\$?\\d+:\\$?\\d+)$`, "i");
 
 let quickJS: Promise<QuickJSWASMModule> | null = null;
 
@@ -180,11 +185,17 @@ const toJsonCell = (value: CellValue): JsonCell | SpreadsheetError => {
   return value === "" ? null : value;
 };
 
-/** One argument: a reference as rows of cells, anything else as its value. */
+/** One argument: a range as rows of cells, anything else — a single cell included — as its value. */
 function argumentValue(arg: string, context: FunctionContext): ArgumentValue {
-  if (!REFERENCE.test(arg)) return toJsonCell(context.evaluateFormula(arg));
-  return rangeRows(arg, context);
+  if (WHOLE_LINE.test(arg)) return VALUE_ERROR;
+  if (RANGE.test(arg)) return rangeRows(arg, context);
+  // Read like a range's cells, so a blank one is null here too rather than the 0 a formula reads.
+  if (SINGLE_CELL.test(arg)) return toJsonCell(cellsReader(context)(arg)[0] ?? "");
+  return toJsonCell(context.evaluateFormula(arg));
 }
+
+/** The reader that keeps a blank cell as "" where the host offers one. */
+const cellsReader = (context: FunctionContext) => context.getRangeValuesKeepingBlanks ?? context.getRangeValuesRaw ?? context.getRangeValues;
 
 /** The cells `reference` names, row by row, read one by one so a cell past the sheet's last
  *  column still takes its place (as null) and every row is as wide as the range. */
@@ -193,7 +204,7 @@ function rangeRows(reference: string, context: FunctionContext): JsonCell[][] | 
   const sheetPrefix = bang >= 0 ? reference.slice(0, bang + 1) : "";
   const coords = expandRangeOrCell(reference.slice(bang + 1)) ?? [];
   if (coords.length > MAX_ARGUMENT_CELLS) return VALUE_ERROR;
-  const read = context.getRangeValuesKeepingBlanks ?? context.getRangeValuesRaw ?? context.getRangeValues;
+  const read = cellsReader(context);
   const rows = new Map<number, JsonCell[]>();
   for (const { row, col } of coords) {
     const cell = toJsonCell(read(`${sheetPrefix}${indexToColumn(col)}${row + 1}`)[0] ?? "");

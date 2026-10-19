@@ -146,7 +146,7 @@ A workbook can define functions of its own, for an analysis no built-in function
 ```
 
 - A function body is JavaScript, run in [QuickJS](https://github.com/justjake/quickjs-emscripten) (WebAssembly) with no DOM, network, file system or timers, at most 50 ms per call, 2 s per calculation and 16 MB of memory. Each function has a global scope of its own.
-- A range argument arrives as rows of cells (an array of arrays, a blank cell as `null`); any other argument as its value. An argument that is an error is passed on without calling the function.
+- A range argument arrives as rows of cells (an array of arrays, a blank cell as `null`); a single cell and any other argument as its value. A whole column or row (`A:A`, `2:2`) is `#VALUE!`: the engine does not read those. An argument that is an error is passed on without calling the function.
 - Return a number, text or `true`/`false`. A time-out or a non-finite number shows `#NUM!`; a thrown error or any other return value shows `#VALUE!`.
 - A name is letters and digits, parts joined by dots, and cannot be a built-in function's. `presentSpreadsheet` says in its reply which definitions could not be used.
 - QuickJS loads only for a workbook that defines functions. The View and `readCalculatedRange` load it themselves; a host calling `calculatedRange` directly passes the set from `loadCustomFunctions`.

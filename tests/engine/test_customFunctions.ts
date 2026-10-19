@@ -91,6 +91,7 @@ const FUNCTIONS: CustomFunctionSpec[] = [
   ),
   spec("SHAPE", ["values"], "return values.length + 'x' + values[0].length + ':' + JSON.stringify(values);"),
   spec("TWICE", ["x"], "return x * 2;"),
+  spec("SHAPE.OF", ["x"], "return typeof x + ':' + JSON.stringify(x);"),
   spec("SPIN", [], "while (true) {}"),
   spec("THROWS", [], "throw new Error('nope');"),
   spec("OBJECT", [], "return { a: 1 };"),
@@ -114,6 +115,21 @@ describe("calling a workbook's functions", () => {
   it("loads them, with no problems", async () => {
     set = await loadCustomFunctions([sheetWith([])]);
     assert.deepEqual(set.problems, []);
+  });
+
+  it("hands a single cell as its value, not as a one-cell range", () => {
+    const rows: SheetData["data"] = [[{ v: 3 }, { v: "=SHAPE.OF(A1)" }, { v: "=SHAPE.OF(A2)" }]];
+    const out = calculate(rows);
+    assert.equal(cellAt(out, 0, 1), "number:3");
+    assert.equal(cellAt(out, 0, 2), "object:null");
+  });
+
+  it("answers #VALUE! for a whole column or row, which the engine does not read", () => {
+    const out = calculate([[{ v: "=SHAPE.OF(A:A)" }, { v: "=SHAPE.OF(1:1)" }, { v: "=SHAPE.OF(Data!B:B)" }]]);
+    assert.deepEqual(
+      [0, 1, 2].map((col) => cellAt(out, 0, col)),
+      ["#VALUE!", "#VALUE!", "#VALUE!"],
+    );
   });
 
   it("hands a range as rows of cells, a blank as null", () => {

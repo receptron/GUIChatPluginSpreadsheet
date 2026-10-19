@@ -89,8 +89,11 @@ export function calculatedRange(sheets: SpreadsheetSheet[], range: string, funct
   const engineSheets = sheets.map(toEngineSheet);
   const target = engineSheets[index] ?? toEngineSheet(sheet);
   // Both passes: the raw one keeps a formatted number plottable, the display one gives a date its text.
-  const calculated = calculateWith(functions, () => calculateSheet(target, engineSheets, { skipFormatting: true }).data);
-  const displayed = calculateWith(functions, () => calculateSheet(target, engineSheets).data);
+  // One calculateWith for both passes: they are one read, and share one time budget.
+  const { calculated, displayed } = calculateWith(functions, () => ({
+    calculated: calculateSheet(target, engineSheets, { skipFormatting: true }).data,
+    displayed: calculateSheet(target, engineSheets).data,
+  }));
   return rowsOf(rectangle).map((row) =>
     colsOf(rectangle).map((col) => rangeCellValue(target.data[row]?.[col], asStored(calculated[row]?.[col]), asStored(displayed[row]?.[col]))),
   );

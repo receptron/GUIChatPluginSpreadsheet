@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import type { FileOps, ToolContext } from "gui-chat-protocol";
 import { executeSpreadsheet, pluginCore } from "../../src/core/plugin.js";
+import type { CustomFunctionSpec } from "../../src/engine/customFunctionSpecs.js";
 import { executeSpreadsheetDispatch, isSpreadsheetDispatchArgs } from "../../src/core/dispatch.js";
 import type { SpreadsheetDispatchArgs, SpreadsheetSheet } from "../../src/core/types.js";
 
@@ -192,7 +193,7 @@ describe("pluginCore.execute routing", () => {
 // A function the agent defined that cannot be used is said in the reply (#114): otherwise its
 // cells show #NAME? with nothing saying why.
 describe("executeSpreadsheet — a workbook's functions", () => {
-  const sheet = (functions: unknown[]) => [{ name: "S", functions, data: [[{ v: 1 }]] }];
+  const sheet = (functions: CustomFunctionSpec[]): SpreadsheetSheet[] => [{ name: "S", functions, data: [[{ v: 1 }]] }];
 
   it("says which functions cannot be used, and why", async () => {
     const result = await executeSpreadsheet(
@@ -202,7 +203,7 @@ describe("executeSpreadsheet — a workbook's functions", () => {
         sheets: sheet([
           { name: "SUM", params: [], body: "return 1;" },
           { name: "OK", params: [], body: "return 1;" },
-        ]) as never,
+        ]),
       },
     );
     assert.match(result.message ?? "", /SUM \(SUM is a built-in function\)/);
@@ -210,13 +211,13 @@ describe("executeSpreadsheet — a workbook's functions", () => {
   });
 
   it("says nothing extra when every function can be used", async () => {
-    const result = await executeSpreadsheet({}, { title: "t", sheets: sheet([{ name: "OK", params: [], body: "return 1;" }]) as never });
+    const result = await executeSpreadsheet({}, { title: "t", sheets: sheet([{ name: "OK", params: [], body: "return 1;" }]) });
     assert.equal(result.message, "Created spreadsheet: t");
   });
 
   it("keeps the functions in the saved workbook", async () => {
     const files = memoryFiles();
-    const result = await executeSpreadsheet(hostContext(files), { title: "t", sheets: sheet([{ name: "OK", params: ["x"], body: "return x;" }]) as never });
+    const result = await executeSpreadsheet(hostContext(files), { title: "t", sheets: sheet([{ name: "OK", params: ["x"], body: "return x;" }]) });
     const saved = JSON.parse([...files.store.values()][0] ?? "[]");
     assert.deepEqual(saved[0].functions, [{ name: "OK", params: ["x"], body: "return x;" }]);
     assert.equal(typeof result.data?.sheets, "string");
