@@ -100,6 +100,9 @@ const FUNCTIONS: CustomFunctionSpec[] = [
   spec("SET.GLOBAL", [], "globalThis.leak = 1; return 1;"),
   spec("READ.GLOBAL", [], "return typeof globalThis.leak;"),
   spec("HOG", [], "return new Array(5000000).fill(1).length;"),
+  spec("TO.JSON", [], "return { toJSON() { return 7; } };"),
+  spec("SLOW.GETTER", [], "return { get x() { while (true) {} } };"),
+  spec("SLOW.THROW", [], "throw { get message() { while (true) {} } };"),
 ];
 
 const sheetWith = (rows: SheetData["data"]): SheetData & { functions: CustomFunctionSpec[] } => ({ name: "Data", functions: FUNCTIONS, data: rows });
@@ -165,6 +168,17 @@ describe("calling a workbook's functions", () => {
   });
 
   // Five million numbers is far past the cap and quick to ask for: without the cap it answers 5000000.
+  // Reading what a function returned or threw must not run its code outside the deadline.
+  it("does not serialize a returned object, nor wait on a thrown one's getters", () => {
+    const started = Date.now();
+    const out = calculate([[{ v: "=TO.JSON()" }, { v: "=SLOW.GETTER()" }, { v: "=SLOW.THROW()" }]]);
+    assert.deepEqual(
+      [0, 1, 2].map((col) => cellAt(out, 0, col)),
+      ["#VALUE!", "#VALUE!", "#VALUE!"],
+    );
+    assert.ok(Date.now() - started < 1000, "nothing ran past the call's deadline");
+  });
+
   it("stops a function that asks for more memory than the cap", () => {
     assert.equal(cellAt(calculate([[{ v: "=HOG()" }]]), 0, 0), "#VALUE!");
   });
@@ -224,6 +238,15 @@ describe("the functions are the workbook's alone", () => {
 
   it("reports a body that does not compile, and keeps the others", async () => {
     const set = await loadCustomFunctions([{ functions: [spec("BROKEN", [], "return ("), spec("FINE", [], "return 1;")] }]);
+    assert.equal(set.problems.length, 1);
+    assert.match(set.problems[0]?.reason ?? "", /does not compile/);
+    assert.equal(set.definitions.has("FINE"), true);
+    set.dispose();
+  });
+
+  // A body can close its Function early and run code while it loads; that code is held to a deadline.
+  it("stops code a body runs while it loads, and keeps the other functions", async () => {
+    const set = await loadCustomFunctions([{ functions: [spec("ESCAPE", [], "}); while (true) {} (function () {"), spec("FINE", [], "return 1;")] }]);
     assert.equal(set.problems.length, 1);
     assert.match(set.problems[0]?.reason ?? "", /does not compile/);
     assert.equal(set.definitions.has("FINE"), true);

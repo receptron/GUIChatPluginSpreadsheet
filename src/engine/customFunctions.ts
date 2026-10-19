@@ -97,14 +97,18 @@ function buildSet(module: QuickJSWASMModule, usable: Map<string, CustomFunctionS
     const vm = runtime.newContext();
     const handles: QuickJSHandle[] = [];
     contexts.push({ vm, handles });
-    const compiled = vm.evalCode(functionSource(spec));
-    if (compiled.error) {
-      problems.push({ name: spec.name, reason: `does not compile: ${describe(vm, compiled.error)}` });
+    // Under a deadline too: a body that closes its function early runs code right here.
+    const compiled = underDeadline(runtime, Date.now() + CALL_LIMIT_MS, () => {
+      const result = vm.evalCode(functionSource(spec));
+      return result.error ? { error: messageOf(vm, result.error) || "it stopped while loading" } : { fn: result.value };
+    });
+    if ("error" in compiled) {
+      problems.push({ name: spec.name, reason: `does not compile: ${compiled.error}` });
       return;
     }
     const caller = vm.unwrapResult(vm.evalCode(CALLER_SOURCE));
-    handles.push(compiled.value, caller);
-    const call = { vm, runtime, caller, fn: compiled.value };
+    handles.push(compiled.fn, caller);
+    const call = { vm, runtime, caller, fn: compiled.fn };
     definitions.set(
       key,
       definitionFor(spec, (json) => callInVm(call, json, clock.calculationStart)),
@@ -120,12 +124,19 @@ function buildSet(module: QuickJSWASMModule, usable: Map<string, CustomFunctionS
   return { definitions, problems, startCalculation: () => (clock.calculationStart = Date.now()), dispose };
 }
 
-/** The error a VM call threw, as text, and the handle released. */
-function describe(vm: QuickJSContext, error: QuickJSHandle): string {
-  const dumped: unknown = vm.dump(error);
-  error.dispose();
-  if (typeof dumped === "object" && dumped !== null && "message" in dumped && typeof dumped.message === "string") return dumped.message;
-  return String(dumped);
+/** The `message` of what a VM call threw, or "" when it has none that is text; the handle released.
+ *  Reading `message` can run a getter, so it is read under the caller's deadline. */
+function messageOf(vm: QuickJSContext, error: QuickJSHandle): string {
+  try {
+    const message = vm.getProp(error, "message");
+    const text = vm.typeof(message) === "string" ? vm.getString(message) : "";
+    message.dispose();
+    return text;
+  } catch {
+    return "";
+  } finally {
+    error.dispose();
+  }
 }
 
 type Invoke = (argumentsJson: string) => CellValue;
@@ -142,15 +153,39 @@ interface CompiledCall {
 function callInVm({ vm, runtime, caller, fn }: CompiledCall, json: string, calculationStart: number): CellValue {
   const deadline = Math.min(Date.now() + CALL_LIMIT_MS, calculationStart + CALCULATION_LIMIT_MS);
   if (Date.now() >= deadline) return NUM_ERROR;
+  return underDeadline(runtime, deadline, () => {
+    const argsHandle = vm.newString(json);
+    const result = vm.callFunction(caller, vm.undefined, fn, argsHandle);
+    argsHandle.dispose();
+    if (result.error) return messageOf(vm, result.error) === INTERRUPTED ? NUM_ERROR : VALUE_ERROR;
+    const value = primitiveOf(vm, result.value);
+    result.value.dispose();
+    return value;
+  });
+}
+
+// What QuickJS's interrupt throws.
+const INTERRUPTED = "interrupted";
+
+/** Run `work` with the VM interrupted at `deadline` — every step that can execute workbook code:
+ *  the call, and reading what it returned or threw (a getter, a toJSON, a Proxy all run code). */
+function underDeadline<T>(runtime: QuickJSRuntime, deadline: number, work: () => T): T {
   runtime.setInterruptHandler(shouldInterruptAfterDeadline(deadline));
-  const argsHandle = vm.newString(json);
-  const result = vm.callFunction(caller, vm.undefined, fn, argsHandle);
-  argsHandle.dispose();
-  runtime.removeInterruptHandler();
-  if (result.error) return describe(vm, result.error) === "interrupted" ? NUM_ERROR : VALUE_ERROR;
-  const value: unknown = vm.dump(result.value);
-  result.value.dispose();
-  return asCellValue(value);
+  try {
+    return work();
+  } finally {
+    runtime.removeInterruptHandler();
+  }
+}
+
+/** A returned value as a cell holds it, read by its type alone: an object is #VALUE! without
+ *  being serialized, since serializing it would run its toJSON or getters. */
+function primitiveOf(vm: QuickJSContext, handle: QuickJSHandle): CellValue {
+  const kind = vm.typeof(handle);
+  if (kind === "number") return asCellValue(vm.getNumber(handle));
+  if (kind === "string") return vm.getString(handle);
+  if (kind === "boolean") return asCellValue(vm.dump(handle));
+  return VALUE_ERROR;
 }
 
 /** What a function returned, as a cell holds it: a finite number, text or a logical; else an error. */
