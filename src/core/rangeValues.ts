@@ -39,7 +39,7 @@ export function parseRange(range: string): Rectangle | null {
   const bang = range.lastIndexOf("!");
   const body = range.slice(bang + 1);
   const bounds = parseRangeBounds(body.includes(":") ? range : `${range}:${body}`);
-  if (!bounds || !parseSingleCellRef(body.split(":")[0] ?? "")) return null;
+  if (!bounds || !parseSingleCellRef((body.split(":")[0] ?? "").toUpperCase())) return null;
   return {
     sheetName: sheetNameOf(bounds.sheetPrefix),
     startRow: Math.min(bounds.startRow, bounds.endRow) - 1,

@@ -117,12 +117,17 @@ export interface RangeBounds {
 // sheet-unaware regex against the whole string and threw on `Sheet1!A2:C10`
 // before the sheet-aware copy could run (#2390). Returns null for anything that
 // is not a two-endpoint range so callers surface one "Invalid range" message.
+// One end of a range: an optional `$` before the column and before the row, in either case.
+const ANCHORED_A1 = /^\$?[A-Za-z]+\$?\d+$/;
+
 export function parseRangeBounds(range: string): RangeBounds | null {
   const bang = range.lastIndexOf("!");
   const sheetPrefix = bang >= 0 ? range.slice(0, bang + 1) : "";
   const body = bang >= 0 ? range.slice(bang + 1) : range;
-  // `$A$2:$C$9` and `a2:c9` name the same range as `A2:C9`, as they do for expandRange.
-  const endpoints = parseRangeEndpoints(body.replace(/\$/g, "").toUpperCase());
+  // `$A$2:$C$9` and `a2:c9` name the same range as `A2:C9`, as they do for expandRange. A `$`
+  // anywhere else (`A$$1`, `A1$`) is malformed, and stays so rather than being repaired.
+  const wellAnchored = body.split(":").every((endpoint) => ANCHORED_A1.test(endpoint));
+  const endpoints = wellAnchored ? parseRangeEndpoints(body.replace(/\$/g, "").toUpperCase()) : null;
   if (!endpoints) return null;
   const { start, end } = endpoints;
   return { sheetPrefix, startCol: start.col, startRow: start.rowNumber, endCol: end.col, endRow: end.rowNumber };

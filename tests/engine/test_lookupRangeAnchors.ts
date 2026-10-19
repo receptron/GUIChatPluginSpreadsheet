@@ -23,7 +23,9 @@ describe("parseRangeBounds", () => {
   });
 
   it("is still null for what is not a two-ended range", () => {
-    ["A1", "$A$1", "A1:B2:C3", "A:B", "1:2", "", "$:$"].forEach((range) => assert.equal(parseRangeBounds(range), null, range));
+    ["A1", "$A$1", "A1:B2:C3", "A:B", "1:2", "", "$:$", "A$$1:B2", "$$A1:B2", "A1$:B2", "$A$1:$B$2$", "A1:$B2$"].forEach((range) =>
+      assert.equal(parseRangeBounds(range), null, range),
+    );
   });
 });
 
