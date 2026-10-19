@@ -78,6 +78,17 @@ describe("argument rules", () => {
     assert.equal(withGaps, compact);
   });
 
+  it("answers the first error in a range or among the values, rather than skipping it", () => {
+    const withError = [1, "=1/0", 3, "=SQRT(-1)"];
+    assert.deepEqual(
+      valuesOf(
+        ["=GEOMEAN(A1:A3)", "=HARMEAN(A1:A3)", "=SKEW(A1:A4)", "=KURT(A1:A4)", "=PERCENTRANK.INC(A1:A3,2)", "=SKEW(A4,A2)", "=GEOMEAN(1,1/0,2)"],
+        withError,
+      ),
+      ["#DIV/0!", "#DIV/0!", "#DIV/0!", "#DIV/0!", "#DIV/0!", "#NUM!", "#DIV/0!"],
+    );
+  });
+
   it("passes an error argument through", () => {
     assert.deepEqual(valuesOf(["=STANDARDIZE(1/0,0,1)", '=PERCENTRANK.INC(A1:A2,"x")'], [1, 2]), ["#DIV/0!", "#VALUE!"]);
   });
@@ -135,7 +146,7 @@ describe(`properties over generated samples (seed ${baseSeed})`, () => {
     const random = seededRandom(baseSeed + 2);
     Array.from({ length: GENERATED_CASES }).forEach((_, index) => {
       const sample = generatedSample(random);
-      const sorted = Array.from(Float64Array.from(sample).sort());
+      const sorted = sample.toSorted((left, right) => left - right);
       const label = `seed ${baseSeed} case ${index}`;
       assert.equal(percentRank(sample, sorted[0] ?? 0, 6), 0, label);
       const largest = sorted.at(-1) ?? 0;

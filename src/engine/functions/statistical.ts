@@ -51,7 +51,7 @@ interface ArgumentValue {
   isScalar: boolean;
 }
 
-const collectArgumentValues = (args: string[], context: FunctionContext, readRange: RangeGetter): ArgumentValue[] => {
+export const collectArgumentValues = (args: string[], context: FunctionContext, readRange: RangeGetter): ArgumentValue[] => {
   const collected: ArgumentValue[] = [];
 
   for (const rawArg of args) {

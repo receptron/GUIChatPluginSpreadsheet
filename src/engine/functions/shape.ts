@@ -3,10 +3,10 @@
  * read as SUM reads them, and the rules in shape-math.ts.
  */
 
-import { functionRegistry, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
+import { functionRegistry, rawRangeReader, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
 import { toScalarNumber } from "../numericCoercion";
-import type { SpreadsheetError } from "../spreadsheet-errors";
-import { collectNumericValues } from "./statistical";
+import { isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
+import { collectArgumentValues, collectNumericValues } from "./statistical";
 import { geometricMean, harmonicMean, kurtosis, percentRank, skewness, standardize } from "./shape-math";
 
 const MAX_AGGREGATE_ARGS = 255;
@@ -15,10 +15,22 @@ const DEFAULT_SIGNIFICANCE = 3;
 const numberArg = (args: string[], context: FunctionContext, index: number): number | SpreadsheetError =>
   toScalarNumber(context.evaluateFormula(requiredArg(context, args, index)));
 
+/** The numbers of the arguments, as SUM reads them, or the first error among them in argument
+ *  order — a cell inside a range or a scalar. SUM's reader skips an error cell and reads an
+ *  error scalar as 0, so a sample with #DIV/0! in it answered as if it were shorter. */
+function sampleOrError(args: string[], context: FunctionContext): number[] | SpreadsheetError {
+  const firstError = collectArgumentValues(args, context, rawRangeReader(context))
+    .map(({ value }) => value)
+    .find(isSpreadsheetErrorValue);
+  return firstError ?? collectNumericValues(args, context);
+}
+
 const sampleHandler =
   (rule: (values: number[]) => number | SpreadsheetError): FunctionHandler =>
-  (args, context) =>
-    rule(collectNumericValues(args, context));
+  (args, context) => {
+    const values = sampleOrError(args, context);
+    return Array.isArray(values) ? rule(values) : values;
+  };
 
 const standardizeHandler: FunctionHandler = (args, context) => {
   const values = [0, 1, 2].map((index) => numberArg(args, context, index));
@@ -33,7 +45,8 @@ const percentRankHandler: FunctionHandler = (args, context) => {
   if (typeof x !== "number") return x;
   const significance = args.length > 2 ? numberArg(args, context, 2) : DEFAULT_SIGNIFICANCE;
   if (typeof significance !== "number") return significance;
-  return percentRank(collectNumericValues([requiredArg(context, args, 0)], context), x, significance);
+  const values = sampleOrError([requiredArg(context, args, 0)], context);
+  return Array.isArray(values) ? percentRank(values, x, significance) : values;
 };
 
 interface ShapeFunction {
