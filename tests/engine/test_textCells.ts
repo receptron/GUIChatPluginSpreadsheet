@@ -59,16 +59,16 @@ describe("a text cell read by a formula (#140)", () => {
 });
 
 const SEED = Number(process.env.NUMBERS_SEED ?? Date.now() % 1_000_000);
+const grouped = (n: number): string => {
+  const [whole = "", fraction] = Math.abs(n).toFixed(2).split(".");
+  return `${n < 0 ? "-" : ""}${whole.replace(/\B(?=(\d{3})+$)/g, ",")}.${fraction}`;
+};
 describe(`parseNumericString over generated numbers (NUMBERS_SEED=${SEED})`, () => {
   const random = (() => {
     let state = SEED;
     return (): number => (state = (state * 1103515245 + 12345) % 2147483648) / 2147483648;
   })();
   const ROUNDS = 2000;
-  const grouped = (n: number): string => {
-    const [whole = "", fraction] = Math.abs(n).toFixed(2).split(".");
-    return `${n < 0 ? "-" : ""}${whole.replace(/\B(?=(\d{3})+$)/g, ",")}.${fraction}`;
-  };
   const samples = Array.from({ length: ROUNDS }, () => Math.round((random() - 0.5) * 10 ** (1 + Math.floor(random() * 8)) * 100) / 100);
 
   it("reads every number back, written plainly, grouped, as a percentage or with a currency sign", () => {
