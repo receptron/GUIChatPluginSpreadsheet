@@ -39,6 +39,18 @@ describe("a cell holding a month or a Japanese date", () => {
     ]);
   });
 
+  it("is #VALUE! where a calendar function takes a count or a code, not a date", () => {
+    assert.deepEqual(
+      read("2025-01", ["=WEEKDAY(45000,A1)", "=EDATE(45000,A1)", "=EOMONTH(45000,A1)", "=WORKDAY(45000,A1)"]).map(String),
+      Array(4).fill("#VALUE!"),
+    );
+  });
+
+  it("is a date in every date position of a calendar function", () => {
+    assert.deepEqual(read("2025-01", ["=DAYS(A1,45658)", "=NETWORKDAYS(A1,45660)", '=WORKDAY(45657,1,"2025-01")']), [0, 3, 45659]);
+  });
+
+  // Guards, not regressions: these held before and must keep holding.
   it("is still text to text functions and to a wildcard criteria", () => {
     const sheet: SheetData = {
       name: "S",

@@ -20,8 +20,10 @@ stored as text.
   date, plus a month alone (`2025-01`, `2025/1`, `Jan 2025`, `January 2025`, `2025年1月`, as the
   1st) and a Japanese date (`2025年1月15日`). `dateArgument` reads a date function's argument:
   that date for date text, otherwise `toScalarNumber` (`#VALUE!` for other text).
-- `functions/date.ts` (`YEAR` … `SECOND`, `DATEDIF`) and `functions/calendar.ts` (`WEEKDAY`,
-  `DAYS`, `EDATE`, `EOMONTH`, `WORKDAY`, `NETWORKDAYS`) read their date arguments through it.
+- `functions/date.ts` (`YEAR` … `SECOND`, `DATEDIF`) and the DATE positions of `functions/calendar.ts` (`WEEKDAY`,
+  `DAYS`, `EDATE`, `EOMONTH`, `WORKDAY`, `NETWORKDAYS`) read their date arguments through it. A count
+  or a code (`WEEKDAY`'s return type, `EDATE`'s months, `WORKDAY`'s days) is still a number, so
+  `2025-01` there is `#VALUE!`. Holidays in a range skip text, as before.
 - `cellBuilder.ts`: input that is date text is kept as typed, before the formula check. `1/2`
   (no year) is still `=1/2`.
 
