@@ -12,13 +12,13 @@ import type { CellValue } from "./types";
 import { parseDate } from "./date-parser";
 import { concatOperands, concatToSum } from "./concatPrecedence";
 import { isEscapedAt } from "./escapes";
+import { withBlankSides } from "./blankOperands";
 import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison, separateRepeatedSigns } from "./translateFormula";
 import { foldComparisons, splitTopLevelComparisons } from "./textComparison";
 import { standsAloneInConcat } from "./concatOperand";
 import { stripOuterParens } from "./condition";
 import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
 import { errorCodeOf, isSpreadsheetErrorValue } from "./spreadsheet-errors";
-import { withBlankSides } from "./blankOperands";
 
 /**
  * Evaluation context for formulas
