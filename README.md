@@ -152,7 +152,7 @@ A function can answer a table too: `DECOMPOSE`, `EMA`, `SORT`, `SORTBY`, `UNIQUE
 
 - `AUTOCORREL` is the autocorrelation at one lag, as statsmodels' `acf` computes it.
 - `EMA` is the exponential moving average (pandas `ewm(alpha=…, adjust=False)`), one value per point; alpha must be in (0, 1].
-- `DECOMPOSE` is the classical decomposition (statsmodels `seasonal_decompose`): for each point, its trend (a centred moving average over one period, `#N/A` where the window does not fit), seasonal and residual parts, additive by default or `"multiplicative"`. The period must be at least 2, with two full periods of values.
+- `DECOMPOSE` is the classical decomposition (statsmodels `seasonal_decompose`): for each point, its trend (a centred moving average over one period, `#N/A` where the window does not fit), seasonal and residual parts, additive by default or `"multiplicative"`. The lag and the period must be whole numbers (a fraction is `#NUM!`); the period must be at least 2, with two full periods of values.
 
 Monthly or weekly totals need no function of their own: `GROUPBY` over `EOMONTH(date, 0)` (or a week's first day) as the key gives them, once `GROUPBY` is supported (#150).
 

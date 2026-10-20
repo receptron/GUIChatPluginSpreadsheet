@@ -11,16 +11,15 @@ const MIN_PERIOD = 2;
 
 const mean = (values: readonly number[]): number => values.reduce((sum, value) => sum + value, 0) / values.length;
 
-/** The autocorrelation at `lag`: Σ(xₜ − x̄)(xₜ₊ₖ − x̄) over Σ(xₜ − x̄)². A lag below 0 or not below the
- *  number of values is #NUM!; values that never vary have none (#DIV/0!). */
+/** The autocorrelation at `lag`: Σ(xₜ − x̄)(xₜ₊ₖ − x̄) over Σ(xₜ − x̄)². A lag that is not a whole
+ *  number from 0 up to the number of values is #NUM!; values that never vary have none (#DIV/0!). */
 export function autocorrelation(values: readonly number[], lag: number): number | SpreadsheetError {
-  const shift = Math.trunc(lag);
-  if (shift < 0 || shift >= values.length) return NUM_ERROR;
+  if (!Number.isInteger(lag) || lag < 0 || lag >= values.length) return NUM_ERROR;
   const center = mean(values);
   const deviations = values.map((value) => value - center);
   const spread = deviations.reduce((sum, deviation) => sum + deviation * deviation, 0);
   if (spread === 0) return DIV_ZERO_ERROR;
-  const together = deviations.slice(0, deviations.length - shift).reduce((sum, deviation, index) => sum + deviation * (deviations[index + shift] ?? 0), 0);
+  const together = deviations.slice(0, deviations.length - lag).reduce((sum, deviation, index) => sum + deviation * (deviations[index + lag] ?? 0), 0);
   return together / spread;
 }
 
@@ -54,8 +53,9 @@ export type DecompositionModel = "additive" | "multiplicative";
  *  trend's window does not fit). The period must be a whole number of at least 2 with two full periods
  *  of values, and a multiplicative model needs every value above 0; #NUM! otherwise. */
 export function decomposition(values: readonly number[], period: number, model: DecompositionModel): CellValue[][] | SpreadsheetError {
-  const cycle = Math.trunc(period);
-  if (cycle < MIN_PERIOD || values.length < 2 * cycle || (model === "multiplicative" && !values.every((value) => value > 0))) return NUM_ERROR;
+  const cycle = period;
+  if (!Number.isInteger(cycle) || cycle < MIN_PERIOD || values.length < 2 * cycle || (model === "multiplicative" && !values.every((value) => value > 0)))
+    return NUM_ERROR;
   const additive = model === "additive";
   const trend = centredAverage(values, cycle);
   const detrended = values.map((value, index) => {

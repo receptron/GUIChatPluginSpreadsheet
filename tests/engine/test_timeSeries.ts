@@ -101,6 +101,14 @@ describe("the argument rules", () => {
       [["#NUM!"]],
     );
     assert.deepEqual(
+      answer((range) => `=AUTOCORREL(${range},1.5)`, values),
+      [["#NUM!"]],
+    );
+    assert.deepEqual(
+      answer((range) => `=DECOMPOSE(${range},2.5)`, values),
+      [["#NUM!"]],
+    );
+    assert.deepEqual(
       answer((range) => `=EMA(${range},0)`, values),
       [["#NUM!"]],
     );
