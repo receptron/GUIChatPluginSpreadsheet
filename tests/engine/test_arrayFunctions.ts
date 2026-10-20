@@ -15,7 +15,7 @@ function spilled(formula: string, columns: CellValue[][]): CellValue[][] {
   data[0]?.push({ v: "" }, { v: formula });
   const anchorColumn = columns.length + 1;
   const grid = new SpreadsheetEngine().calculate({ name: "S", data }).data;
-  return grid.map((row) => row.slice(anchorColumn)).filter((row) => row.length > 0 && row.some((cell) => cell !== ""));
+  return grid.map((row) => row.slice(anchorColumn)).filter((row) => row.some((cell) => cell !== ""));
 }
 
 const NAMES = ["b", "A", "c", "a", "", 3, true];
