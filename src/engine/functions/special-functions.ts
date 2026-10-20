@@ -138,3 +138,10 @@ export function regularizedGammaUpper(a: number, x: number): number {
   if (x <= 0) return 1;
   return x < a + 1 ? 1 - lowerGammaSeries(a, x) : upperGammaFraction(a, x);
 }
+
+/** P(a, x) = γ(a, x) / Γ(a), the regularized lower incomplete gamma function: each side from the
+ *  expansion that is accurate there, so a small P is not 1 − Q's cancellation. */
+export function regularizedGammaLower(a: number, x: number): number {
+  if (x <= 0) return 0;
+  return x < a + 1 ? lowerGammaSeries(a, x) : 1 - upperGammaFraction(a, x);
+}

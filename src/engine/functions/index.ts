@@ -9,6 +9,8 @@ import "./statistical";
 import "./statistical-analysis";
 import "./regression";
 import "./distributions";
+import "./distribution-families";
+import "./hypothesis-tests";
 import "./shape";
 import "./descriptive";
 import "./mathematical";
