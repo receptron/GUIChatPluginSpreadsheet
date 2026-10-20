@@ -565,6 +565,7 @@ function openSheet(
       preferDDMMYYYY,
       isCellEmpty,
       currentCell: cellsBeingCalculated.at(-1),
+      currentSheet: sheetName,
     });
   const evaluateFormula = (formula: string): CellValue => scalarOf(evaluateValue(formula));
 

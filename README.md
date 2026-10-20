@@ -105,7 +105,7 @@ The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to loa
 ## Supported Functions
 
 ### Mathematical
-`ABS`, `CEILING`, `EXP`, `FLOOR`, `INT`, `LN`, `LOG`, `LOG10`, `MDETERM`, `MINVERSE`, `MMULT`, `MOD`, `MUNIT`, `PI`, `POWER`, `ROUND`, `ROUNDDOWN`, `ROUNDUP`, `SEQUENCE`, `SIGN`, `SQRT`, `TRUNC`
+`ABS`, `CEILING`, `EXP`, `FLOOR`, `INT`, `LN`, `LOG`, `LOG10`, `MDETERM`, `MINVERSE`, `MMULT`, `MOD`, `MUNIT`, `PI`, `POWER`, `RAND`, `RANDARRAY`, `RANDBETWEEN`, `ROUND`, `ROUNDDOWN`, `ROUNDUP`, `SEQUENCE`, `SIGN`, `SQRT`, `TRUNC`
 
 ### Text
 `CONCAT`, `CONCATENATE`, `EXACT`, `FIND`, `LEFT`, `LEN`, `LOWER`, `MID`, `PROPER`, `REPLACE`, `RIGHT`, `SEARCH`, `SUBSTITUTE`, `TEXT`, `TRIM`, `UPPER`, `VALUE`
@@ -144,7 +144,11 @@ A formula that is a range and nothing else, such as `=A1:C5` or `=Data!A1:B10`, 
 - **Formatting.** A spilled cell takes its own cell's number format if it has one, and the formula cell's format otherwise.
 - **Saving.** Only the formula is saved. The spilled values are rebuilt on every calculation.
 
-A function can answer a table too: `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `MMULT`, `MINVERSE`, `MUNIT` and `FREQUENCY` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A function's table spills only when the call is the whole formula. Inside a larger expression, a table of more than one cell is `#VALUE!` until element-wise array arithmetic is supported. A range argument accepts such a call, as in `=SUM(…)` over it.
+A function can answer a table too: `RANDARRAY`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `MMULT`, `MINVERSE`, `MUNIT` and `FREQUENCY` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A function's table spills only when the call is the whole formula. Inside a larger expression, a table of more than one cell is `#VALUE!` until element-wise array arithmetic is supported. A range argument accepts such a call, as in `=SUM(…)` over it.
+
+## Random numbers
+
+`RAND()`, `RANDBETWEEN(bottom, top)` and `RANDARRAY([rows], [columns], [min], [max], [whole_number])` draw from a stream seeded by where the call is: the sheet, the cell, and which random call it is in that cell's formula. A workbook therefore calculates to the same numbers each time, and the agent and the page showing the sheet see the same table. Excel draws new numbers at every recalculation instead. `RANDBETWEEN` includes both bounds, rounding bottom up and top down, and is `#NUM!` when no whole number lies between them. `RANDARRAY` is `#VALUE!` when min is above max, or when whole numbers are asked for between bounds that are not whole.
 
 ## Workbook functions
 

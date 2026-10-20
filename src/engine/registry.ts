@@ -36,6 +36,8 @@ export interface FunctionContext {
   preferDDMMYYYY?: boolean | undefined;
   /** The cell whose formula is being calculated, 0-based; absent outside a sheet (`ROW()`). */
   currentCell?: CellCoordinates | undefined;
+  /** The name of the sheet that cell is on. */
+  currentSheet?: string | undefined;
 }
 
 export interface CellCoordinates {
