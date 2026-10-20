@@ -205,18 +205,18 @@ function textMatcher(pattern: string): (text: string) => boolean {
  * Returns a comparison function that tests if a value matches the criteria
  */
 export function parseCriteria(criteria: string, preferDDMMYYYY = false): (value: CellValue) => boolean {
-  // eslint-disable -- sonarjs/anchor-precedence
-  const trimmedCriteria = criteria.trim().replace(/^["']|["']$/g, "");
-
+  // The criteria is the value its argument evaluated to, compared as written: its spaces and quotes
+  // are part of it (`" x"` does not match `x`).
   // A bare `=` matches a blank cell and a bare `<>` any cell that is not blank.
-  if (trimmedCriteria === "=") return (v) => String(v).trim() === "";
-  if (trimmedCriteria === "<>") return (v) => String(v).trim() !== "";
+  if (criteria === "=") return (v) => String(v) === "";
+  if (criteria === "<>") return (v) => String(v) !== "";
 
   // Check for comparison operators
   // eslint-disable -- sonarjs/slow-regex
-  const [, op, value] = trimmedCriteria.match(/^([><=!]+)(.+)$/) ?? [];
+  const [, op, value] = criteria.match(/^([><=!]+)(.+)$/) ?? [];
   if (op !== undefined && value !== undefined) {
-    const numValue = criteriaNumber(value, preferDDMMYYYY);
+    // The number after an operator may stand apart from it (`">= 5"`).
+    const numValue = criteriaNumber(value.trim(), preferDDMMYYYY);
 
     // `=` / `<>` compare like the bare criteria does — case-insensitive text
     // with wildcards, or the number. `<>` is exactly its negation.
@@ -244,7 +244,7 @@ export function parseCriteria(criteria: string, preferDDMMYYYY = false): (value:
     }
   }
 
-  return matchesTextOrNumber(trimmedCriteria, preferDDMMYYYY);
+  return matchesTextOrNumber(criteria, preferDDMMYYYY);
 }
 
 /** The number a criteria compares against: a date's serial (cells hold dates as serials), else
