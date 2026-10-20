@@ -105,7 +105,7 @@ The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to loa
 ## Supported Functions
 
 ### Mathematical
-`ABS`, `CEILING`, `EXP`, `FLOOR`, `INT`, `LN`, `LOG`, `LOG10`, `MDETERM`, `MINVERSE`, `MMULT`, `MOD`, `MUNIT`, `PI`, `POWER`, `ROUND`, `ROUNDDOWN`, `ROUNDUP`, `SEQUENCE`, `SIGN`, `SQRT`, `TRUNC`
+`ABS`, `CEILING`, `EXP`, `FLOOR`, `INT`, `LN`, `LOG`, `LOG10`, `MDETERM`, `MINVERSE`, `MMULT`, `MOD`, `MUNIT`, `PI`, `POWER`, `ROUND`, `ROUNDDOWN`, `ROUNDUP`, `SEQUENCE`, `SIGN`, `SQRT`, `SUMPRODUCT`, `TRUNC`
 
 ### Text
 `CONCAT`, `CONCATENATE`, `EXACT`, `FIND`, `LEFT`, `LEN`, `LOWER`, `MID`, `PROPER`, `REPLACE`, `RIGHT`, `SEARCH`, `SUBSTITUTE`, `TEXT`, `TRIM`, `UPPER`, `VALUE`
@@ -144,7 +144,15 @@ A formula that is a range and nothing else, such as `=A1:C5` or `=Data!A1:B10`, 
 - **Formatting.** A spilled cell takes its own cell's number format if it has one, and the formula cell's format otherwise.
 - **Saving.** Only the formula is saved. The spilled values are rebuilt on every calculation.
 
-A function can answer a table too: `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `MMULT`, `MINVERSE`, `MUNIT` and `FREQUENCY` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A function's table spills only when the call is the whole formula. Inside a larger expression, a table of more than one cell is `#VALUE!` until element-wise array arithmetic is supported. A range argument accepts such a call, as in `=SUM(…)` over it.
+A function can answer a table too: `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `MMULT`, `MINVERSE`, `MUNIT` and `FREQUENCY` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A range argument accepts such a call, as in `=SUM(…)` over it.
+
+### Arrays in expressions
+
+An array constant is written in braces: `{1,2,3}` is a row, `{1;2;3}` a column and `{1,2;3,4}` two rows of two. Its elements are numbers, text in double quotes, `TRUE`, `FALSE` or an error such as `#N/A`; anything else (a reference, a call) is `#ERROR!`.
+
+An expression with a range, an array constant or a table-answering call among its operands is calculated element by element and answers a table: `=A2:A9*B2:B9`, `=A2:A9>5`, `=A2:A9&"!"`, `=SORT(A2:A9)*2`. Each element reads its cell as a reference to that one cell would, so a blank cell is 0 beside `*` and empty text beside `&`. Operands of different sizes line up as in Excel: a single row or column is repeated, and past the end of a shorter operand the element is `#N/A` (`={1,2,3}+{1,2}` is `{2,4,#N/A}`). An element that fails, such as a division by zero, is that error, and the other elements still answer. A range read inside a call belongs to the call: `=SUM(A2:A9)*2` is one number. A range argument reads such an expression's cells: `=SUM(A2:A9*B2:B9)`, `=SUMPRODUCT((A2:A9>5)*B2:B9)`.
+
+A function that takes one value does not yet calculate over an array (`=ABS(A2:A9)`, `=IF(A2:A9>5,1,0)`); given a table of more than one cell, it answers `#VALUE!`.
 
 ## Workbook functions
 

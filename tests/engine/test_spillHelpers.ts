@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { cellsOf, isCellArray, normalizedValue, scalarOf } from "../../src/engine/cellArray.ts";
-import { isSoleRangeReference, isSoleReference, maySpill, soleCallName } from "../../src/engine/spillCandidate.ts";
+import { isSoleRangeReference, isSoleReference } from "../../src/engine/spillCandidate.ts";
 import { spillTargets } from "../../src/engine/spillTargets.ts";
 import { NA_ERROR, VALUE_ERROR } from "../../src/engine/spreadsheet-errors.ts";
 
@@ -69,26 +69,6 @@ describe("which formulas may spill", () => {
   it("tells a reference, to a range or a cell, from anything else", () => {
     ["A1", "$B$2", "Data!C3", "'My Sheet'!A1", "A1:B2"].forEach((text) => assert.equal(isSoleReference(text), true, text));
     ["SORT(A1:A3)", "1+Data!A1", "A1+1", "TRUE", '"A1"'].forEach((text) => assert.equal(isSoleReference(text), false, text));
-  });
-
-  it("names the function of a formula that is one call and nothing more", () => {
-    assert.equal(soleCallName("SORT(A1:A9)"), "SORT");
-    assert.equal(soleCallName(" sort(A1:A9) "), "sort");
-    assert.equal(soleCallName('T.X(")",A1)'), "T.X");
-    assert.equal(soleCallName("SORT(A1:A9)+1"), null);
-    assert.equal(soleCallName("SORT(A1)*SORT(B1)"), null);
-    assert.equal(soleCallName("(SORT(A1))"), null);
-    assert.equal(soleCallName("A1"), null);
-  });
-
-  it("lets a formula spill when it is a range or a call to a function that may return a table", () => {
-    const returnsArray = (name: string): boolean => name.toUpperCase() === "SORT";
-    assert.equal(maySpill("SORT(A1:A9)", returnsArray), true);
-    assert.equal(maySpill("sort(A1:A9)", returnsArray), true);
-    assert.equal(maySpill("A1:B2", returnsArray), true);
-    assert.equal(maySpill("SUM(A1:A9)", returnsArray), false);
-    assert.equal(maySpill("IF(TRUE,SORT(A1:A9),0)", returnsArray), false);
-    assert.equal(maySpill("SORT(A1:A9)+1", returnsArray), false);
   });
 });
 
