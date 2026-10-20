@@ -4,6 +4,7 @@
  * stands for its only cell or is #VALUE!.
  */
 
+import { parseRangeBounds } from "./formulaRefs";
 import { NA_ERROR, VALUE_ERROR } from "./spreadsheet-errors";
 import type { CellArray, CellValue, FormulaValue } from "./types";
 
@@ -29,3 +30,15 @@ export function scalarOf(value: FormulaValue): CellValue {
 
 /** Every cell of `value` in reading order; a single value is one cell. */
 export const cellsOf = (value: FormulaValue): CellValue[] => (isCellArray(value) ? value.flat() : [value]);
+
+/** A range's cells as `=A1:B3` answers them, in rows, from one read of the range with `readRaw`
+ *  (each cell as `=A1` reads it, a blank as 0). Null for a range not written cell to cell, or one
+ *  `readRaw` finds nothing in (a sheet that does not exist). */
+export function rowsOfRange(range: string, readRaw: (range: string) => CellValue[]): CellValue[][] | null {
+  const bounds = parseRangeBounds(range);
+  if (!bounds) return null;
+  const width = Math.abs(bounds.endCol - bounds.startCol) + 1;
+  const cells = readRaw(range);
+  if (cells.length === 0) return null;
+  return Array.from({ length: Math.ceil(cells.length / width) }, (_, row) => cells.slice(row * width, (row + 1) * width));
+}

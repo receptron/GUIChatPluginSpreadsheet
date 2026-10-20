@@ -105,7 +105,7 @@ The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to loa
 ## Supported Functions
 
 ### Mathematical
-`ABS`, `CEILING`, `EXP`, `FLOOR`, `INT`, `LN`, `LOG`, `LOG10`, `MOD`, `PI`, `POWER`, `ROUND`, `ROUNDDOWN`, `ROUNDUP`, `SIGN`, `SQRT`, `TRUNC`
+`ABS`, `CEILING`, `EXP`, `FLOOR`, `INT`, `LN`, `LOG`, `LOG10`, `MOD`, `PI`, `POWER`, `ROUND`, `ROUNDDOWN`, `ROUNDUP`, `SEQUENCE`, `SIGN`, `SQRT`, `TRUNC`
 
 ### Text
 `CONCAT`, `CONCATENATE`, `EXACT`, `FIND`, `LEFT`, `LEN`, `LOWER`, `MID`, `PROPER`, `REPLACE`, `RIGHT`, `SEARCH`, `SUBSTITUTE`, `TEXT`, `TRIM`, `UPPER`, `VALUE`
@@ -123,7 +123,7 @@ Dates are serial numbers on the real calendar, as in LibreOffice and Google Shee
 `AND`, `FALSE`, `IF`, `IFERROR`, `IFNA`, `IFS`, `NOT`, `OR`, `TRUE`
 
 ### Lookup & Reference
-`COLUMN`, `COLUMNS`, `HLOOKUP`, `INDEX`, `MATCH`, `ROW`, `ROWS`, `VLOOKUP`, `XLOOKUP`
+`CHOOSECOLS`, `CHOOSEROWS`, `COLUMN`, `COLUMNS`, `DROP`, `HLOOKUP`, `HSTACK`, `INDEX`, `MATCH`, `ROW`, `ROWS`, `SORT`, `SORTBY`, `TAKE`, `TRANSPOSE`, `UNIQUE`, `VLOOKUP`, `VSTACK`, `XLOOKUP`, `XMATCH`
 
 A range is written `A1:C10`, `Data!A1:C10` or `'My Sheet'!A1:C10`. A whole column (`A:A`, `B:D`) or a whole row (`1:1`) covers its sheet as far as the data reaches, which gives the same answers, since everything past the data is blank. `ROW()` and `COLUMN()` give the number of the cell the formula is in; given a range, they answer for its first cell.
 
@@ -142,7 +142,7 @@ A formula that is a range and nothing else, such as `=A1:C5` or `=Data!A1:B10`, 
 - **Formatting.** A spilled cell takes its own cell's number format if it has one, and the formula cell's format otherwise.
 - **Saving.** Only the formula is saved. The spilled values are rebuilt on every calculation.
 
-A function can answer a table too. In that case it spills only when the call is the whole formula. Inside a larger expression, a table of more than one cell is `#VALUE!` until element-wise array arithmetic is supported. A range argument accepts such a call, as in `=SUM(…)` over it.
+A function can answer a table too: `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE` and `DROP` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A function's table spills only when the call is the whole formula. Inside a larger expression, a table of more than one cell is `#VALUE!` until element-wise array arithmetic is supported. A range argument accepts such a call, as in `=SUM(…)` over it.
 
 ## Workbook functions
 

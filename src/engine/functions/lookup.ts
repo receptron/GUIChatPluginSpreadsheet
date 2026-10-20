@@ -161,34 +161,10 @@ const indexHandler: FunctionHandler = (args, context) => {
   return table.cellAt(target.row, target.colIndex);
 };
 
-const xlookupHandler: FunctionHandler = (args, context) => {
-  const lookupValue = context.evaluateFormula(requiredArg(context, args, 0));
-  const lookupArrayRange = requiredArg(context, args, 1);
-  const returnArrayRange = requiredArg(context, args, 2);
-  const ifNotFound = args.length >= 4 ? context.evaluateFormula(requiredArg(context, args, 3)) : NA_ERROR;
-  const matchMode = args.length >= 5 ? toNumber(context.evaluateFormula(requiredArg(context, args, 4))) : 0;
-  const searchMode = args.length >= 6 ? toNumber(context.evaluateFormula(requiredArg(context, args, 5))) : 1;
-
-  // Both raw, and for a second reason beyond MATCH's: the numeric-only reader
-  // filters these two INDEPENDENTLY, so a text cell in one range shifts it
-  // against the other and the match index reads a different row's value — a
-  // wrong number with no error, which is the worst outcome a formula can have.
-  const readRange = rawRangeReader(context);
-  const lookupArray = readRange(lookupArrayRange);
-  const returnArray = readRange(returnArrayRange);
-
-  // XLOOKUP match modes:
-  // 0 = Exact match (default)
-  // -1 = Exact match or next smaller
-  // 1 = Exact match or next larger
-  // 2 = Wildcard match
-
-  // Map XLOOKUP modes to our internal findMatchIndex modes
-  // Our internal: 0=exact, 1=less than (sorted), -1=greater than (sorted)
-  // XLOOKUP is more complex because it doesn't require sorted arrays for next smaller/larger
-  // For now, we'll implement exact (0) and wildcard (2 -> handled by exact with wildcard logic in findMatchIndex)
-  // For -1 and 1, we'll do a linear search for best match if not sorted
-
+/** The position XLOOKUP and XMATCH find: match mode 0 exact, 2 with wildcards, -1 exact or the
+ *  next smaller, 1 exact or the next larger, the last two over an unsorted list; search mode 1 from
+ *  the first, any other from the last. -1 when nothing matches. */
+function xlookupMatchIndex(lookupValue: CellValue, lookupArray: CellValue[], matchMode: number, searchMode: number): number {
   let matchIdx = -1;
 
   if (matchMode === 0 || matchMode === 2) {
@@ -222,12 +198,59 @@ const xlookupHandler: FunctionHandler = (args, context) => {
     }
   }
 
+  return matchIdx;
+}
+
+const xlookupHandler: FunctionHandler = (args, context) => {
+  const lookupValue = context.evaluateFormula(requiredArg(context, args, 0));
+  const lookupArrayRange = requiredArg(context, args, 1);
+  const returnArrayRange = requiredArg(context, args, 2);
+  const ifNotFound = args.length >= 4 ? context.evaluateFormula(requiredArg(context, args, 3)) : NA_ERROR;
+  const matchMode = args.length >= 5 ? toNumber(context.evaluateFormula(requiredArg(context, args, 4))) : 0;
+  const searchMode = args.length >= 6 ? toNumber(context.evaluateFormula(requiredArg(context, args, 5))) : 1;
+
+  // Both raw, and for a second reason beyond MATCH's: the numeric-only reader
+  // filters these two INDEPENDENTLY, so a text cell in one range shifts it
+  // against the other and the match index reads a different row's value — a
+  // wrong number with no error, which is the worst outcome a formula can have.
+  const readRange = rawRangeReader(context);
+  const lookupArray = readRange(lookupArrayRange);
+  const returnArray = readRange(returnArrayRange);
+
+  // XLOOKUP match modes:
+  // 0 = Exact match (default)
+  // -1 = Exact match or next smaller
+  // 1 = Exact match or next larger
+  // 2 = Wildcard match
+
+  // Map XLOOKUP modes to our internal findMatchIndex modes
+  // Our internal: 0=exact, 1=less than (sorted), -1=greater than (sorted)
+  // XLOOKUP is more complex because it doesn't require sorted arrays for next smaller/larger
+  // For now, we'll implement exact (0) and wildcard (2 -> handled by exact with wildcard logic in findMatchIndex)
+  // For -1 and 1, we'll do a linear search for best match if not sorted
+
+  const matchIdx = xlookupMatchIndex(lookupValue, lookupArray, matchMode, searchMode);
   if (matchIdx === -1) return ifNotFound;
 
   // A match past the end of the return range has nothing to return — the two
   // ranges are independent arguments and need not be the same length.
   const found = returnArray[matchIdx];
   return found === undefined ? NA_ERROR : found;
+};
+
+const XMATCH_MODES = new Set([-1, 0, 1, 2]);
+const XMATCH_SEARCHES = new Set([-2, -1, 1, 2]);
+
+/** XMATCH(lookup, lookup_array, [match_mode], [search_mode]): the 1-based position XLOOKUP would
+ *  take its answer from; a mode it does not have is #VALUE!. */
+const xmatchHandler: FunctionHandler = (args, context) => {
+  const lookupValue = context.evaluateFormula(requiredArg(context, args, 0));
+  const lookupArray = rawRangeReader(context)(requiredArg(context, args, 1));
+  const matchMode = args.length >= 3 ? Math.trunc(toNumber(context.evaluateFormula(requiredArg(context, args, 2)))) : 0;
+  const searchMode = args.length >= 4 ? Math.trunc(toNumber(context.evaluateFormula(requiredArg(context, args, 3)))) : 1;
+  if (!XMATCH_MODES.has(matchMode) || !XMATCH_SEARCHES.has(searchMode)) return VALUE_ERROR;
+  const index = xlookupMatchIndex(lookupValue, lookupArray, matchMode, searchMode);
+  return index === -1 ? NA_ERROR : index + 1;
 };
 
 // ROW / COLUMN: of the reference's first cell, or of the cell calculating the formula when there is
@@ -317,6 +340,17 @@ functionRegistry.register({
   maxArgs: 1,
   description: "Returns the column number of a reference, or of the cell the formula is in",
   examples: ["COLUMN()", "COLUMN(D3)"],
+  category: "Lookup & Reference",
+});
+
+functionRegistry.register({
+  name: "XMATCH",
+  handler: xmatchHandler,
+  minArgs: 2,
+  maxArgs: 4,
+  description:
+    "Returns the position of a value in a range: match 0 exact, -1 or 1 the next smaller or larger, 2 wildcards; search 1 from the first, -1 from the last",
+  examples: ["XMATCH(42, A2:A100)", 'XMATCH("b*", A2:A100, 2)'],
   category: "Lookup & Reference",
 });
 

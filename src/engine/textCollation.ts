@@ -131,6 +131,9 @@ function compareAccents(left: readonly number[][], right: readonly number[][]): 
 }
 
 /** Negative, zero or positive as `left` sorts before, with or after `right`. */
+/** A string two texts share exactly when compareText finds them equal, to group equal texts by. */
+export const collationIdentity = (text: string): string => JSON.stringify(collationKey(text));
+
 export function compareText(left: string, right: string): number {
   const [leftKey, rightKey] = [collationKey(left), collationKey(right)];
   return compareSequences(leftKey.primary, rightKey.primary) || compareAccents(leftKey.accents, rightKey.accents);

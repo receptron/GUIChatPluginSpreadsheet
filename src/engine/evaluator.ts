@@ -9,9 +9,8 @@ import { FUNCTION_NAME_SOURCE, functionRegistry, isCallableName, tooFewArguments
 const SIMPLE_CALL = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\((.*)\\)$`, "i");
 const CALL_START = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\(`, "i");
 import type { CellValue, FormulaValue } from "./types";
-import { normalizedValue, scalarOf } from "./cellArray";
+import { normalizedValue, rowsOfRange, scalarOf } from "./cellArray";
 import { isSoleRangeReference } from "./spillCandidate";
-import { parseRangeBounds } from "./formulaRefs";
 import { endOfQuotedSheetName, UNQUOTED_SHEET_NAME } from "./sheetReference";
 import { parseDate } from "./date-parser";
 import { concatOperands, concatToSum, topLevelGroups } from "./concatPrecedence";
@@ -338,18 +337,6 @@ function withGroupsEvaluated(expr: string, context: EvaluatorContext): string {
   }, expr);
 }
 
-/** A range's cells as `=A1:B3` answers them, in one read of the range: each as `=A1` reads that
- *  one cell (a blank as 0). Null for a range not written cell to cell, such as a whole column of a
- *  sheet that does not exist. */
-function rangeAsValues(range: string, context: EvaluatorContext): CellValue[][] | null {
-  const bounds = parseRangeBounds(range);
-  if (!bounds || !context.getRangeValuesRaw) return null;
-  const width = Math.abs(bounds.endCol - bounds.startCol) + 1;
-  const cells = context.getRangeValuesRaw(range);
-  if (cells.length === 0) return null;
-  return Array.from({ length: Math.ceil(cells.length / width) }, (_, row) => cells.slice(row * width, (row + 1) * width));
-}
-
 /**
  * Evaluate a formula string
  *
@@ -388,7 +375,7 @@ export function evaluateFormula(writtenFormula: string, context: EvaluatorContex
 
   // A formula that is a range and nothing else answers its cells, each as `=A1` reads it.
   if (isSoleRangeReference(trimmed)) {
-    const cells = rangeAsValues(trimmed, context) ?? context.getRangeGrid?.(trimmed);
+    const cells = (context.getRangeValuesRaw ? rowsOfRange(trimmed, context.getRangeValuesRaw) : null) ?? context.getRangeGrid?.(trimmed);
     if (cells) return normalizedValue(cells);
   }
 

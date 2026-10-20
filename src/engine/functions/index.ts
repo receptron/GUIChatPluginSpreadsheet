@@ -15,6 +15,7 @@ import "./logical";
 import "./text";
 import "./financial";
 import "./lookup";
+import "./array-functions";
 import "./date";
 import "./calendar";
 // After every function it renames.
