@@ -1,36 +1,51 @@
 /**
  * LET, LAMBDA, MAP, BYROW, BYCOL and REDUCE. A name stands for its value by being written into the
  * formula in its place (nameBinding.ts): a reference as the reference, so `ROW(x)` and a blank cell
- * still read as they do, and any other value as text the evaluator reads back as that value — a
- * literal, or an array constant for a table.
+ * still read as they do, and any other value as a call, `LET.VALUE(n)`, that answers the value held
+ * for it — so text, an error and a table come back exactly as they were, with nothing re-read.
  */
 
 import { isCellArray, normalizedValue } from "../cellArray";
-import { renderOperand } from "../evaluator";
 import { parseRangeBounds } from "../formulaRefs";
 import { isFormulaError } from "../formulaError";
 import { parseLambda, substituteNames, type Binding, type Lambda, isValidName } from "../nameBinding";
 import { indexToColumn } from "../parser";
 import { functionRegistry, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
 import { isSoleRangeReference, isSoleReference } from "../spillCandidate";
-import { CALC_ERROR, isSpreadsheetErrorValue, NA_ERROR, NAME_ERROR, spreadsheetError, VALUE_ERROR } from "../spreadsheet-errors";
+import { CALC_ERROR, isSpreadsheetErrorValue, NA_ERROR, NAME_ERROR, REF_ERROR, spreadsheetError, VALUE_ERROR } from "../spreadsheet-errors";
 import type { CellArray, CellValue, FormulaValue } from "../types";
 import { alignedIndex, combinedShape } from "../arrayExpression";
 
-/** One cell as an array constant writes it. */
-function constantElement(value: CellValue): string {
-  if (isSpreadsheetErrorValue(value)) return value.code;
-  if (typeof value === "string") return renderOperand(value);
-  return typeof value === "boolean" ? String(value).toUpperCase() : String(value);
+const HELD_VALUE = "LET.VALUE";
+
+// The values names stand for while a LET, LAMBDA call or MAP is being calculated, by number. A number
+// is never used twice, so a formula text holding one can only ever mean that value.
+const heldValues = new Map<number, FormulaValue>();
+const nextNumber = { value: 0 };
+
+/** The calls a calculation wrote for its values, released when it is done. */
+type Holdings = number[];
+
+/** The text standing for `value` while `holdings` are kept. */
+function hold(value: FormulaValue, holdings: Holdings): string {
+  nextNumber.value += 1;
+  heldValues.set(nextNumber.value, value);
+  holdings.push(nextNumber.value);
+  return `${HELD_VALUE}(${nextNumber.value})`;
 }
 
-/** Text that the evaluator reads back as `value`: a literal, a bracketed number or logical value, or
- *  an array constant for a table (and for an error, so that it stays an error value). */
-export function valueAsText(value: FormulaValue): string {
-  if (isCellArray(value)) return `{${value.map((row) => row.map(constantElement).join(",")).join(";")}}`;
-  if (isSpreadsheetErrorValue(value)) return `{${value.code}}`;
-  return typeof value === "string" ? renderOperand(value) : `(${String(value)})`;
+/** `calculate`'s answer, the values it held released afterwards. */
+function withHoldings(calculate: (holdings: Holdings) => FormulaValue): FormulaValue {
+  const holdings: Holdings = [];
+  try {
+    return calculate(holdings);
+  } finally {
+    holdings.forEach((number) => heldValues.delete(number));
+  }
 }
+
+// LET.VALUE(n): the value held as n, or #REF! once it is released (or for a number never held).
+const heldValueHandler: FunctionHandler = (args, context) => heldValues.get(Number(requiredArg(context, args, 0))) ?? REF_ERROR;
 
 /** A formula's value, a failure being its error. */
 function valueOf(formula: string, context: FunctionContext): FormulaValue {
@@ -43,11 +58,11 @@ function valueOf(formula: string, context: FunctionContext): FormulaValue {
 }
 
 /** What a name bound to `written` stands for: a LAMBDA, a reference as written, or its value. */
-function bindingFor(name: string, written: string, context: FunctionContext): Binding {
+function bindingFor(name: string, written: string, context: FunctionContext, holdings: Holdings): Binding {
   const lambda = parseLambda(written);
   if (lambda) return { name, lambda };
   if (isSoleReference(written)) return { name, text: written.trim() };
-  return { name, text: valueAsText(valueOf(written, context)) };
+  return { name, text: hold(valueOf(written, context), holdings) };
 }
 
 // LET(name1, value1, [name2, value2, …], calculation): each value may use the names before it.
@@ -55,8 +70,13 @@ const letHandler: FunctionHandler = (args, context) => {
   if (args.length < 3 || args.length % 2 === 0) return VALUE_ERROR;
   const pairs = Array.from({ length: (args.length - 1) / 2 }, (_, index) => ({ name: args[2 * index]?.trim() ?? "", written: args[2 * index + 1] ?? "" }));
   if (!pairs.every(({ name }) => isValidName(name))) return NAME_ERROR;
-  const bindings = pairs.reduce<Binding[]>((bound, { name, written }) => [...bound, bindingFor(name, substituteNames(written, bound), context)], []);
-  return valueOf(substituteNames(args.at(-1) ?? "", bindings), context);
+  return withHoldings((holdings) => {
+    const bindings = pairs.reduce<Binding[]>(
+      (bound, { name, written }) => [...bound, bindingFor(name, substituteNames(written, bound), context, holdings)],
+      [],
+    );
+    return valueOf(substituteNames(args.at(-1) ?? "", bindings), context);
+  });
 };
 
 // A LAMBDA that is not called has no value to show (Excel's #CALC!).
@@ -67,7 +87,7 @@ interface ElementSource {
   rows: number;
   columns: number;
   textAt: (row: number, col: number) => string;
-  /** One row's or one column's text: a range, or an array constant. */
+  /** One row's or one column's text: a range, or the held row or column. */
   rowText: (row: number) => string;
   columnText: (col: number) => string;
 }
@@ -88,21 +108,25 @@ function rangeSource(range: string): ElementSource | null {
   };
 }
 
-function tableSource(table: CellArray): ElementSource {
+function tableSource(table: CellArray, holdings: Holdings): ElementSource {
   return {
     rows: table.length,
     columns: table[0]?.length ?? 0,
-    textAt: (row, col) => valueAsText(table[row]?.[col] ?? ""),
-    rowText: (row) => valueAsText([table[row] ?? []]),
-    columnText: (col) => valueAsText(table.map((cells) => [cells[col] ?? ""])),
+    textAt: (row, col) => hold(table[row]?.[col] ?? "", holdings),
+    rowText: (row) => hold([table[row] ?? []], holdings),
+    columnText: (col) =>
+      hold(
+        table.map((cells) => [cells[col] ?? ""]),
+        holdings,
+      ),
   };
 }
 
-function elementSource(arg: string, context: FunctionContext): ElementSource {
+function elementSource(arg: string, context: FunctionContext, holdings: Holdings): ElementSource {
   const range = isSoleRangeReference(arg) ? rangeSource(arg) : null;
   if (range) return range;
   const value = normalizedValue(valueOf(arg, context));
-  return tableSource(isCellArray(value) ? value : [[value]]);
+  return tableSource(isCellArray(value) ? value : [[value]], holdings);
 }
 
 /** The LAMBDA an argument is, with the number of parameters wanted, or #VALUE!. */
@@ -124,16 +148,18 @@ const singleCell = (value: FormulaValue): CellValue => (isCellArray(value) ? CAL
 const mapHandler: FunctionHandler = (args, context) => {
   const lambda = lambdaArg(args.at(-1) ?? "", args.length - 1);
   if (isSpreadsheetErrorValue(lambda)) return lambda;
-  const sources = args.slice(0, -1).map((arg) => elementSource(arg, context));
-  const shape = combinedShape(sources.map((source) => ({ rows: source.rows, columns: source.columns })));
-  return Array.from({ length: shape.rows }, (_, row) =>
-    Array.from({ length: shape.columns }, (_, col) => {
-      const positions = sources.map((source) => ({ source, sourceRow: alignedIndex(source.rows, row), sourceCol: alignedIndex(source.columns, col) }));
-      if (positions.some(({ sourceRow, sourceCol }) => sourceRow < 0 || sourceCol < 0)) return NA_ERROR;
-      const texts = positions.map(({ source, sourceRow, sourceCol }) => source.textAt(sourceRow, sourceCol));
-      return singleCell(callFor(lambda, texts, context));
-    }),
-  );
+  return withHoldings((holdings) => {
+    const sources = args.slice(0, -1).map((arg) => elementSource(arg, context, holdings));
+    const shape = combinedShape(sources.map((source) => ({ rows: source.rows, columns: source.columns })));
+    return Array.from({ length: shape.rows }, (_, row) =>
+      Array.from({ length: shape.columns }, (_, col) => {
+        const positions = sources.map((source) => ({ source, sourceRow: alignedIndex(source.rows, row), sourceCol: alignedIndex(source.columns, col) }));
+        if (positions.some(({ sourceRow, sourceCol }) => sourceRow < 0 || sourceCol < 0)) return NA_ERROR;
+        const texts = positions.map(({ source, sourceRow, sourceCol }) => source.textAt(sourceRow, sourceCol));
+        return singleCell(callFor(lambda, texts, context));
+      }),
+    );
+  });
 };
 
 /** BYROW and BYCOL: the LAMBDA at each row (a column of answers) or each column (a row of answers). */
@@ -142,11 +168,13 @@ const byLineHandler =
   (args, context) => {
     const lambda = lambdaArg(requiredArg(context, args, 1), 1);
     if (isSpreadsheetErrorValue(lambda)) return lambda;
-    const source = elementSource(requiredArg(context, args, 0), context);
-    const lines = Array.from({ length: byRows ? source.rows : source.columns }, (_, index) =>
-      singleCell(callFor(lambda, [byRows ? source.rowText(index) : source.columnText(index)], context)),
-    );
-    return byRows ? lines.map((value) => [value]) : [lines];
+    return withHoldings((holdings) => {
+      const source = elementSource(requiredArg(context, args, 0), context, holdings);
+      const lines = Array.from({ length: byRows ? source.rows : source.columns }, (_, index) =>
+        singleCell(callFor(lambda, [byRows ? source.rowText(index) : source.columnText(index)], context)),
+      );
+      return byRows ? lines.map((value) => [value]) : [lines];
+    });
   };
 
 // REDUCE([initial], array, lambda(accumulator, value)): the LAMBDA over every element in reading
@@ -155,9 +183,11 @@ const reduceHandler: FunctionHandler = (args, context) => {
   const lambda = lambdaArg(requiredArg(context, args, 2), 2);
   if (isSpreadsheetErrorValue(lambda)) return lambda;
   const initial = args[0]?.trim() ? valueOf(args[0], context) : 0;
-  const source = elementSource(requiredArg(context, args, 1), context);
-  const texts = Array.from({ length: source.rows * source.columns }, (_, index) => source.textAt(Math.floor(index / source.columns), index % source.columns));
-  return texts.reduce<FormulaValue>((accumulator, text) => callFor(lambda, [valueAsText(accumulator), text], context), initial);
+  return withHoldings((holdings) => {
+    const source = elementSource(requiredArg(context, args, 1), context, holdings);
+    const texts = Array.from({ length: source.rows * source.columns }, (_, index) => source.textAt(Math.floor(index / source.columns), index % source.columns));
+    return texts.reduce<FormulaValue>((accumulator, text) => callFor(lambda, [hold(accumulator, holdings), text], context), initial);
+  });
 };
 
 const LET_LAMBDA_FUNCTIONS = [
@@ -214,3 +244,13 @@ const LET_LAMBDA_FUNCTIONS = [
 ];
 
 LET_LAMBDA_FUNCTIONS.forEach((definition) => functionRegistry.register({ ...definition, category: "Logical", spills: true }));
+functionRegistry.register({
+  name: HELD_VALUE,
+  handler: heldValueHandler,
+  minArgs: 1,
+  maxArgs: 1,
+  description: "The value a LET name or a LAMBDA parameter stands for while it is calculated; written by the engine, not by a formula",
+  category: "Logical",
+  spills: true,
+  internal: true,
+});

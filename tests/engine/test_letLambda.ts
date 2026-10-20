@@ -6,8 +6,6 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { SpreadsheetEngine, type CellValue } from "../../src/engine/index.ts";
 import { inlineLambdaCalls, isValidName, parseLambda, splitArguments, substituteName, substituteNames } from "../../src/engine/nameBinding.ts";
-import { valueAsText } from "../../src/engine/functions/let-lambda.ts";
-import { NA_ERROR } from "../../src/engine/spreadsheet-errors.ts";
 import { seededRandom } from "./seededRandom.ts";
 
 /** What `formula`, written in D1 beside A1:B3 below, spills. */
@@ -74,20 +72,6 @@ describe("writing a name into a formula", () => {
     assert.equal(inlineLambdaCalls('" LAMBDA(x, x)(1)"'), '" LAMBDA(x, x)(1)"');
     assert.equal(inlineLambdaCalls("LAMBDA(x, y, x+y)(1)"), null);
   });
-
-  it("writes a value as text that reads back as it", () => {
-    assert.equal(valueAsText(-2.5), "(-2.5)");
-    assert.equal(valueAsText("a"), '"a"');
-    assert.equal(valueAsText(true), "(true)");
-    assert.equal(valueAsText(NA_ERROR), "{#N/A}");
-    assert.equal(
-      valueAsText([
-        [1, "b"],
-        [false, NA_ERROR],
-      ]),
-      '{1,"b";FALSE,#N/A}',
-    );
-  });
 });
 
 describe("LET", () => {
@@ -109,6 +93,24 @@ describe("LET", () => {
   it("holds an error as a value, which matters only where it is used", () => {
     assert.deepEqual(answer("=LET(x,1/0,IF(TRUE,1,x))"), [[1]]);
     assert.deepEqual(answer("=LET(x,1/0,x+1)"), [["#DIV/0!"]]);
+  });
+
+  it("gives back text exactly, quotes and backslashes included, wherever the value was computed", () => {
+    const rows = [
+      ['say "hi" \\ ok', 1],
+      ["b", 2],
+      ["c", 3],
+    ];
+    const text = 'say "hi" \\ ok';
+    assert.deepEqual(answer('=LET(x,A1&"",x)', rows), [[text]]);
+    assert.deepEqual(answer('=LET(x,A1&"",LEN(x))', rows), [[text.length]]);
+    assert.deepEqual(answer('=LET(x,A1&"",x&"!")', rows), [[`${text}!`]]);
+    assert.deepEqual(answer("=MAP(SORT(A1:A2),LAMBDA(v,v))", rows), [["b"], [text]]);
+    assert.deepEqual(answer('=REDUCE("",A1:A1,LAMBDA(acc,v,acc&v))', rows), [[text]]);
+  });
+
+  it("releases what it held: the call written for a value answers #REF! afterwards", () => {
+    assert.deepEqual(answer("=LET(x,1+1,x)+LET.VALUE(1)"), [["#REF!"]]);
   });
 
   it("reads a blank cell bound to a name as a reference to it does", () => {
