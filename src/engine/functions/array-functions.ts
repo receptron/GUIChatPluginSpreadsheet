@@ -1,16 +1,17 @@
 /**
- * The functions that answer a table and spill it: SORT, SORTBY, UNIQUE, SEQUENCE, TRANSPOSE,
+ * The functions that answer a table and spill it: FILTER, SORT, SORTBY, UNIQUE, SEQUENCE, TRANSPOSE,
  * CHOOSECOLS, CHOOSEROWS, HSTACK, VSTACK, TAKE and DROP. A table argument is a range (each cell
  * as `=A1` reads it, a blank as 0), a call that answers a table, or a single value as a 1×1 table.
  * The rules live in array-functions-math.ts.
  */
 
 import { functionRegistry, type FunctionHandler } from "../registry";
-import { isSpreadsheetErrorValue } from "../spreadsheet-errors";
+import { CALC_ERROR, isSpreadsheetErrorValue } from "../spreadsheet-errors";
 import type { CellArray } from "../types";
 import { allRead, booleanArg, numberArg, optionalCountArg, optionalNumberArg, tableArg, type Read } from "./table-args";
 import {
   chooseColumns,
+  filterTable,
   chooseRows,
   dropFrom,
   sequence,
@@ -26,6 +27,13 @@ import {
 
 const MAX_ARGS = 255;
 const ASCENDING = 1;
+
+/** FILTER(array, include, [if_empty]): if_empty is read only when nothing is kept. */
+const filterHandler: FunctionHandler = (args, context) => {
+  const kept = filterTable(tableArg(args, context, 0), tableArg(args, context, 1));
+  if (kept !== null) return kept;
+  return (args[2]?.trim() ?? "") === "" ? CALC_ERROR : tableArg(args, context, 2);
+};
 
 const sortHandler: FunctionHandler = (args, context) => {
   const table = tableArg(args, context, 0);
@@ -112,6 +120,16 @@ interface ArrayFunction {
 const LOOKUP = "Lookup & Reference";
 
 const ARRAY_FUNCTIONS: ArrayFunction[] = [
+  {
+    name: "FILTER",
+    handler: filterHandler,
+    minArgs: 2,
+    maxArgs: 3,
+    description:
+      "Keeps the rows of a range whose include value is TRUE (or a number other than 0), or its columns when include is a row; if_empty, or #CALC!, when none is kept; spills",
+    examples: ["FILTER(A2:C20, B2:B20 > 100)", 'FILTER(A2:C20, (B2:B20 = "East") * (C2:C20 > 5), "none")'],
+    category: LOOKUP,
+  },
   {
     name: "SORT",
     handler: sortHandler,
