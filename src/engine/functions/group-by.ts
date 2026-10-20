@@ -33,11 +33,13 @@ function sortOrderArg(args: string[], context: FunctionContext, index: number, w
   return orders.every((order) => order !== 0 && Math.abs(order) <= width) ? orders : VALUE_ERROR;
 }
 
-/** Which data rows a filter_array keeps: TRUE, or a number other than 0, for each; all when it is left out. */
-function includedRows(args: string[], context: FunctionContext, index: number, height: number): boolean[] | SpreadsheetError {
+/** Which data rows a filter_array keeps: TRUE, or a number other than 0, for each; all when it is left
+ *  out. It runs alongside the fields, so where they have a header row it does too, and that row is dropped. */
+function includedRows(args: string[], context: FunctionContext, index: number, height: number, hasHeaders: boolean): boolean[] | SpreadsheetError {
   if (isLeftOut(args, index)) return Array.from({ length: height }, () => true);
-  const cells = tableArg(args, context, index).flat();
-  if (cells.length !== height) return VALUE_ERROR;
+  const all = tableArg(args, context, index).flat();
+  if (all.length !== height + (hasHeaders ? 1 : 0)) return VALUE_ERROR;
+  const cells = hasHeaders ? all.slice(1) : all;
   const error = cells.find(isSpreadsheetErrorValue);
   if (error) return error;
   return cells.every((cell) => typeof cell === "boolean" || typeof cell === "number")
@@ -70,7 +72,7 @@ const groupByHandler: FunctionHandler = (args, context) => {
   const width = keyWidth + (values.data[0]?.length ?? 0);
   const totalDepth = optionalNumberArg(args, context, 4, Math.max(keyWidth, 1));
   const sortOrder = sortOrderArg(args, context, 5, width, keyWidth);
-  const included = includedRows(args, context, 6, keys.data.length);
+  const included = includedRows(args, context, 6, keys.data.length, mode === 1 || mode === 3);
   if (typeof totalDepth !== "number" || isSpreadsheetErrorValue(sortOrder) || isSpreadsheetErrorValue(included)) {
     return [totalDepth, sortOrder, included].find(isSpreadsheetErrorValue) ?? VALUE_ERROR;
   }
@@ -99,7 +101,7 @@ const pivotByHandler: FunctionHandler = (args, context) => {
   const rowSortOrder = sortOrderArg(args, context, 6, rowWidth + 1, rowWidth);
   const columnTotals = optionalNumberArg(args, context, 7, 1);
   const columnSortOrder = sortOrderArg(args, context, 8, columnDepth + 1, columnDepth);
-  const included = includedRows(args, context, 9, rowKeys?.length ?? 0);
+  const included = includedRows(args, context, 9, rowKeys?.length ?? 0, hasHeaders);
   const read = [rowTotals, rowSortOrder, columnTotals, columnSortOrder, included];
   const error = read.find(isSpreadsheetErrorValue);
   if (error) return error;

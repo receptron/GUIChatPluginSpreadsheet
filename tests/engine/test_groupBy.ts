@@ -116,6 +116,13 @@ describe("GROUPBY", () => {
       ["Total", 3],
     ]);
     assert.deepEqual(answer("=GROUPBY(A2:A6,C2:C6,SUM,0,1,1,C2:C4>5)"), [["#VALUE!"]]);
+    // With a header row, filter_array runs alongside the fields, its own first row dropped too.
+    assert.deepEqual(answer("=GROUPBY(A1:A6,C1:C6,SUM,3,1,1,{0;1;0;1;0;0})"), [
+      ["Region", "Sales"],
+      ["East", 15],
+      ["Total", 15],
+    ]);
+    assert.deepEqual(answer("=PIVOTBY(A1:A6,B1:B6,C1:C6,SUM,3,0,1,0,1,{0;1;1;1;1;1})")[1], ["East", 10, "", 5]);
   });
 
   it("is #VALUE! for values of another height and for field_relationship, which is not supported", () => {
