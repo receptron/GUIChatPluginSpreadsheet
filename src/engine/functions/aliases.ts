@@ -16,6 +16,7 @@ const ALIASES: Readonly<Record<string, string>> = {
   "RANK.EQ": "RANK",
   TTEST: "T.TEST",
   PERCENTRANK: "PERCENTRANK.INC",
+  "MODE.SNGL": "MODE",
   FORECAST: "FORECAST.LINEAR",
   PEARSON: "CORREL",
 };
