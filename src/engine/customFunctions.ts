@@ -25,7 +25,8 @@ import { checkedSpecs, functionSource, specsOf, type CustomFunctionProblem, type
 import { expandRangeOrCell } from "./formulaRefs";
 import { indexToColumn } from "./parser";
 import { NUM_ERROR, VALUE_ERROR, isSpreadsheetErrorValue, type SpreadsheetError } from "./spreadsheet-errors";
-import type { CellValue } from "./types";
+import type { CellValue, FormulaValue } from "./types";
+import { fitsInSheet, normalizedValue } from "./cellArray";
 
 /** One call may run this long before it is stopped (#NUM!). */
 const CALL_LIMIT_MS = 50;
@@ -38,8 +39,21 @@ const STACK_LIMIT_BYTES = 1024 * 1024;
 const MAX_ARGUMENT_CELLS = 100_000;
 
 // `fn(...JSON.parse(args))`: every argument crosses as one JSON string, so no value is built
-// handle by handle on this side.
-const CALLER_SOURCE = "(fn, args) => fn(...JSON.parse(args))";
+// handle by handle on this side. What it returns crosses back the same way, as one JSON string the
+// caller writes inside the VM, under the call's deadline: each cell tagged by its type alone (an
+// object is #VALUE! without a property of it being read), and an array as a table — its rows, an
+// element that is not an array being a row of one cell. decodedResult checks every part of it.
+const CALLER_SOURCE = `(fn, args) => {
+  const cell = (v) =>
+    typeof v === "number" ? (Number.isFinite(v) ? ["n", v] : ["e", "#NUM!"])
+    : typeof v === "string" ? ["s", v]
+    : typeof v === "boolean" ? ["b", v]
+    : v === null || v === undefined ? ["z"]
+    : ["e", "#VALUE!"];
+  const result = fn(...JSON.parse(args));
+  if (!Array.isArray(result)) return JSON.stringify(["v", cell(result)]);
+  return JSON.stringify(["t", result.map((row) => (Array.isArray(row) ? row.map(cell) : [cell(row)]))]);
+}`;
 
 // An optional sheet before a reference: `Data!`, `'My data'!`.
 const SHEET = "(?:(?:'(?:[^']|'')+'|[^!'\"(),]+)!)?";
@@ -155,7 +169,7 @@ function messageOf(vm: QuickJSContext, error: QuickJSHandle): string {
   }
 }
 
-type Invoke = (argumentsJson: string) => CellValue;
+type Invoke = (argumentsJson: string) => FormulaValue;
 
 /** One compiled function and the context it lives in. */
 interface CompiledCall {
@@ -166,7 +180,7 @@ interface CompiledCall {
 }
 
 /** Run one call: the arguments as JSON, under the call's deadline and what is left of the calculation's. */
-function callInVm({ vm, runtime, caller, fn }: CompiledCall, json: string, calculationStart: number): CellValue {
+function callInVm({ vm, runtime, caller, fn }: CompiledCall, json: string, calculationStart: number): FormulaValue {
   const deadline = Math.min(Date.now() + CALL_LIMIT_MS, calculationStart + CALCULATION_LIMIT_MS);
   if (Date.now() >= deadline) return NUM_ERROR;
   return underDeadline(runtime, deadline, () => {
@@ -174,9 +188,9 @@ function callInVm({ vm, runtime, caller, fn }: CompiledCall, json: string, calcu
     const result = vm.callFunction(caller, vm.undefined, fn, argsHandle);
     argsHandle.dispose();
     if (result.error) return messageOf(vm, result.error) === INTERRUPTED ? NUM_ERROR : VALUE_ERROR;
-    const value = primitiveOf(vm, result.value);
+    const encoded = vm.typeof(result.value) === "string" ? vm.getString(result.value) : null;
     result.value.dispose();
-    return value;
+    return encoded === null ? VALUE_ERROR : decodedResult(encoded);
   });
 }
 
@@ -194,21 +208,48 @@ function underDeadline<T>(runtime: QuickJSRuntime, deadline: number, work: () =>
   }
 }
 
-/** A returned value as a cell holds it, read by its type alone: an object is #VALUE! without
- *  being serialized, since serializing it would run its toJSON or getters. */
-function primitiveOf(vm: QuickJSContext, handle: QuickJSHandle): CellValue {
-  const kind = vm.typeof(handle);
-  if (kind === "number") return asCellValue(vm.getNumber(handle));
-  if (kind === "string") return vm.getString(handle);
-  if (kind === "boolean") return asCellValue(vm.dump(handle));
-  return VALUE_ERROR;
-}
-
 /** What a function returned, as a cell holds it: a finite number, text or a logical; else an error. */
 export function asCellValue(value: unknown): CellValue {
   if (typeof value === "number") return Number.isFinite(value) ? value : NUM_ERROR;
   if (typeof value === "string" || typeof value === "boolean") return value;
   return VALUE_ERROR;
+}
+
+/** One tagged cell as the caller wrote it, or null for anything else. A blank (`["z"]`) is "" in a
+ *  table and #VALUE! on its own, as a function returning nothing has always been. */
+function decodedCell(tagged: unknown): CellValue | null {
+  if (!Array.isArray(tagged)) return null;
+  const [tag, value] = tagged;
+  if (tag === "n" && typeof value === "number") return asCellValue(value);
+  if ((tag === "s" && typeof value === "string") || (tag === "b" && typeof value === "boolean")) return value;
+  if (tag === "e" && value === "#NUM!") return NUM_ERROR;
+  if (tag === "e" || tag === "z") return tag === "z" ? "" : VALUE_ERROR;
+  return null;
+}
+
+const parsedJson = (text: string): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
+/** What the caller wrote back: one value, or a table of rows (ragged rows are filled with #N/A, and
+ *  a table larger than a sheet holds is #VALUE!). Anything not shaped as the caller writes it is #VALUE!. */
+export function decodedResult(encoded: string): FormulaValue {
+  const parsed = parsedJson(encoded);
+  if (!Array.isArray(parsed)) return VALUE_ERROR;
+  const [kind, payload] = parsed;
+  if (kind === "v") {
+    const value = decodedCell(payload);
+    return value === null || value === "" ? VALUE_ERROR : value;
+  }
+  if (kind !== "t" || !Array.isArray(payload) || !payload.every(Array.isArray)) return VALUE_ERROR;
+  const rows = payload.map((row: unknown[]) => row.map(decodedCell));
+  const width = rows.reduce((widest, row) => Math.max(widest, row.length), 0);
+  if (!fitsInSheet(rows.length, width)) return VALUE_ERROR;
+  return rows.every((row) => row.every((cell) => cell !== null)) ? normalizedValue(rows.map((row) => row.map((cell) => cell ?? VALUE_ERROR))) : VALUE_ERROR;
 }
 
 function definitionFor(spec: CustomFunctionSpec, invoke: Invoke): FunctionDefinition {
@@ -219,6 +260,7 @@ function definitionFor(spec: CustomFunctionSpec, invoke: Invoke): FunctionDefini
     maxArgs: spec.params.length,
     description,
     category: "Workbook",
+    spills: true,
     handler: (args, context) => {
       const values = args.map((arg) => argumentValue(arg.trim(), context));
       const failed = values.find(isSpreadsheetErrorValue);
