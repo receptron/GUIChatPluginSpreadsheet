@@ -148,7 +148,7 @@ A function can answer a table too: `DECOMPOSE`, `EMA`, `SORT`, `SORTBY`, `UNIQUE
 
 ## Time series
 
-`AUTOCORREL(values, lag)`, `EMA(values, alpha)` and `DECOMPOSE(values, period, [model])` are not Excel functions; they compute what statsmodels and pandas do. A series is one row or one column of numbers in order, and a blank or text cell in it is `#VALUE!` rather than skipped, since skipping would shift every point after it.
+`AUTOCORREL(values, lag)`, `EMA(values, alpha)` and `DECOMPOSE(values, period, [model])` are not Excel functions; they compute what statsmodels and pandas do. A series is one row or one column of numbers in order, read as `TREND` and `LINEST` read their cells (text that is a number counts). A blank, or text that is not a number, is `#VALUE!` rather than skipped, since skipping would shift every point after it.
 
 - `AUTOCORREL` is the autocorrelation at one lag, as statsmodels' `acf` computes it.
 - `EMA` is the exponential moving average (pandas `ewm(alpha=…, adjust=False)`), one value per point; alpha must be in (0, 1].

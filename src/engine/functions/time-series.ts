@@ -1,7 +1,8 @@
 /**
- * AUTOCORREL, EMA and DECOMPOSE: time series read as one row or one column of numbers, in order. A
- * blank or text cell would shift every value after it, so it is #VALUE! rather than skipped, and an
- * error cell is that error. An answer of a value per point keeps the series' direction. The rules
+ * AUTOCORREL, EMA and DECOMPOSE: time series read as one row or one column of numbers, in order, each
+ * cell read as TREND and LINEST read theirs (text that is a number counts). A blank, or text that is
+ * not a number, would shift every value after it, so it is #VALUE! rather than skipped, and an error
+ * cell is that error. An answer of a value per point keeps the series' direction. The rules
  * live in time-series-math.ts.
  */
 
@@ -98,7 +99,7 @@ const TIME_SERIES_FUNCTIONS = [
     minArgs: 2,
     maxArgs: 3,
     description:
-      'Splits a series into trend, seasonal and residual parts over a period (additive or "multiplicative"), as statsmodels\' seasonal_decompose does; spills one row per point (not an Excel function)',
+      'Splits a series into trend, seasonal and residual parts over a period (additive or "multiplicative"), as statsmodels\' seasonal_decompose does; spills a row per point for a column of values, a column per point for a row (not an Excel function)',
     examples: ["DECOMPOSE(B2:B49, 12)", 'DECOMPOSE(B2:B49, 12, "multiplicative")'],
     spills: true,
   },
