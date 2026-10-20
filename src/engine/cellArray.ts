@@ -8,9 +8,8 @@ import { parseRangeBounds } from "./formulaRefs";
 import { NA_ERROR, VALUE_ERROR } from "./spreadsheet-errors";
 import type { CellArray, CellValue, FormulaValue } from "./types";
 
-/** The largest table a function may build from numbers it is given (SEQUENCE, MUNIT): Excel's grid,
- *  1,048,576 rows by 16,384 columns, and no more cells than its rows. A larger one could not spill and
- *  would only exhaust memory building it. */
+/** Excel's grid: 1,048,576 rows by 16,384 columns. A table that would spill past it is #SPILL!, and
+ *  a function building one from numbers it is given (SEQUENCE, MUNIT) refuses a size past it. */
 export const MAX_TABLE_ROWS = 1_048_576;
 export const MAX_TABLE_COLUMNS = 16_384;
 export const MAX_TABLE_CELLS = 1_048_576;
