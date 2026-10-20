@@ -9,6 +9,7 @@ import "./statistical";
 import "./statistical-analysis";
 import "./regression";
 import "./distributions";
+import "./distribution-families";
 import "./shape";
 import "./mathematical";
 import "./logical";
