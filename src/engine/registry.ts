@@ -9,7 +9,8 @@ import type { CellValue, FormulaValue } from "./types";
 import { holdsNumber, parseNumericString } from "./numericCoercion";
 import { parseDate } from "./date-parser";
 import { isSpreadsheetErrorValue, type SpreadsheetError } from "./spreadsheet-errors";
-import { soleCallName } from "./spillCandidate";
+import { isSoleReference } from "./spillCandidate";
+import { arrayOperands, type CallNames } from "./arrayExpression";
 export type { CellValue };
 export type CellGetter = (ref: string) => CellValue;
 export type RangeGetter = (range: string) => CellValue[];
@@ -155,11 +156,17 @@ class FunctionRegistry {
 
 export const functionRegistry = new FunctionRegistry();
 
-/** Whether `text` is one call, and nothing more, to a function that may answer a table: an
- *  argument read as a range is then read as that table's cells (`SUM(SORT(A1:A9))`). */
-export function isSpillingCall(text: string): boolean {
-  const name = soleCallName(text);
-  return name !== null && functionRegistry.get(name)?.spills === true;
+/** How a scan of a formula's text tells calls, and calls that may answer a table, from other names. */
+export const CALL_NAMES: CallNames = {
+  isCall: (name) => isCallableName(name),
+  answersTable: (name) => functionRegistry.get(name)?.spills === true,
+};
+
+/** Whether `text` is a formula that may answer a table and is not a reference: a call to a
+ *  function that may answer one (`SORT(A1:A9)`), an array constant, or an expression over arrays
+ *  (`A1:A9*2`). An argument read as a range is then read as that table's cells (`SUM(A1:A9*2)`). */
+export function answersTable(text: string): boolean {
+  return !isSoleReference(text) && arrayOperands(text, CALL_NAMES).length > 0;
 }
 
 /** Whether `name` written before "(" is a function call. A letters-only name is,

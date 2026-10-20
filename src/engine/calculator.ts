@@ -11,13 +11,14 @@ import { expandRangeOrCell, parseSingleCellRef } from "./formulaRefs";
 import { parseDate, getDefaultDateFormat } from "./date-parser";
 import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaInfo, SpreadsheetCell, CalculateOptions, FormulaValue } from "./types";
 import { cellsOf, isCellArray, MAX_TABLE_COLUMNS, MAX_TABLE_ROWS, scalarOf } from "./cellArray";
-import { isSoleReference, maySpill } from "./spillCandidate";
+import { isSoleReference } from "./spillCandidate";
+import { arrayOperands } from "./arrayExpression";
 import { spillTargets } from "./spillTargets";
 import { isObj, isRecord } from "./guards";
 import { isBlankCell, isEmptyCell } from "./cellEmpty";
 import { isRangeNumber, parseNumericString } from "./numericCoercion";
 import { splitSheetReference } from "./sheetReference";
-import { functionRegistry, isSpillingCall, type CellCoordinates } from "./registry";
+import { answersTable, CALL_NAMES, type CellCoordinates } from "./registry";
 import { boundWholeReferences, type ExtentReach, type SheetExtent } from "./wholeReferences";
 import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
@@ -262,12 +263,11 @@ function openSheet(
     const value = isObj(cell) ? cell.v : undefined;
     return typeof value === "string" && value.startsWith("=") ? value : null;
   };
-  const isSpillingFunction = (name: string): boolean => functionRegistry.get(name)?.spills === true;
   // The formula cells that may answer a table, in reading order, decided from their text alone.
   const spillCandidates: CellCoordinates[] = data.flatMap((dataRow, row) =>
     dataRow.flatMap((_, col) => {
       const formula = formulaAt(row, col);
-      return formula !== null && maySpill(formula.substring(1), isSpillingFunction) ? [{ row, col }] : [];
+      return formula !== null && arrayOperands(formula.substring(1), CALL_NAMES).length > 0 ? [{ row, col }] : [];
     }),
   );
   // Each spilled cell, by its key, with the cell it spilled from.
@@ -469,7 +469,7 @@ function openSheet(
   };
 
   const collectRangeValues = (range: string, rangeOptions: RangeReadOptions): CellValue[] => {
-    if (isSpillingCall(range)) return calledRangeValues(range, rangeOptions);
+    if (answersTable(range)) return calledRangeValues(range, rangeOptions);
     const resolved = resolveSheetData(range);
     if (!resolved) return []; // Sheet not found → empty range
     const { sheetData, ref: rangeRef, read, sheet } = resolved;

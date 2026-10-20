@@ -8,7 +8,7 @@ import {
   requiredArg,
   toNumber,
   criteriaArg,
-  isSpillingCall,
+  answersTable,
   type FunctionContext,
   type FunctionHandler,
   type RangeGetter,
@@ -61,7 +61,7 @@ export const collectArgumentValues = (args: string[], context: FunctionContext, 
     if (!arg) continue;
 
     // A call that may answer a table is read as a range is, its cells as a range's (`SUM(SORT(A1:A9))`).
-    if (isReference(arg) || isSpillingCall(arg)) {
+    if (isReference(arg) || answersTable(arg)) {
       readRange(arg).forEach((value) => collected.push({ value, isScalar: false }));
     } else {
       collected.push({ value: context.evaluateFormula(arg), isScalar: true });
@@ -157,7 +157,7 @@ const isFilledValue = (value: CellValue): boolean => value !== null && value !==
 const countaOf = (arg: string, context: FunctionContext): number => {
   if (isReference(arg) && context.countFilledCells) return context.countFilledCells(arg);
   // A table has no blank cells: empty text in one is text, and COUNTA counts every cell.
-  if (isSpillingCall(arg) && context.evaluateValue) return cellsOf(context.evaluateValue(arg)).length;
+  if (answersTable(arg) && context.evaluateValue) return cellsOf(context.evaluateValue(arg)).length;
   return collectRawValues([arg], context).filter(isFilledValue).length;
 };
 

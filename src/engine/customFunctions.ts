@@ -17,7 +17,7 @@ import {
   type QuickJSSyncVariant,
   type QuickJSWASMModule,
 } from "quickjs-emscripten-core";
-import { functionRegistry, isSpillingCall, type FunctionContext, type FunctionDefinition } from "./registry";
+import { functionRegistry, answersTable, type FunctionContext, type FunctionDefinition } from "./registry";
 // The built-ins registered before any check: a workbook may not redefine one, and asking before
 // they are loaded would answer that none exist.
 import "./functions";
@@ -239,7 +239,7 @@ const toJsonCell = (value: CellValue): JsonCell | SpreadsheetError => {
 /** One argument: a range as rows of cells, anything else — a single cell included — as its value. */
 function argumentValue(arg: string, context: FunctionContext): ArgumentValue {
   if (RANGE.test(arg)) return rangeRows(arg, context);
-  if (isSpillingCall(arg) && context.getRangeGrid) return tableRows(context.getRangeGrid(arg));
+  if (answersTable(arg) && context.getRangeGrid) return tableRows(context.getRangeGrid(arg));
   // Read like a range's cells, so a blank one is null here too rather than the 0 a formula reads.
   if (SINGLE_CELL.test(arg)) return toJsonCell(cellsReader(context)(arg)[0] ?? "");
   return toJsonCell(context.evaluateFormula(arg));

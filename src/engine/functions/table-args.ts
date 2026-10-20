@@ -3,7 +3,7 @@
  * a spilling call's table, or one value as a 1×1 table), and numbers and flags that may be left out.
  */
 
-import { isSpillingCall, requiredArg, type FunctionContext } from "../registry";
+import { answersTable, requiredArg, type FunctionContext } from "../registry";
 import { coerceToBoolean } from "../coerce-boolean";
 import { rowsOfRange } from "../cellArray";
 import { toScalarNumber } from "../numericCoercion";
@@ -18,7 +18,7 @@ const isLeftOut = (args: string[], index: number): boolean => index >= args.leng
 /** A table argument. */
 export function tableArg(args: string[], context: FunctionContext, index: number): CellArray {
   const arg = requiredArg(context, args, index);
-  if (isSpillingCall(arg) && context.getRangeGrid) return context.getRangeGrid(arg);
+  if (answersTable(arg) && context.getRangeGrid) return context.getRangeGrid(arg);
   const rows = isSoleRangeReference(arg) && context.getRangeValuesRaw ? rowsOfRange(arg, context.getRangeValuesRaw) : null;
   if (rows) return rows;
   // A single value, an error included, is a 1×1 table: HSTACK(1/0, A1:A2) keeps the error as a cell.
