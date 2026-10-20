@@ -8,7 +8,7 @@
  * display pass renders it back to `#NUM!` so cells look unchanged.
  */
 
-export const SPREADSHEET_ERRORS = ["#NULL!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#SPILL!", "#ERROR!"] as const;
+export const SPREADSHEET_ERRORS = ["#NULL!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#SPILL!", "#CALC!", "#ERROR!"] as const;
 
 export type SpreadsheetErrorCode = (typeof SPREADSHEET_ERRORS)[number];
 
@@ -35,6 +35,8 @@ export const NUM_ERROR = new SpreadsheetError("#NUM!");
 export const NA_ERROR = new SpreadsheetError("#N/A");
 /** An array result whose cells to the right and below are not all free. */
 export const SPILL_ERROR = new SpreadsheetError("#SPILL!");
+/** A table function whose answer would have no cells (an UNIQUE that finds nothing, a TAKE of 0). */
+export const CALC_ERROR = new SpreadsheetError("#CALC!");
 export const UNKNOWN_ERROR = new SpreadsheetError("#ERROR!");
 
 // One instance per code: two errors of the same kind compare equal, which is how
@@ -48,6 +50,7 @@ const ERROR_VALUES: Record<SpreadsheetErrorCode, SpreadsheetError> = {
   "#NUM!": NUM_ERROR,
   "#N/A": NA_ERROR,
   "#SPILL!": SPILL_ERROR,
+  "#CALC!": CALC_ERROR,
   "#ERROR!": UNKNOWN_ERROR,
 };
 

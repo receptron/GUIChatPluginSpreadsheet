@@ -167,6 +167,53 @@ const indexHandler: FunctionHandler = (args, context) => {
   return table.cellAt(target.row, target.colIndex);
 };
 
+/** The match and search modes XLOOKUP and XMATCH have. */
+const XMATCH_MODES = new Set([-1, 0, 1, 2]);
+const XMATCH_SEARCHES = new Set([-2, -1, 1, 2]);
+
+/** The position XLOOKUP and XMATCH find: match mode 0 exact, 2 with wildcards, -1 exact or the
+ *  next smaller, 1 exact or the next larger, the last two over an unsorted list; search mode -1 from
+ *  the last, any other from the first. Search modes 2 and -2 (a binary search over a list sorted
+ *  ascending or descending) search from the first, which finds what a binary search finds on a
+ *  sorted list. -1 when nothing matches. */
+function xlookupMatchIndex(lookupValue: CellValue, lookupArray: CellValue[], matchMode: number, searchMode: number): number {
+  const direction = searchMode === -1 ? -1 : 1;
+  let matchIdx = -1;
+
+  if (matchMode === 0 || matchMode === 2) {
+    matchIdx = findMatchIndex(lookupValue, lookupArray, 0, direction);
+  } else {
+    // Implement exact or next smaller/larger for unsorted arrays
+    // This is O(N)
+    let bestDiff = Infinity;
+
+    for (let i = 0; i < lookupArray.length; i++) {
+      const idx = direction === 1 ? i : lookupArray.length - 1 - i;
+      const item = lookupArray[idx];
+
+      if (isSameLookupValue(item, lookupValue)) {
+        matchIdx = idx;
+        break;
+      }
+
+      if (typeof item === "number" && typeof lookupValue === "number") {
+        const diff = item - lookupValue;
+        if (matchMode === -1 && diff < 0 && Math.abs(diff) < bestDiff) {
+          // Next smaller (closest negative difference)
+          bestDiff = Math.abs(diff);
+          matchIdx = idx;
+        } else if (matchMode === 1 && diff > 0 && diff < bestDiff) {
+          // Next larger (closest positive difference)
+          bestDiff = diff;
+          matchIdx = idx;
+        }
+      }
+    }
+  }
+
+  return matchIdx;
+}
+
 const xlookupHandler: FunctionHandler = (args, context) => {
   const lookupValue = context.evaluateFormula(requiredArg(context, args, 0));
   const lookupArrayRange = requiredArg(context, args, 1);
@@ -195,38 +242,9 @@ const xlookupHandler: FunctionHandler = (args, context) => {
   // For now, we'll implement exact (0) and wildcard (2 -> handled by exact with wildcard logic in findMatchIndex)
   // For -1 and 1, we'll do a linear search for best match if not sorted
 
-  let matchIdx = -1;
-
-  if (matchMode === 0 || matchMode === 2) {
-    matchIdx = findMatchIndex(lookupValue, lookupArray, 0, searchMode);
-  } else {
-    // Implement exact or next smaller/larger for unsorted arrays
-    // This is O(N)
-    let bestDiff = Infinity;
-
-    for (let i = 0; i < lookupArray.length; i++) {
-      const idx = searchMode === 1 ? i : lookupArray.length - 1 - i;
-      const item = lookupArray[idx];
-
-      if (isSameLookupValue(item, lookupValue)) {
-        matchIdx = idx;
-        break;
-      }
-
-      if (typeof item === "number" && typeof lookupValue === "number") {
-        const diff = item - lookupValue;
-        if (matchMode === -1 && diff < 0 && Math.abs(diff) < bestDiff) {
-          // Next smaller (closest negative difference)
-          bestDiff = Math.abs(diff);
-          matchIdx = idx;
-        } else if (matchMode === 1 && diff > 0 && diff < bestDiff) {
-          // Next larger (closest positive difference)
-          bestDiff = diff;
-          matchIdx = idx;
-        }
-      }
-    }
-  }
+  // A mode Excel does not have is #VALUE!, as for XMATCH.
+  if (!XMATCH_MODES.has(Math.trunc(matchMode)) || !XMATCH_SEARCHES.has(Math.trunc(searchMode))) return VALUE_ERROR;
+  const matchIdx = xlookupMatchIndex(lookupValue, lookupArray, Math.trunc(matchMode), Math.trunc(searchMode));
 
   if (matchIdx === -1) return ifNotFound;
 
@@ -234,6 +252,18 @@ const xlookupHandler: FunctionHandler = (args, context) => {
   // ranges are independent arguments and need not be the same length.
   const found = returnArray[matchIdx];
   return found === undefined ? NA_ERROR : found;
+};
+
+/** XMATCH(lookup, lookup_array, [match_mode], [search_mode]): the 1-based position XLOOKUP would
+ *  take its answer from; a mode it does not have is #VALUE!. */
+const xmatchHandler: FunctionHandler = (args, context) => {
+  const lookupValue = context.evaluateFormula(requiredArg(context, args, 0));
+  const lookupArray = rawRangeReader(context)(requiredArg(context, args, 1));
+  const matchMode = args.length >= 3 ? Math.trunc(toNumber(context.evaluateFormula(requiredArg(context, args, 2)))) : 0;
+  const searchMode = args.length >= 4 ? Math.trunc(toNumber(context.evaluateFormula(requiredArg(context, args, 3)))) : 1;
+  if (!XMATCH_MODES.has(matchMode) || !XMATCH_SEARCHES.has(searchMode)) return VALUE_ERROR;
+  const index = xlookupMatchIndex(lookupValue, lookupArray, matchMode, searchMode);
+  return index === -1 ? NA_ERROR : index + 1;
 };
 
 // ROW / COLUMN: of the reference's first cell, or of the cell calculating the formula when there is
@@ -323,6 +353,17 @@ functionRegistry.register({
   maxArgs: 1,
   description: "Returns the column number of a reference, or of the cell the formula is in",
   examples: ["COLUMN()", "COLUMN(D3)"],
+  category: "Lookup & Reference",
+});
+
+functionRegistry.register({
+  name: "XMATCH",
+  handler: xmatchHandler,
+  minArgs: 2,
+  maxArgs: 4,
+  description:
+    "Returns the position of a value in a range: match 0 exact, -1 or 1 the next smaller or larger, 2 wildcards; search 1 from the first, -1 from the last",
+  examples: ["XMATCH(42, A2:A100)", 'XMATCH("b*", A2:A100, 2)'],
   category: "Lookup & Reference",
 });
 
