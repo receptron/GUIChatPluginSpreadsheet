@@ -16,6 +16,7 @@ import "./descriptive";
 import "./mathematical";
 import "./random";
 import "./logical";
+import "./let-lambda";
 import "./text";
 import "./financial";
 import "./lookup";

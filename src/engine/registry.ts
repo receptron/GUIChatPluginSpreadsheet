@@ -96,6 +96,8 @@ export interface FunctionDefinition {
   /** May answer a table, which spills from the formula's cell when the call is the whole formula.
    *  Only such a function's result spills; any other answering a table is #VALUE!. */
   spills?: boolean;
+  /** Written by the engine itself, never by a formula's author: left out of the documented list. */
+  internal?: boolean;
 }
 
 class FunctionRegistry {
@@ -142,7 +144,7 @@ class FunctionRegistry {
   getFunctionsByCategory(): Map<string, FunctionDefinition[]> {
     const categories = new Map<string, FunctionDefinition[]>();
 
-    for (const func of Array.from(this.functions.values())) {
+    for (const func of Array.from(this.functions.values()).filter((definition) => definition.internal !== true)) {
       const category = func.category || "Other";
       if (!categories.has(category)) {
         categories.set(category, []);

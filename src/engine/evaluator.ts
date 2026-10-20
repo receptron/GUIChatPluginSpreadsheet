@@ -24,7 +24,8 @@ import { foldComparisons, splitTopLevelComparisons } from "./textComparison";
 import { standsAloneInConcat } from "./concatOperand";
 import { stripOuterParens } from "./condition";
 import { divZeroError, isFormulaError, unknownError, nameError, propagatedError } from "./formulaError";
-import { errorCodeOf, isSpreadsheetErrorValue, NA_ERROR, spreadsheetError, type SpreadsheetError } from "./spreadsheet-errors";
+import { errorCodeOf, isSpreadsheetErrorValue, NA_ERROR, spreadsheetError, VALUE_ERROR, type SpreadsheetError } from "./spreadsheet-errors";
+import { inlineLambdaCalls } from "./nameBinding";
 import { booleansAsNumbers, logicalLiteralsAsBooleans, loneBoolean } from "./logicalLiterals";
 import { textOperandsAsNumbers } from "./textArithmetic";
 
@@ -437,8 +438,11 @@ function evaluateOverArrays(formula: string, operands: ArrayOperand[], context: 
  * @returns Evaluated result (number or string)
  */
 export function evaluateFormula(writtenFormula: string, context: EvaluatorContext): FormulaValue {
+  // A LAMBDA called where it is written (`LAMBDA(x, x*2)(3)`) is its body over the arguments.
+  const inlined = /lambda/i.test(writtenFormula) ? inlineLambdaCalls(writtenFormula) : writtenFormula;
+  if (inlined === null) return VALUE_ERROR;
   // TRUE written in the formula reads as a logical cell does from here on.
-  const formula = logicalLiteralsAsBooleans(writtenFormula);
+  const formula = logicalLiteralsAsBooleans(inlined);
   // A formula that is one string literal is its text. Only one: `"a"="b"` also
   // starts and ends with a quote, and is a comparison.
   const trimmed = formula.trim();

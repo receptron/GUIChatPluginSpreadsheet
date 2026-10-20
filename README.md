@@ -120,7 +120,7 @@ A date format code is read as Excel reads it, for a cell's display and for TEXT 
 Dates are serial numbers on the real calendar, as in LibreOffice and Google Sheets. Excel counts a 1900-02-29 that never existed, so a serial before 61 (1900-03-01) is one day earlier here than in Excel; from 61 on they are the same.
 
 ### Logical
-`AND`, `FALSE`, `IF`, `IFERROR`, `IFNA`, `IFS`, `NOT`, `OR`, `TRUE`
+`AND`, `BYCOL`, `BYROW`, `FALSE`, `IF`, `IFERROR`, `IFNA`, `IFS`, `LAMBDA`, `LET`, `MAP`, `NOT`, `OR`, `REDUCE`, `TRUE`
 
 ### Lookup & Reference
 `CHOOSECOLS`, `CHOOSEROWS`, `COLUMN`, `COLUMNS`, `DROP`, `HLOOKUP`, `HSTACK`, `INDEX`, `MATCH`, `ROW`, `ROWS`, `SORT`, `SORTBY`, `TAKE`, `TRANSPOSE`, `UNIQUE`, `VLOOKUP`, `VSTACK`, `XLOOKUP`, `XMATCH`
@@ -154,6 +154,18 @@ An expression with a range, an array constant or a table-answering call among it
 
 A function that takes one value does not yet calculate over an array (`=ABS(A2:A9)`, `=IF(A2:A9>5,1,0)`); given a table of more than one cell, it answers `#VALUE!`.
 
+## Names and LAMBDA
+
+`LET` gives names to values for one formula: `=LET(total, SUM(A2:A9), total / COUNT(A2:A9))`. A value may use the names before it, and a name bound to a range stays that range, so `=LET(x, A2:A9, SUM(x * 2))` reads its cells as a reference does. A name is letters, digits, `_` and `.`, starting with a letter or `_`; one that looks like a cell (`A1`), a logical value, or R or C is `#NAME?`.
+
+`LAMBDA(param1, …, calculation)` is a calculation over named parameters. It is called where it is written (`=LAMBDA(x, x * 2)(3)` is 6), through a name (`=LET(f, LAMBDA(x, x * 2), f(3))`), or by:
+
+- `MAP(array1, [array2, …], lambda)`: the LAMBDA at each element, the arrays lined up as in `A1:A3+B1:B3`, answering a table;
+- `BYROW(array, lambda)` and `BYCOL(array, lambda)`: the LAMBDA at each row (a column of answers) or each column (a row of answers); a row given from a range is that row's range, so `=BYROW(A2:C9, LAMBDA(row, MAX(row)))` works as `MAX(A2:C2)` does;
+- `REDUCE([initial], array, lambda(accumulator, value))`: the LAMBDA over every element in reading order, carrying its answer forward. An initial value left out is 0.
+
+A LAMBDA given the wrong number of arguments is `#VALUE!`, and one written but never called is `#CALC!`. Where one value is wanted (each element of `MAP`, each line of `BYROW` and `BYCOL`), an answer that is a table is `#CALC!`.
+
 ## Random numbers
 
 `RAND()`, `RANDBETWEEN(bottom, top)` and `RANDARRAY([rows], [columns], [min], [max], [whole_number])` draw from a stream seeded by where the call is: the sheet, the cell, and how many random calls that cell's formula has made before it, in the order they are evaluated. A workbook therefore calculates to the same numbers each time, and the agent and the page showing the sheet see the same table. Excel draws new numbers at every recalculation instead. `RANDBETWEEN` includes both bounds, rounding bottom up and top down, and is `#NUM!` when no whole number lies between them. `RANDARRAY` truncates its sizes as `SEQUENCE` does (0 is `#CALC!`, below 0 `#VALUE!`), and is `#VALUE!` when min is not below max, or when whole numbers are asked for between bounds that are not whole.
@@ -178,7 +190,7 @@ A workbook can define functions of its own, for an analysis no built-in function
 
 - A function body is JavaScript, run in [QuickJS](https://github.com/justjake/quickjs-emscripten) (WebAssembly) with no DOM, network, file system or timers, at most 50 ms per call, 2 s per calculation and 16 MB of memory. Each function has a global scope of its own.
 - A range argument arrives as rows of cells (an array of arrays, a blank cell as `null`); a single cell and any other argument as its value. A whole column or row (`A:A`, `2:2`) arrives as the range it covers in its sheet's data. An argument that is an error is passed on without calling the function.
-- Return a number, text or `true`/`false`. A time-out or a non-finite number shows `#NUM!`; a thrown error or any other return value shows `#VALUE!`.
+- Return a number, text or `true`/`false`, or a table: an array of rows (`[[1, 2], [3, 4]]`), which spills like any table. A flat array is one column, and short rows are filled with `#N/A`. A time-out or a non-finite number shows `#NUM!`; a thrown error, an empty array or any other return value shows `#VALUE!`. In a table, `null` is a blank cell and any other value that is not a number, text or a logical is a `#VALUE!` cell.
 - A name is letters and digits, parts joined by dots, and cannot be a built-in function's. `presentSpreadsheet` says in its reply which definitions could not be used.
 - `presentSpreadsheet`'s reply also lists formula cells that calculate to an error (a few, and how many in all), so an agent can fix a workbook before handing it over: the saved file holds formulas, not results.
 - Each workbook's functions get a QuickJS instance of their own, so a failure in one (an abort while freeing a runtime that ran out of time) cannot affect another.
