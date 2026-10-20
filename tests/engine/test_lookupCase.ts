@@ -30,6 +30,11 @@ describe("an exact match without regard to case", () => {
   });
 
   it("still tells accents apart, and still matches a number to its text", () => {
+    assert.deepEqual(
+      valuesOf(['=XLOOKUP("C",A1:A4,B1:B4,"none",-1)', '=XLOOKUP("E",A1:A4,B1:B4,"none",1,-1)'], COLUMNS),
+      [2, 3],
+      "the exact candidate of the next-smaller/larger modes",
+    );
     assert.deepEqual(valuesOf(['=MATCH("é",A1:A4,0)', "=MATCH(10,A1:A4,0)", '=XLOOKUP("E",A1:A4,B1:B4,"none",0,-1)'], COLUMNS), ["#N/A", 4, 3]);
   });
 });
