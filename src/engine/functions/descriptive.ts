@@ -91,7 +91,7 @@ function argumentCountingText(arg: string, context: FunctionContext): (number | 
   if (!isRange || !context.countFilledCells) return counted;
   const filled = collected.filter(({ value }) => value !== "").length;
   const emptyTextCount = Math.max(0, context.countFilledCells(arg.trim()) - filled);
-  return [...counted, ...new Array<number>(emptyTextCount).fill(0)];
+  return [...counted, ...Array.from({ length: emptyTextCount }, () => 0)];
 }
 
 const overValuesCountingText =
