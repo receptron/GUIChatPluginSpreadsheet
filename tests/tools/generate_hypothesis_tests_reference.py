@@ -248,19 +248,39 @@ def largest_gap(first, second):
 
 
 def ks_exact(first, second):
-    """P(D >= d): monotone lattice paths that reach |i*n - j*m| >= gap, counted."""
+    """P(D >= d): monotone lattice paths that reach |i*n - j*m| >= gap after a whole block of tied
+    values (where D is observed), counted."""
     m, n = len(first), len(second)
     gap = largest_gap(first, second)
+    pooled = sorted(first + second)
+    observed = [k > 0 and (k == m + n or pooled[k - 1] != pooled[k]) for k in range(m + n + 1)]
     inside = [[0] * (n + 1) for _ in range(m + 1)]
     outside = 0
     for i in range(m + 1):
         for j in range(n + 1):
             arriving = 1 if i == j == 0 else (inside[i - 1][j] if i else 0) + (inside[i][j - 1] if j else 0)
-            if abs(i * n - j * m) >= gap:
+            if observed[i + j] and abs(i * n - j * m) >= gap:
                 outside += arriving * comb(m - i + n - j, m - i)
             else:
                 inside[i][j] = arriving
     return Fraction(outside, comb(m + n, m))
+
+
+def ks_by_permutation(first, second):
+    """P(D >= d) by trying every way of labelling the pooled values as the two samples: an
+    independent check of the lattice count, ties included, for small samples."""
+    from itertools import combinations
+
+    pooled, m = first + second, len(first)
+    observed = largest_gap(first, second)
+    hits = total = 0
+    for chosen in combinations(range(len(pooled)), m):
+        picked = set(chosen)
+        left = [pooled[k] for k in picked]
+        right = [pooled[k] for k in range(len(pooled)) if k not in picked]
+        hits += largest_gap(left, right) >= observed
+        total += 1
+    return Fraction(hits, total)
 
 
 def kolmogorov_upper(lam):
@@ -268,14 +288,18 @@ def kolmogorov_upper(lam):
     return 1 - mp.jtheta(4, 0, exp(-2 * lam * lam))
 
 
-for m, n, tied in [(3, 4, False), (5, 5, False), (8, 13, False), (20, 25, False), (40, 40, False), (60, 35, False), (15, 22, True), (100, 120, False)]:
+for m, n, tied in [(3, 4, False), (5, 5, False), (8, 13, False), (20, 25, False), (40, 40, False), (60, 35, False), (6, 7, True), (7, 8, True), (15, 22, True), (100, 120, False)]:
     for _ in range(3):
-        pool = integers(m + n, 0, 15) if tied else distinct_decimals(m + n, 0, 100)
+        pool = integers(m + n, 0, 6 if m + n <= 15 else 15) if tied else distinct_decimals(m + n, 0, 100)
         shift = rng.choice([0, 5, 20])
         first, second = pool[:m], [round(v + shift, 2) for v in pool[m:]]
         exact = ks_exact(first, second)
+        if m + n <= 15:
+            assert exact == ks_by_permutation(first, second), (first, second)
         p = min(mpf(1), mpf(exact.numerator) / exact.denominator)
-        check = stats.ks_2samp(first, second, method="exact").pvalue if not tied and float(p) > 1e-6 else None
+        # scipy's exact p assumes no ties, so it is a check only where nothing ties.
+        untied = len(set(first + second)) == m + n
+        check = stats.ks_2samp(first, second, method="exact").pvalue if untied and float(p) > 1e-6 else None
         add(f"=KS.TEST({range_of(0, m)},{range_of(1, n)})", [first, second], p, check, 1e-6)
 
 for size, shift in [(3200, 0), (3200, 1), (3300, 3), (3200, None)]:

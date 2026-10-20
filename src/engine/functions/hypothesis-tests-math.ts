@@ -87,7 +87,7 @@ interface Ranked {
 export function midRanks(values: readonly number[]): Ranked {
   const order = values.map((value, index) => ({ value, index })).sort((left, right) => left.value - right.value);
   const starts = order.flatMap((entry, position) => (position === 0 || entry.value !== order[position - 1]?.value ? [position] : []));
-  const ranks = new Array<number>(values.length).fill(0);
+  const ranks = Array.from({ length: values.length }, () => 0);
   const tieSizes = starts.map((start, group) => {
     const stop = starts[group + 1] ?? order.length;
     order.slice(start, stop).forEach((entry) => (ranks[entry.index] = (start + 1 + stop) / 2));
@@ -109,7 +109,7 @@ const MANN_WHITNEY_EXACT_MAX_PRODUCT = 1_000_000;
 /** The number of ways each U = 0..m·n can arise, m ≤ n: the coefficients of the Gaussian binomial
  *  [m + n choose m], built as ∏ (1 − q^(n+i)) / (1 − q^i) in exact integers. */
 function mannWhitneyCounts(m: number, n: number): bigint[] {
-  const counts = new Array<bigint>(m * n + 1).fill(0n);
+  const counts = Array.from({ length: m * n + 1 }, () => 0n);
   counts[0] = 1n;
   Array.from({ length: m }, (_, offset) => offset + 1).forEach((i) => {
     for (let u = counts.length - 1; u >= n + i; u -= 1) counts[u] = (counts[u] ?? 0n) - (counts[u - n - i] ?? 0n);
@@ -153,7 +153,7 @@ const WILCOXON_EXACT_MAX = 50;
  *  counted in doubles (at most 2^50, so exact). */
 function wilcoxonExactLower(t: number, n: number): number {
   const maxSum = (n * (n + 1)) / 2;
-  const counts = new Array<number>(maxSum + 1).fill(0);
+  const counts = Array.from({ length: maxSum + 1 }, () => 0);
   counts[0] = 1;
   Array.from({ length: n }, (_, offset) => offset + 1).forEach((rank) => {
     for (let sum = maxSum; sum >= rank; sum -= 1) counts[sum] = (counts[sum] ?? 0) + (counts[sum - rank] ?? 0);
@@ -204,11 +204,12 @@ function largestGap(first: number[], second: number[]): number {
 
 /** P(D ≥ gap) exactly: the share of monotone lattice paths from (0,0) to (m,n) that reach a point
  *  with |i·n − j·m| ≥ gap, summed as the probability of first reaching such a point, so a small p
- *  keeps its digits. */
-function ksExactOutside(m: number, n: number, gap: number): number {
+ *  keeps its digits. A point counts only after `observed[i + j]` values, where D is observed: tied
+ *  values are passed as one block, so a point inside a block is never seen. */
+function ksExactOutside(m: number, n: number, gap: number, observed: readonly boolean[]): number {
   const reach = new Float64Array(n + 1);
   const outside = { mass: 0 };
-  const isOutside = (i: number, j: number): boolean => Math.abs(i * n - j * m) >= gap;
+  const isOutside = (i: number, j: number): boolean => observed[i + j] === true && Math.abs(i * n - j * m) >= gap;
   Array.from({ length: m + 1 }, (_, i) => i).forEach((i) => {
     Array.from({ length: n + 1 }, (_, j) => j).forEach((j) => {
       const fromLeft = i === 0 ? 0 : (reach[j] ?? 0) * ((m - i + 1) / (m - i + 1 + n - j));
@@ -241,8 +242,10 @@ export function kolmogorovSmirnov(first: number[], second: number[]): Result {
   if (m === 0 || n === 0) return DIV_ZERO_ERROR;
   const gap = largestGap(first, second);
   if (gap === 0) return 1;
-  if (m * n <= KS_EXACT_MAX_PRODUCT) return clampProbability(ksExactOutside(m, n, gap));
-  return kolmogorovUpper((gap / (m * n)) * Math.sqrt((m * n) / (m + n)));
+  if (m * n > KS_EXACT_MAX_PRODUCT) return kolmogorovUpper((gap / (m * n)) * Math.sqrt((m * n) / (m + n)));
+  const pooled = Float64Array.from([...first, ...second]).sort();
+  const observed = Array.from({ length: m + n + 1 }, (_, count) => count > 0 && pooled[count - 1] !== pooled[count]);
+  return clampProbability(ksExactOutside(m, n, gap, observed));
 }
 
 // ---------------------------------------------------------------- Shapiro-Wilk
