@@ -15,6 +15,7 @@ import "./shape";
 import "./descriptive";
 import "./mathematical";
 import "./logical";
+import "./let-lambda";
 import "./text";
 import "./financial";
 import "./lookup";

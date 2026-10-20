@@ -120,7 +120,7 @@ A date format code is read as Excel reads it, for a cell's display and for TEXT 
 Dates are serial numbers on the real calendar, as in LibreOffice and Google Sheets. Excel counts a 1900-02-29 that never existed, so a serial before 61 (1900-03-01) is one day earlier here than in Excel; from 61 on they are the same.
 
 ### Logical
-`AND`, `FALSE`, `IF`, `IFERROR`, `IFNA`, `IFS`, `NOT`, `OR`, `TRUE`
+`AND`, `BYCOL`, `BYROW`, `FALSE`, `IF`, `IFERROR`, `IFNA`, `IFS`, `LAMBDA`, `LET`, `MAP`, `NOT`, `OR`, `REDUCE`, `TRUE`
 
 ### Lookup & Reference
 `CHOOSECOLS`, `CHOOSEROWS`, `COLUMN`, `COLUMNS`, `DROP`, `HLOOKUP`, `HSTACK`, `INDEX`, `MATCH`, `ROW`, `ROWS`, `SORT`, `SORTBY`, `TAKE`, `TRANSPOSE`, `UNIQUE`, `VLOOKUP`, `VSTACK`, `XLOOKUP`, `XMATCH`
@@ -153,6 +153,18 @@ An array constant is written in braces: `{1,2,3}` is a row, `{1;2;3}` a column a
 An expression with a range, an array constant or a table-answering call among its operands is calculated element by element and answers a table: `=A2:A9*B2:B9`, `=A2:A9>5`, `=A2:A9&"!"`, `=SORT(A2:A9)*2`. Each element reads its cell as a reference to that one cell would, so a blank cell is 0 beside `*` and empty text beside `&`. Operands of different sizes line up as in Excel: a single row or column is repeated, and past the end of a shorter operand the element is `#N/A` (`={1,2,3}+{1,2}` is `{2,4,#N/A}`). An element that fails, such as a division by zero, is that error, and the other elements still answer. A range read inside a call belongs to the call: `=SUM(A2:A9)*2` is one number. A range argument reads such an expression's cells: `=SUM(A2:A9*B2:B9)`, `=SUMPRODUCT((A2:A9>5)*B2:B9)`.
 
 A function that takes one value does not yet calculate over an array (`=ABS(A2:A9)`, `=IF(A2:A9>5,1,0)`); given a table of more than one cell, it answers `#VALUE!`.
+
+## Names and LAMBDA
+
+`LET` gives names to values for one formula: `=LET(total, SUM(A2:A9), total / COUNT(A2:A9))`. A value may use the names before it, and a name bound to a range stays that range, so `=LET(x, A2:A9, SUM(x * 2))` reads its cells as a reference does. A name is letters, digits, `_` and `.`, starting with a letter or `_`; one that looks like a cell (`A1`), a logical value, or R or C is `#NAME?`.
+
+`LAMBDA(param1, …, calculation)` is a calculation over named parameters. It is called where it is written (`=LAMBDA(x, x * 2)(3)` is 6), through a name (`=LET(f, LAMBDA(x, x * 2), f(3))`), or by:
+
+- `MAP(array1, [array2, …], lambda)`: the LAMBDA at each element, the arrays lined up as in `A1:A3+B1:B3`, answering a table;
+- `BYROW(array, lambda)` and `BYCOL(array, lambda)`: the LAMBDA at each row (a column of answers) or each column (a row of answers); a row given from a range is that row's range, so `=BYROW(A2:C9, LAMBDA(row, MAX(row)))` works as `MAX(A2:C2)` does;
+- `REDUCE([initial], array, lambda(accumulator, value))`: the LAMBDA over every element in reading order, carrying its answer forward. An initial value left out is 0.
+
+A LAMBDA given the wrong number of arguments is `#VALUE!`, and one written but never called is `#CALC!`. Where one value is wanted (each element of `MAP`, each line of `BYROW` and `BYCOL`), an answer that is a table is `#CALC!`.
 
 ## Workbook functions
 
