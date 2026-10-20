@@ -213,6 +213,7 @@ describe("argument rules", () => {
 
 const baseSeed = Number(process.env.FAMILIES_SEED ?? Date.now() % 1_000_000);
 const GENERATED_CASES = 120;
+const BINOMIAL_TIE_TOLERANCE = 1e-12;
 
 describe(`properties over generated parameters (seed ${baseSeed})`, () => {
   it("the left and right tails sum to 1, and each inverse undoes its distribution", () => {
@@ -253,7 +254,9 @@ describe(`properties over generated parameters (seed ${baseSeed})`, () => {
       const [quantile] = valuesOf([`=BINOM.INV(${trials},${p},${alpha})`]);
       const k = Number(quantile);
       const [atK, belowK] = valuesOf([`=BINOM.DIST(${k},${trials},${p},TRUE)`, `=BINOM.DIST(${k - 1},${trials},${p},TRUE)`]);
-      assert.ok(Number(atK) >= alpha && (k === 0 || Number(belowK) < alpha), `${label}: BINOM.INV ${k}`);
+      // A cumulative within BINOM.INV's tie tolerance of alpha reaches it: BINOM.DIST(0,1,0.1,TRUE) reads 0.8999999999999999.
+      const reached = alpha * (1 - BINOMIAL_TIE_TOLERANCE);
+      assert.ok(Number(atK) >= reached && (k === 0 || Number(belowK) < reached), `${label}: BINOM.INV ${k}`);
     });
   });
 });
