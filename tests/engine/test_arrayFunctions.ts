@@ -187,6 +187,16 @@ describe("XMATCH", () => {
     assert.deepEqual(spilled("=XMATCH(1,A1:A5,3)", values), [["#VALUE!"]]);
   });
 
+  it("answers #VALUE! in XLOOKUP for a mode it does not have, as in XMATCH", () => {
+    const columns = [
+      [1, 2, 2, 3],
+      ["a", "b", "c", "d"],
+    ];
+    ['=XLOOKUP(2,A1:A4,B1:B4,"none",0,0)', '=XLOOKUP(2,A1:A4,B1:B4,"none",3)'].forEach((formula) =>
+      assert.deepEqual(spilled(formula, columns), [["#VALUE!"]], formula),
+    );
+  });
+
   it("searches a sorted list from the first for the binary modes 2 and -2, as XLOOKUP does", () => {
     const ascending = [[1, 2, 2, 3]];
     const descending = [[3, 2, 2, 1]];
