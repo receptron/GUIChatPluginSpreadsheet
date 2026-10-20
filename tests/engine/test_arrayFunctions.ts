@@ -105,6 +105,10 @@ describe("SEQUENCE and TRANSPOSE", () => {
     assert.deepEqual(spilled("=SEQUENCE(3)", []), [[1], [2], [3]]);
     assert.deepEqual(spilled("=SEQUENCE(0)", []), [["#CALC!"]]);
     assert.deepEqual(spilled("=SEQUENCE(-1)", []), [["#VALUE!"]]);
+    ["=SEQUENCE(100000000)", "=SEQUENCE(1,20000)", "=SEQUENCE(2000,2000)", "=SEQUENCE(1E+300)"].forEach((formula) =>
+      assert.deepEqual(spilled(formula, []), [["#VALUE!"]], formula),
+    );
+    assert.equal(spilled("=ROWS(SEQUENCE(1048576))", [])[0]?.[0], 1048576, "a whole column still fits");
   });
 
   it("TRANSPOSE turns rows into columns", () => {
