@@ -302,14 +302,19 @@ function openSheet(
 
   // A table spills right and down, so only a candidate above and to the left can reach a cell. One
   // being calculated is skipped: it is what is reading, and cannot have spilled yet.
+  // The candidates not calculated yet, which shrinks to nothing, so a read stops scanning once
+  // every table has spilled.
+  const pending = { candidates: spillCandidates };
   const ensureSpillsReaching = (row: number, col: number): void => {
-    spillCandidates.forEach((candidate) => {
+    if (pending.candidates.length === 0) return;
+    pending.candidates.forEach((candidate) => {
       const key = `${candidate.row},${candidate.col}`;
       if (candidate.row > row || candidate.col > col || evaluated.has(key) || calculating.has(key)) return;
       const cells = calculated[candidate.row];
       const formula = formulaAt(candidate.row, candidate.col);
       if (cells && formula) resolveFormulaCell(formula, { cells, row: candidate.row, col: candidate.col });
     });
+    pending.candidates = pending.candidates.filter(({ row: candidateRow, col: candidateCol }) => !evaluated.has(`${candidateRow},${candidateCol}`));
   };
 
   const sheetExtent = (reach: ExtentReach = {}): SheetExtent => {

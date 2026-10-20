@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { SpreadsheetEngine, functionRegistry, type CellValue, type SheetData, type SpreadsheetCell } from "../../src/engine/index.ts";
 import { DIV_ZERO_ERROR } from "../../src/engine/spreadsheet-errors.ts";
+import { calculateWith, loadCustomFunctions } from "../../src/engine/customFunctions.ts";
 
 const numberOf = (arg: string, evaluate: (formula: string) => CellValue): number => Number(evaluate(arg));
 
@@ -227,6 +228,32 @@ describe("a call answering a table, where a range is read", () => {
     assert.deepEqual(data[0]?.slice(1), [1, 2]);
   });
 
+  it("is the table VLOOKUP, HLOOKUP and INDEX search, ROWS and COLUMNS measure, and NPV discounts", () => {
+    const { data } = calculate([
+      [
+        cell("=VLOOKUP(21,TEST.GRID(3,3),3,FALSE)"),
+        cell("=HLOOKUP(12,TEST.GRID(3,3),3,FALSE)"),
+        cell("=INDEX(TEST.GRID(3,3),2,3)"),
+        cell("=ROWS(TEST.GRID(4,2))"),
+        cell("=COLUMNS(TEST.GRID(4,2))"),
+        cell("=NPV(0,TEST.GRID(1,3))"),
+        cell("=VLOOKUP(99,TEST.GRID(3,3),2,FALSE)"),
+        cell("=INDEX(TEST.GRID(2,2),3,1)"),
+      ],
+    ]);
+    assert.deepEqual(data[0], [23, 32, 23, 4, 2, 36, "#N/A", "#REF!"]);
+  });
+
+  it("is passed to a workbook's own function as rows of cells", async () => {
+    const functions = await loadCustomFunctions([{ functions: [{ name: "WIDTHS", params: ["t"], body: "return t.length * 100 + t[0].length;" }] }]);
+    try {
+      const sheetData = sheet([[cell("=WIDTHS(TEST.GRID(3,2))")]]);
+      assert.equal(calculateWith(functions, () => new SpreadsheetEngine().calculate(sheetData)).data[0]?.[0], 302);
+    } finally {
+      functions.dispose();
+    }
+  });
+
   it("keeps its shape for the grid reader, as a reference does; a single value is 1×1", () => {
     const { data } = calculate([
       [cell("=TEST.SHAPE(TEST.GRID(2,3))"), cell("=TEST.SHAPE(A2:C5)"), cell("=TEST.SHAPE(1+1)"), cell("=TEST.SHAPE(Nowhere!A1:B2)")],
@@ -242,6 +269,10 @@ describe("a range written as the whole formula spills its cells", () => {
       data.map((row) => row[1]),
       [1, 0, ""],
     );
+  });
+
+  it("is #REF! for a sheet that does not exist", () => {
+    assert.deepEqual(calculate([[cell("=Nowhere!A1:B2")]]).data, [["#REF!"]]);
   });
 
   it("from another sheet, and shown as the cells' dates are", () => {

@@ -12,7 +12,6 @@ import type { CellValue, FormulaValue } from "./types";
 import { normalizedValue, scalarOf } from "./cellArray";
 import { isSoleRangeReference } from "./spillCandidate";
 import { parseRangeBounds } from "./formulaRefs";
-import { indexToColumn } from "./parser";
 import { endOfQuotedSheetName, UNQUOTED_SHEET_NAME } from "./sheetReference";
 import { parseDate } from "./date-parser";
 import { concatOperands, concatToSum, topLevelGroups } from "./concatPrecedence";
@@ -339,15 +338,16 @@ function withGroupsEvaluated(expr: string, context: EvaluatorContext): string {
   }, expr);
 }
 
-/** A range's cells as `=A1:B3` answers them, each read as `=A1` reads that one cell (a blank as 0);
- *  null for a range not written cell to cell, such as a whole column of a sheet that does not exist. */
+/** A range's cells as `=A1:B3` answers them, in one read of the range: each as `=A1` reads that
+ *  one cell (a blank as 0). Null for a range not written cell to cell, such as a whole column of a
+ *  sheet that does not exist. */
 function rangeAsValues(range: string, context: EvaluatorContext): CellValue[][] | null {
   const bounds = parseRangeBounds(range);
-  if (!bounds) return null;
-  const { sheetPrefix, startRow, startCol, endRow, endCol } = bounds;
-  const rows = Array.from({ length: Math.abs(endRow - startRow) + 1 }, (_, offset) => Math.min(startRow, endRow) + offset);
-  const columns = Array.from({ length: Math.abs(endCol - startCol) + 1 }, (_, offset) => Math.min(startCol, endCol) + offset);
-  return rows.map((row) => columns.map((col) => context.getCellValue(`${sheetPrefix}${indexToColumn(col)}${row}`)));
+  if (!bounds || !context.getRangeValuesRaw) return null;
+  const width = Math.abs(bounds.endCol - bounds.startCol) + 1;
+  const cells = context.getRangeValuesRaw(range);
+  if (cells.length === 0) return null;
+  return Array.from({ length: Math.ceil(cells.length / width) }, (_, row) => cells.slice(row * width, (row + 1) * width));
 }
 
 /**
