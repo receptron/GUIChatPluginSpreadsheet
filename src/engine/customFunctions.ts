@@ -219,12 +219,13 @@ export function asCellValue(value: unknown): CellValue {
  *  table and #VALUE! on its own, as a function returning nothing has always been. */
 function decodedCell(tagged: unknown): CellValue | null {
   if (!Array.isArray(tagged)) return null;
+  if (tagged.length === 1) return tagged[0] === "z" ? "" : null;
+  if (tagged.length !== 2) return null;
   const [tag, value] = tagged;
   if (tag === "n" && typeof value === "number") return asCellValue(value);
   if ((tag === "s" && typeof value === "string") || (tag === "b" && typeof value === "boolean")) return value;
   if (tag === "e" && value === "#NUM!") return NUM_ERROR;
-  if (tag === "e" || tag === "z") return tag === "z" ? "" : VALUE_ERROR;
-  return null;
+  return tag === "e" && value === "#VALUE!" ? VALUE_ERROR : null;
 }
 
 const parsedJson = (text: string): unknown => {
@@ -239,7 +240,7 @@ const parsedJson = (text: string): unknown => {
  *  a table larger than a sheet holds is #VALUE!). Anything not shaped as the caller writes it is #VALUE!. */
 export function decodedResult(encoded: string): FormulaValue {
   const parsed = parsedJson(encoded);
-  if (!Array.isArray(parsed)) return VALUE_ERROR;
+  if (!Array.isArray(parsed) || parsed.length !== 2) return VALUE_ERROR;
   const [kind, payload] = parsed;
   if (kind === "v") {
     const value = decodedCell(payload);

@@ -108,6 +108,11 @@ describe("decodedResult", () => {
       '["t",[[1,["n",2]]]]',
       '["t",[]]',
       '["q",[]]',
+      '["v",["n",3],"extra"]',
+      '["v",["n",3,"extra"]]',
+      '["v",["e","not-an-error"]]',
+      '["t",[[["b",true,"extra"],["n",2]]]]',
+      '["v",["z","x"]]',
     ].forEach((encoded) => assert.equal(decodedResult(encoded), VALUE_ERROR, encoded));
     const wide = JSON.stringify(["t", [Array.from({ length: 16_385 }, () => ["n", 1])]]);
     assert.equal(decodedResult(wide), VALUE_ERROR);
