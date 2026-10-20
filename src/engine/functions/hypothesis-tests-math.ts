@@ -46,11 +46,13 @@ export interface TableShape {
   columns: number;
 }
 
-/** CHISQ.TEST over the cells where both tables hold a number. An expected 0: #DIV/0!; no such
- *  cells: #DIV/0!; a single cell, which leaves no degrees of freedom: #N/A. */
+/** CHISQ.TEST over the cells where both tables hold a number. An expected 0: #DIV/0!; a negative
+ *  expected count, which makes a term of the statistic negative: #NUM!; no such cells: #DIV/0!; a
+ *  single cell, which leaves no degrees of freedom: #N/A. */
 export function chiSquareTest(observed: number[], expected: number[], { rows, columns }: TableShape): Result {
   const degrees = rows > 1 && columns > 1 ? (rows - 1) * (columns - 1) : rows * columns - 1;
   if (degrees === 0) return NA_ERROR;
+  if (expected.some((value) => value < 0)) return NUM_ERROR;
   if (observed.length === 0 || expected.some((value) => value === 0)) return DIV_ZERO_ERROR;
   const statistic = observed.reduce((sum, value, index) => {
     const expectation = expected[index] ?? 0;

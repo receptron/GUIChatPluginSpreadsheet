@@ -112,6 +112,19 @@ describe("argument rules", () => {
     );
   });
 
+  it("CHISQ.TEST answers #NUM! for a negative expected count", () => {
+    assert.deepEqual(
+      valuesOf(
+        ["=CHISQ.TEST(A1:A3,B1:B3)"],
+        [
+          [10, 20, 30],
+          [12, -18, 31],
+        ],
+      ),
+      ["#NUM!"],
+    );
+  });
+
   it("CHISQ.TEST takes its degrees of freedom from the shape: (r−1)(c−1), or the cells less one", () => {
     const columns = [
       [10, 20],
