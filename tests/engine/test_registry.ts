@@ -139,13 +139,24 @@ describe("parseCriteria — comparison operators", () => {
     }
   });
 
-  it("strips surrounding quotes before reading the operator", () => {
-    assert.equal(parseCriteria('">5"')(6), true);
-    assert.equal(parseCriteria("'>5'")(6), true);
+  // A criteria is the value its argument evaluated to: its quotes and spaces are part of it.
+  it("keeps quotes and spaces as part of the criteria", () => {
+    assert.equal(parseCriteria('">5"')(6), false);
+    assert.equal(parseCriteria('">5"')('">5"'), true);
+    assert.equal(parseCriteria(" x")("x"), false);
+    assert.equal(parseCriteria(" x")(" x"), true);
+    assert.equal(parseCriteria("= x")(" x"), true);
   });
 
-  it("tolerates whitespace around the criteria", () => {
-    assert.equal(parseCriteria("  >5  ")(6), true);
+  it("reads the number after an operator with spaces around it", () => {
+    assert.equal(parseCriteria(">= 5")(5), true);
+    assert.equal(parseCriteria(">5 ")(6), true);
+  });
+
+  it("matches only an empty cell with a bare =, not one holding a space", () => {
+    assert.equal(parseCriteria("=")(""), true);
+    assert.equal(parseCriteria("=")(" "), false);
+    assert.equal(parseCriteria("<>")(" "), true);
   });
 });
 
@@ -206,8 +217,9 @@ describe("parseCriteria — exact match", () => {
     assert.equal(zero(""), false, "a blank is not the number 0");
   });
 
-  it("strips quotes around an exact-match criteria too", () => {
-    assert.equal(parseCriteria('"apple"')("apple"), true);
+  it("keeps quotes around an exact-match criteria as text", () => {
+    assert.equal(parseCriteria('"apple"')("apple"), false);
+    assert.equal(parseCriteria('"apple"')('"apple"'), true);
   });
 
   it("matches an empty criteria against an empty string", () => {
