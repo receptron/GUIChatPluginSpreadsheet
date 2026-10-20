@@ -4,6 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { SpreadsheetEngine, type CellValue } from "../../src/engine/index.ts";
+import { functionRegistry } from "../../src/engine/registry.ts";
 import { hashKey, randomBetween, randomTable, uniformStream } from "../../src/engine/functions/random-math.ts";
 import { CALC_ERROR, NUM_ERROR, VALUE_ERROR } from "../../src/engine/spreadsheet-errors.ts";
 
@@ -45,9 +46,15 @@ describe("RAND, RANDBETWEEN and RANDARRAY in a sheet", () => {
   });
 
   it("RANDARRAY with nothing given is one number, and is read by other functions", () => {
-    const [[single, summed]] = calculate([["=RANDARRAY()", "=SUM(RANDARRAY(4,1,1,1,TRUE))"]]);
+    const [[single, summed]] = calculate([["=RANDARRAY()", "=SUM(RANDARRAY(4,1,1,2,TRUE))"]]);
     assert.ok(typeof single === "number" && single >= 0 && single < 1);
-    assert.equal(summed, 4);
+    assert.ok(typeof summed === "number" && summed >= 4 && summed <= 8, String(summed));
+  });
+
+  it("outside a cell, draw the same number every time", () => {
+    const rand = functionRegistry.get("RAND");
+    const context = { functionName: "RAND", getCellValue: () => 0, getRangeValues: () => [], evaluateFormula: () => 0 };
+    assert.equal(rand?.handler([], context), rand?.handler([], context));
   });
 
   it("answer the argument errors", () => {
@@ -83,6 +90,7 @@ describe("the rules", () => {
     assert.equal(randomTable(0, 3, 0, 1, false, fixed), CALC_ERROR);
     assert.equal(randomTable(-1, 3, 0, 1, false, fixed), VALUE_ERROR);
     assert.equal(randomTable(2, 2, 2, 1, false, fixed), VALUE_ERROR);
+    assert.equal(randomTable(2, 2, 1, 1, true, fixed), VALUE_ERROR, "Microsoft: min must be below max");
     assert.equal(randomTable(2, 2, 0, 1.5, true, fixed), VALUE_ERROR);
     assert.equal(randomTable(2_000_000, 1, 0, 1, false, fixed), VALUE_ERROR);
   });
@@ -100,6 +108,11 @@ describe("the rules", () => {
     const expected = DRAWS / BINS;
     const chiSquare = counts.reduce((sum, count) => sum + (count - expected) ** 2 / expected, 0);
     assert.ok(chiSquare < CRITICAL_0_1_PERCENT_9_DF, `chi-square ${chiSquare}`);
+  });
+
+  it("hashKey is FNV-1a over UTF-8 bytes", () => {
+    assert.equal(hashKey("a"), 0xe40c292c);
+    assert.equal(hashKey("é"), 513665217);
   });
 
   it("hashKey tells keys apart that differ in one character", () => {

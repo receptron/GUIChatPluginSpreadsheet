@@ -1,7 +1,7 @@
 /**
  * RAND, RANDBETWEEN and RANDARRAY. Each call draws from a stream seeded by the sheet, the cell and
- * the call's place among the random calls of that cell's formula (random-math.ts), so the numbers
- * hold still from one calculation to the next.
+ * how many random calls the cell's formula has made before it, in the order they are evaluated
+ * (random-math.ts), so the numbers hold still from one calculation to the next.
  */
 
 import { functionRegistry, type CellCoordinates, type FunctionContext, type FunctionHandler } from "../registry";
@@ -12,14 +12,21 @@ import { allRead, booleanArg, numberArg, optionalNumberArg } from "./table-args"
 // How many random calls each cell's formula has made in this calculation. A cell being calculated is
 // a fresh object each time, so the count starts again with every calculation.
 const callsMade = new WeakMap<CellCoordinates, number>();
-const OUTSIDE_A_CELL: CellCoordinates = { row: -1, col: -1 };
+
+/** How many random calls the formula being calculated has made before this one. A formula calculated
+ *  outside a cell has nowhere to keep a count, so each of its calls is the first: it never changes. */
+function callsBefore(cell: CellCoordinates | undefined): number {
+  if (!cell) return 0;
+  const made = callsMade.get(cell) ?? 0;
+  callsMade.set(cell, made + 1);
+  return made;
+}
 
 /** The stream for the next random call of the formula being calculated. */
 function nextStream(context: FunctionContext): () => number {
-  const cell = context.currentCell ?? OUTSIDE_A_CELL;
-  const ordinal = callsMade.get(cell) ?? 0;
-  callsMade.set(cell, ordinal + 1);
-  return uniformStream(hashKey(`${context.currentSheet ?? ""}\u0000${cell.row}\u0000${cell.col}\u0000${ordinal}`));
+  const ordinal = callsBefore(context.currentCell);
+  const { row, col } = context.currentCell ?? { row: -1, col: -1 };
+  return uniformStream(hashKey(`${context.currentSheet ?? ""}\u0000${row}\u0000${col}\u0000${ordinal}`));
 }
 
 const randHandler: FunctionHandler = (_args, context) => nextStream(context)();

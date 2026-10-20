@@ -148,7 +148,7 @@ A function can answer a table too: `RANDARRAY`, `SORT`, `SORTBY`, `UNIQUE`, `SEQ
 
 ## Random numbers
 
-`RAND()`, `RANDBETWEEN(bottom, top)` and `RANDARRAY([rows], [columns], [min], [max], [whole_number])` draw from a stream seeded by where the call is: the sheet, the cell, and which random call it is in that cell's formula. A workbook therefore calculates to the same numbers each time, and the agent and the page showing the sheet see the same table. Excel draws new numbers at every recalculation instead. `RANDBETWEEN` includes both bounds, rounding bottom up and top down, and is `#NUM!` when no whole number lies between them. `RANDARRAY` is `#VALUE!` when min is above max, or when whole numbers are asked for between bounds that are not whole.
+`RAND()`, `RANDBETWEEN(bottom, top)` and `RANDARRAY([rows], [columns], [min], [max], [whole_number])` draw from a stream seeded by where the call is: the sheet, the cell, and how many random calls that cell's formula has made before it, in the order they are evaluated. A workbook therefore calculates to the same numbers each time, and the agent and the page showing the sheet see the same table. Excel draws new numbers at every recalculation instead. `RANDBETWEEN` includes both bounds, rounding bottom up and top down, and is `#NUM!` when no whole number lies between them. `RANDARRAY` truncates its sizes as `SEQUENCE` does (0 is `#CALC!`, below 0 `#VALUE!`), and is `#VALUE!` when min is not below max, or when whole numbers are asked for between bounds that are not whole.
 
 ## Workbook functions
 

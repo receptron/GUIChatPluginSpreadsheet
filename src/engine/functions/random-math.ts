@@ -1,6 +1,7 @@
 /**
  * RAND, RANDBETWEEN and RANDARRAY over a stream of uniform numbers. The stream is seeded from where
- * the call is — the sheet, the cell, and which call it is in that cell's formula — so a workbook
+ * the call is — the sheet, the cell, and how many random calls that cell's formula has made before
+ * it — so a workbook
  * calculates to the same numbers wherever and however often it is calculated: the agent and the
  * page that shows the sheet see one table, not two.
  */
@@ -14,9 +15,9 @@ const FNV_PRIME = 0x01000193;
 const UINT32 = 2 ** 32;
 const MULBERRY_INCREMENT = 0x6d2b79f5;
 
-/** FNV-1a: a 32-bit hash of `key`. */
+/** FNV-1a: a 32-bit hash of `key`'s UTF-8 bytes. */
 export function hashKey(key: string): number {
-  return Array.from(key).reduce((hash, char) => Math.imul(hash ^ (char.codePointAt(0) ?? 0), FNV_PRIME) >>> 0, FNV_OFFSET);
+  return Array.from(new TextEncoder().encode(key)).reduce((hash, byte) => Math.imul(hash ^ byte, FNV_PRIME) >>> 0, FNV_OFFSET);
 }
 
 /** Mulberry32: uniform numbers in [0, 1), one per call, from a 32-bit seed. */
@@ -38,11 +39,12 @@ export function randomBetween(bottom: number, top: number, uniform: number): num
 }
 
 /** RANDARRAY: a table of uniform numbers from min to max (whole numbers, both included, when
- *  `wholeNumbers`). A size below 0, or past the sheet, and min above max are #VALUE!, as are whole
- *  numbers between bounds that are not whole; a size of 0 is #CALC!, as SEQUENCE's is. */
+ *  `wholeNumbers`). Sizes are truncated, as SEQUENCE's are: below 0, or past the sheet, is #VALUE!,
+ *  and 0 is #CALC!. A min that is not below max is #VALUE! (Microsoft documents it), as are whole
+ *  numbers between bounds that are not whole. */
 export function randomTable(rows: number, columns: number, min: number, max: number, wholeNumbers: boolean, next: () => number): CellArray | SpreadsheetError {
   const [height, width] = [Math.trunc(rows), Math.trunc(columns)];
-  if (height < 0 || width < 0 || !fitsInSheet(height, width) || min > max) return VALUE_ERROR;
+  if (height < 0 || width < 0 || !fitsInSheet(height, width) || min >= max) return VALUE_ERROR;
   if (wholeNumbers && (!Number.isInteger(min) || !Number.isInteger(max))) return VALUE_ERROR;
   if (height === 0 || width === 0) return CALC_ERROR;
   const draw = (): number => {
