@@ -105,7 +105,7 @@ The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to loa
 ## Supported Functions
 
 ### Mathematical
-`ABS`, `CEILING`, `EXP`, `FLOOR`, `INT`, `LN`, `LOG`, `LOG10`, `MDETERM`, `MINVERSE`, `MMULT`, `MOD`, `MUNIT`, `PI`, `POWER`, `ROUND`, `ROUNDDOWN`, `ROUNDUP`, `SEQUENCE`, `SIGN`, `SQRT`, `SUMPRODUCT`, `TRUNC`
+`ABS`, `CEILING`, `EXP`, `FLOOR`, `INT`, `LN`, `LOG`, `LOG10`, `MDETERM`, `MINVERSE`, `MMULT`, `MOD`, `MUNIT`, `PI`, `POWER`, `RAND`, `RANDARRAY`, `RANDBETWEEN`, `ROUND`, `ROUNDDOWN`, `ROUNDUP`, `SEQUENCE`, `SIGN`, `SQRT`, `SUMPRODUCT`, `TRUNC`
 
 ### Text
 `CONCAT`, `CONCATENATE`, `EXACT`, `FIND`, `LEFT`, `LEN`, `LOWER`, `MID`, `PROPER`, `REPLACE`, `RIGHT`, `SEARCH`, `SUBSTITUTE`, `TEXT`, `TRIM`, `UPPER`, `VALUE`
@@ -144,7 +144,7 @@ A formula that is a range and nothing else, such as `=A1:C5` or `=Data!A1:B10`, 
 - **Formatting.** A spilled cell takes its own cell's number format if it has one, and the formula cell's format otherwise.
 - **Saving.** Only the formula is saved. The spilled values are rebuilt on every calculation.
 
-A function can answer a table too: `GROUPBY`, `PIVOTBY`, `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `MMULT`, `MINVERSE`, `MUNIT`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND` and `GROWTH` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A range argument accepts such a call, as in `=SUM(…)` over it.
+A function can answer a table too: `GROUPBY`, `PIVOTBY`, `RANDARRAY`, `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `MMULT`, `MINVERSE`, `MUNIT`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND` and `GROWTH` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A range argument accepts such a call, as in `=SUM(…)` over it.
 
 `LINEST` and `LOGEST` fit one or more x variables by least squares (`LOGEST` fits ln y, so every y must be above 0). With known_y a column, each column of known_x is a variable; with known_y a row, each row is; known_x of known_y's own shape is one variable. They answer the coefficients from the last x to the first, then the constant; with stats `TRUE`, four more rows follow: the standard errors, r² and the standard error of y, F and the degrees of freedom, and the regression and residual sums of squares, with `#N/A` where a row has no more values. An x collinear with the ones before it (the constant first) is left out, with a coefficient and standard error of 0 and one more degree of freedom, as Excel documents. A statistic that divides by 0 (no degrees of freedom, a perfect fit's F) is `#NUM!`. `TREND` and `GROWTH` answer the fitted line or curve at each new x, at known_x when new_x is left out.
 
@@ -177,6 +177,10 @@ A function that takes one value does not yet calculate over an array (`=ABS(A2:A
 - `REDUCE([initial], array, lambda(accumulator, value))`: the LAMBDA over every element in reading order, carrying its answer forward. An initial value left out is 0.
 
 A LAMBDA given the wrong number of arguments is `#VALUE!`, and one written but never called is `#CALC!`. Where one value is wanted (each element of `MAP`, each line of `BYROW` and `BYCOL`), an answer that is a table is `#CALC!`.
+
+## Random numbers
+
+`RAND()`, `RANDBETWEEN(bottom, top)` and `RANDARRAY([rows], [columns], [min], [max], [whole_number])` draw from a stream seeded by where the call is: the sheet, the cell, and how many random calls that cell's formula has made before it, in the order they are evaluated. A workbook therefore calculates to the same numbers each time, and the agent and the page showing the sheet see the same table. Excel draws new numbers at every recalculation instead. `RANDBETWEEN` includes both bounds, rounding bottom up and top down, and is `#NUM!` when no whole number lies between them. `RANDARRAY` truncates its sizes as `SEQUENCE` does (0 is `#CALC!`, below 0 `#VALUE!`), and is `#VALUE!` when min is not below max, or when whole numbers are asked for between bounds that are not whole.
 
 ## Workbook functions
 
