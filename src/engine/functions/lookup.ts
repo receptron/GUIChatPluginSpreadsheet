@@ -161,6 +161,10 @@ const indexHandler: FunctionHandler = (args, context) => {
   return table.cellAt(target.row, target.colIndex);
 };
 
+/** The match and search modes XLOOKUP and XMATCH have. */
+const XMATCH_MODES = new Set([-1, 0, 1, 2]);
+const XMATCH_SEARCHES = new Set([-2, -1, 1, 2]);
+
 /** The position XLOOKUP and XMATCH find: match mode 0 exact, 2 with wildcards, -1 exact or the
  *  next smaller, 1 exact or the next larger, the last two over an unsorted list; search mode -1 from
  *  the last, any other from the first. Search modes 2 and -2 (a binary search over a list sorted
@@ -232,7 +236,9 @@ const xlookupHandler: FunctionHandler = (args, context) => {
   // For now, we'll implement exact (0) and wildcard (2 -> handled by exact with wildcard logic in findMatchIndex)
   // For -1 and 1, we'll do a linear search for best match if not sorted
 
-  const matchIdx = xlookupMatchIndex(lookupValue, lookupArray, matchMode, searchMode);
+  // A mode Excel does not have is #VALUE!, as for XMATCH.
+  if (!XMATCH_MODES.has(Math.trunc(matchMode)) || !XMATCH_SEARCHES.has(Math.trunc(searchMode))) return VALUE_ERROR;
+  const matchIdx = xlookupMatchIndex(lookupValue, lookupArray, Math.trunc(matchMode), Math.trunc(searchMode));
   if (matchIdx === -1) return ifNotFound;
 
   // A match past the end of the return range has nothing to return — the two
@@ -240,9 +246,6 @@ const xlookupHandler: FunctionHandler = (args, context) => {
   const found = returnArray[matchIdx];
   return found === undefined ? NA_ERROR : found;
 };
-
-const XMATCH_MODES = new Set([-1, 0, 1, 2]);
-const XMATCH_SEARCHES = new Set([-2, -1, 1, 2]);
 
 /** XMATCH(lookup, lookup_array, [match_mode], [search_mode]): the 1-based position XLOOKUP would
  *  take its answer from; a mode it does not have is #VALUE!. */
