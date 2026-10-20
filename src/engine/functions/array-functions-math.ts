@@ -8,6 +8,7 @@ import { CALC_ERROR, NA_ERROR, VALUE_ERROR, isSpreadsheetErrorValue, type Spread
 import { compareCellValues } from "../textComparison";
 import { collationIdentity } from "../textCollation";
 import type { CellArray, CellValue } from "../types";
+import { fitsInSheet } from "../cellArray";
 
 type TableResult = CellArray | SpreadsheetError;
 
@@ -90,11 +91,11 @@ export function uniqueTable(table: CellArray, byColumn: boolean, exactlyOnce: bo
   return byColumn ? transpose(kept) : kept;
 }
 
-/** SEQUENCE: `rows` × `columns` numbers from `start`, `step` apart, row by row. A negative size is
- *  #VALUE!, a zero one #CALC!. */
+/** SEQUENCE: `rows` × `columns` numbers from `start`, `step` apart, row by row. A negative size, or
+ *  one larger than a sheet holds, is #VALUE!; a zero one #CALC!. */
 export function sequence(rows: number, columns: number, start: number, step: number): TableResult {
   const [height, width] = [Math.trunc(rows), Math.trunc(columns)];
-  if (height < 0 || width < 0) return VALUE_ERROR;
+  if (height < 0 || width < 0 || !fitsInSheet(height, width)) return VALUE_ERROR;
   if (height === 0 || width === 0) return CALC_ERROR;
   return Array.from({ length: height }, (_, row) => Array.from({ length: width }, (_, col) => start + (row * width + col) * step));
 }

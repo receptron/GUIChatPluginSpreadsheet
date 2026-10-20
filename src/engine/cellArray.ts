@@ -8,6 +8,16 @@ import { parseRangeBounds } from "./formulaRefs";
 import { NA_ERROR, VALUE_ERROR } from "./spreadsheet-errors";
 import type { CellArray, CellValue, FormulaValue } from "./types";
 
+/** The largest table a function may build from numbers it is given (SEQUENCE, MUNIT): Excel's grid,
+ *  1,048,576 rows by 16,384 columns, and no more cells than its rows. A larger one could not spill and
+ *  would only exhaust memory building it. */
+export const MAX_TABLE_ROWS = 1_048_576;
+export const MAX_TABLE_COLUMNS = 16_384;
+export const MAX_TABLE_CELLS = 1_048_576;
+
+export const fitsInSheet = (rows: number, columns: number): boolean =>
+  rows <= MAX_TABLE_ROWS && columns <= MAX_TABLE_COLUMNS && rows * columns <= MAX_TABLE_CELLS;
+
 export const isCellArray = (value: unknown): value is CellArray => Array.isArray(value);
 
 /** `value` as the calculator holds it: an array with no cells is #VALUE!, a 1×1 array its only

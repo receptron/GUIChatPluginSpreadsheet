@@ -105,6 +105,10 @@ describe("SEQUENCE and TRANSPOSE", () => {
     assert.deepEqual(spilled("=SEQUENCE(3)", []), [[1], [2], [3]]);
     assert.deepEqual(spilled("=SEQUENCE(0)", []), [["#CALC!"]]);
     assert.deepEqual(spilled("=SEQUENCE(-1)", []), [["#VALUE!"]]);
+    ["=SEQUENCE(100000000)", "=SEQUENCE(1,20000)", "=SEQUENCE(2000,2000)", "=SEQUENCE(1E+300)"].forEach((formula) =>
+      assert.deepEqual(spilled(formula, []), [["#VALUE!"]], formula),
+    );
+    assert.equal(spilled("=ROWS(SEQUENCE(1048576))", [])[0]?.[0], 1048576, "a whole column still fits");
   });
 
   it("TRANSPOSE turns rows into columns", () => {
@@ -180,6 +184,21 @@ describe("XMATCH", () => {
     assert.deepEqual(spilled("=XMATCH(2.5,A1:A5,-1)", values), [[1]]);
     assert.deepEqual(spilled("=XMATCH(9,A1:A5)", values), [["#N/A"]]);
     assert.deepEqual(spilled("=XMATCH(1,A1:A5,3)", values), [["#VALUE!"]]);
+  });
+
+  it("searches a sorted list from the first for the binary modes 2 and -2, as XLOOKUP does", () => {
+    const ascending = [[1, 2, 2, 3]];
+    const descending = [[3, 2, 2, 1]];
+    assert.deepEqual(spilled("=XMATCH(2,A1:A4,0,2)", ascending), [[2]]);
+    assert.deepEqual(spilled("=XMATCH(2,A1:A4,0,-2)", descending), [[2]]);
+    assert.deepEqual(spilled("=XMATCH(2.5,A1:A4,1,2)", ascending), [[4]]);
+    assert.deepEqual(
+      spilled('=XLOOKUP(2,A1:A4,B1:B4,"none",0,2)', [
+        [1, 2, 2, 3],
+        ["a", "b", "c", "d"],
+      ]),
+      [["b"]],
+    );
   });
 });
 
