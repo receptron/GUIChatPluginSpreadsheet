@@ -105,7 +105,7 @@ The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to loa
 ## Supported Functions
 
 ### Mathematical
-`ABS`, `CEILING`, `EXP`, `FLOOR`, `INT`, `LN`, `LOG`, `LOG10`, `MOD`, `PI`, `POWER`, `ROUND`, `ROUNDDOWN`, `ROUNDUP`, `SEQUENCE`, `SIGN`, `SQRT`, `TRUNC`
+`ABS`, `CEILING`, `EXP`, `FLOOR`, `INT`, `LN`, `LOG`, `LOG10`, `MDETERM`, `MINVERSE`, `MMULT`, `MOD`, `MUNIT`, `PI`, `POWER`, `ROUND`, `ROUNDDOWN`, `ROUNDUP`, `SEQUENCE`, `SIGN`, `SQRT`, `TRUNC`
 
 ### Text
 `CONCAT`, `CONCATENATE`, `EXACT`, `FIND`, `LEFT`, `LEN`, `LOWER`, `MID`, `PROPER`, `REPLACE`, `RIGHT`, `SEARCH`, `SUBSTITUTE`, `TEXT`, `TRIM`, `UPPER`, `VALUE`
@@ -128,7 +128,7 @@ Dates are serial numbers on the real calendar, as in LibreOffice and Google Shee
 A range is written `A1:C10`, `Data!A1:C10` or `'My Sheet'!A1:C10`. A whole column (`A:A`, `B:D`) or a whole row (`1:1`) covers its sheet as far as the data reaches, which gives the same answers, since everything past the data is blank. `ROW()` and `COLUMN()` give the number of the cell the formula is in; given a range, they answer for its first cell.
 
 ### Statistical
-`AVERAGE`, `AVERAGEIF`, `AVERAGEIFS`, `CONFIDENCE.NORM`, `CONFIDENCE.T`, `CORREL`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `COVARIANCE.P`, `COVARIANCE.S`, `FORECAST`, `FORECAST.LINEAR`, `GEOMEAN`, `HARMEAN`, `INTERCEPT`, `KURT`, `LARGE`, `MAX`, `MAXIFS`, `MEDIAN`, `MIN`, `MINIFS`, `MODE`, `NORM.DIST`, `NORM.INV`, `NORM.S.DIST`, `NORM.S.INV`, `PEARSON`, `PERCENTILE`, `PERCENTILE.INC`, `PERCENTRANK`, `PERCENTRANK.INC`, `QUARTILE`, `QUARTILE.INC`, `RANK`, `RANK.EQ`, `RSQ`, `SKEW`, `SLOPE`, `SMALL`, `STANDARDIZE`, `STDEV`, `STDEV.P`, `STDEV.S`, `STDEVP`, `STEYX`, `SUM`, `SUMIF`, `SUMIFS`, `T.DIST`, `T.DIST.2T`, `T.DIST.RT`, `T.INV`, `T.INV.2T`, `T.TEST`, `TREND`, `TTEST`, `VAR`, `VAR.P`, `VAR.S`, `VARP`
+`AVERAGE`, `AVERAGEIF`, `AVERAGEIFS`, `CONFIDENCE.NORM`, `CONFIDENCE.T`, `CORREL`, `COUNT`, `COUNTA`, `COUNTIF`, `COUNTIFS`, `COVARIANCE.P`, `COVARIANCE.S`, `FORECAST`, `FORECAST.LINEAR`, `FREQUENCY`, `GEOMEAN`, `HARMEAN`, `INTERCEPT`, `KURT`, `LARGE`, `MAX`, `MAXIFS`, `MEDIAN`, `MIN`, `MINIFS`, `MODE`, `NORM.DIST`, `NORM.INV`, `NORM.S.DIST`, `NORM.S.INV`, `PEARSON`, `PERCENTILE`, `PERCENTILE.INC`, `PERCENTRANK`, `PERCENTRANK.INC`, `QUARTILE`, `QUARTILE.INC`, `RANK`, `RANK.EQ`, `RSQ`, `SKEW`, `SLOPE`, `SMALL`, `STANDARDIZE`, `STDEV`, `STDEV.P`, `STDEV.S`, `STDEVP`, `STEYX`, `SUM`, `SUMIF`, `SUMIFS`, `T.DIST`, `T.DIST.2T`, `T.DIST.RT`, `T.INV`, `T.INV.2T`, `T.TEST`, `TREND`, `TTEST`, `VAR`, `VAR.P`, `VAR.S`, `VARP`
 
 ### Financial
 `FV`, `IPMT`, `IRR`, `NPER`, `NPV`, `PMT`, `PPMT`, `PV`, `RATE`
@@ -142,7 +142,7 @@ A formula that is a range and nothing else, such as `=A1:C5` or `=Data!A1:B10`, 
 - **Formatting.** A spilled cell takes its own cell's number format if it has one, and the formula cell's format otherwise.
 - **Saving.** Only the formula is saved. The spilled values are rebuilt on every calculation.
 
-A function can answer a table too: `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE` and `DROP` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A function's table spills only when the call is the whole formula. Inside a larger expression, a table of more than one cell is `#VALUE!` until element-wise array arithmetic is supported. A range argument accepts such a call, as in `=SUM(…)` over it.
+A function can answer a table too: `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `MMULT`, `MINVERSE`, `MUNIT` and `FREQUENCY` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A function's table spills only when the call is the whole formula. Inside a larger expression, a table of more than one cell is `#VALUE!` until element-wise array arithmetic is supported. A range argument accepts such a call, as in `=SUM(…)` over it.
 
 ## Workbook functions
 
