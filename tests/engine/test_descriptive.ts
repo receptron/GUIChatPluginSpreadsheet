@@ -72,6 +72,17 @@ describe("Microsoft's worked examples", () => {
     assert.deepEqual(valuesOf(["=MAXA(A1:A3)", "=MINA(A1:A3)", "=AVERAGEA(A1:A3)"], [[-1, 0.5, "TRUE"]]), [0.5, -1, -0.5 / 3]);
     assert.deepEqual(valuesOf(["=MAXA(A1:A2)", "=AVERAGEA(A1:A2)"], [[-1, "=1=1"]]), [1, 0]);
     assert.deepEqual(valuesOf(["=AVERAGEA(A1:A3)", "=MINA(A1:A3)"], [[2, "", 4]]), [3, 2], "a blank is not counted");
+    assert.deepEqual(
+      valuesOf(
+        ["=AVERAGEA(A1:A2)", "=MINA(A1:A2)", "=MAXA(B1:B2)", "=AVERAGEA(A1:A3)"],
+        [
+          [2, '=IF(TRUE,"",1)'],
+          [-1, '=IF(TRUE,"",1)'],
+        ],
+      ),
+      [1, 0, 0, 1],
+      "a formula's empty text counts 0, and the blank past it is still skipped",
+    );
   });
 });
 

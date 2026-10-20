@@ -81,10 +81,23 @@ const countingText = ({ value, isScalar }: { value: CellValue; isScalar: boolean
   return [typeof value === "number" ? value : 0];
 };
 
+/** One argument's values as AVERAGEA, MAXA and MINA count them. A range reads a formula that
+ *  answered "" as blank, so its filled cells are counted from the sheet, and each one that read
+ *  as blank is that formula's empty text: a 0. */
+function argumentCountingText(arg: string, context: FunctionContext): (number | SpreadsheetError)[] {
+  const collected = collectArgumentValues([arg], context, blankAwareRangeReader(context));
+  const counted = collected.flatMap(countingText);
+  const isRange = collected.length > 0 && collected.every(({ isScalar }) => !isScalar);
+  if (!isRange || !context.countFilledCells) return counted;
+  const filled = collected.filter(({ value }) => value !== "").length;
+  const emptyTextCount = Math.max(0, context.countFilledCells(arg.trim()) - filled);
+  return [...counted, ...new Array<number>(emptyTextCount).fill(0)];
+}
+
 const overValuesCountingText =
   (rule: (values: number[]) => CellValue): FunctionHandler =>
   (args, context: FunctionContext) => {
-    const read = collectArgumentValues(args, context, blankAwareRangeReader(context)).flatMap(countingText);
+    const read = args.flatMap((arg) => argumentCountingText(arg, context));
     const firstError = read.find(isSpreadsheetErrorValue);
     return firstError ?? rule(read.filter((value): value is number => typeof value === "number"));
   };
