@@ -10,6 +10,7 @@ import { isSoleReference } from "../spillCandidate";
 import type { CellValue } from "../types";
 import { determinant, frequency, identity, inverse, multiply, type Matrix } from "./matrix-math";
 import { numberArg } from "./table-args";
+import { fitsInSheet } from "../cellArray";
 
 /** The matrix an argument holds, or #VALUE! for a cell that is not a number, or the first error cell. */
 function matrixArg(args: string[], context: FunctionContext, index: number): Matrix | SpreadsheetError {
@@ -51,7 +52,8 @@ const matrixHandler =
 const munitHandler: FunctionHandler = (args, context) => {
   const size = numberArg(args, context, 0);
   if (typeof size !== "number") return size;
-  return Math.trunc(size) < 1 ? VALUE_ERROR : identity(Math.trunc(size));
+  const side = Math.trunc(size);
+  return side < 1 || !fitsInSheet(side, side) ? VALUE_ERROR : identity(side);
 };
 
 const frequencyHandler: FunctionHandler = (args, context) => {

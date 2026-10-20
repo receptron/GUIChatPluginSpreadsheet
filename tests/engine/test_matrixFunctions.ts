@@ -147,6 +147,7 @@ describe("argument rules", () => {
       [0, 1],
     ]);
     assert.deepEqual(spilled("=MUNIT(0)", []), [["#VALUE!"]]);
+    assert.deepEqual(spilled("=MUNIT(100000)", []), [["#VALUE!"]], "larger than a sheet holds");
   });
 
   it("FREQUENCY keeps the bins in their own order, counts a value on a bin into it, and leaves out text", () => {
