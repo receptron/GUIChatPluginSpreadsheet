@@ -181,6 +181,21 @@ describe("XMATCH", () => {
     assert.deepEqual(spilled("=XMATCH(9,A1:A5)", values), [["#N/A"]]);
     assert.deepEqual(spilled("=XMATCH(1,A1:A5,3)", values), [["#VALUE!"]]);
   });
+
+  it("searches a sorted list from the first for the binary modes 2 and -2, as XLOOKUP does", () => {
+    const ascending = [[1, 2, 2, 3]];
+    const descending = [[3, 2, 2, 1]];
+    assert.deepEqual(spilled("=XMATCH(2,A1:A4,0,2)", ascending), [[2]]);
+    assert.deepEqual(spilled("=XMATCH(2,A1:A4,0,-2)", descending), [[2]]);
+    assert.deepEqual(spilled("=XMATCH(2.5,A1:A4,1,2)", ascending), [[4]]);
+    assert.deepEqual(
+      spilled('=XLOOKUP(2,A1:A4,B1:B4,"none",0,2)', [
+        [1, 2, 2, 3],
+        ["a", "b", "c", "d"],
+      ]),
+      [["b"]],
+    );
+  });
 });
 
 describe("the functions together", () => {

@@ -162,20 +162,23 @@ const indexHandler: FunctionHandler = (args, context) => {
 };
 
 /** The position XLOOKUP and XMATCH find: match mode 0 exact, 2 with wildcards, -1 exact or the
- *  next smaller, 1 exact or the next larger, the last two over an unsorted list; search mode 1 from
- *  the first, any other from the last. -1 when nothing matches. */
+ *  next smaller, 1 exact or the next larger, the last two over an unsorted list; search mode -1 from
+ *  the last, any other from the first. Search modes 2 and -2 (a binary search over a list sorted
+ *  ascending or descending) search from the first, which finds what a binary search finds on a
+ *  sorted list. -1 when nothing matches. */
 function xlookupMatchIndex(lookupValue: CellValue, lookupArray: CellValue[], matchMode: number, searchMode: number): number {
+  const direction = searchMode === -1 ? -1 : 1;
   let matchIdx = -1;
 
   if (matchMode === 0 || matchMode === 2) {
-    matchIdx = findMatchIndex(lookupValue, lookupArray, 0, searchMode);
+    matchIdx = findMatchIndex(lookupValue, lookupArray, 0, direction);
   } else {
     // Implement exact or next smaller/larger for unsorted arrays
     // This is O(N)
     let bestDiff = Infinity;
 
     for (let i = 0; i < lookupArray.length; i++) {
-      const idx = searchMode === 1 ? i : lookupArray.length - 1 - i;
+      const idx = direction === 1 ? i : lookupArray.length - 1 - i;
       const item = lookupArray[idx];
 
       if (item == lookupValue) {
