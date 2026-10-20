@@ -1,15 +1,15 @@
 /**
- * MMULT, MINVERSE, MDETERM, MUNIT and FREQUENCY. A matrix argument is a range, a spilling call's
+ * MMULT, MINVERSE, MDETERM, MUNIT, FREQUENCY and SUMPRODUCT. A matrix argument is a range, a spilling call's
  * table or one number; any cell that is not a number — a blank, text, a logical value — is #VALUE!,
  * and an error cell is that error. The rules live in matrix-math.ts.
  */
 
-import { functionRegistry, isSpillingCall, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
+import { functionRegistry, answersTable, requiredArg, type FunctionContext, type FunctionHandler } from "../registry";
 import { isSpreadsheetErrorValue, VALUE_ERROR, type SpreadsheetError } from "../spreadsheet-errors";
 import { isSoleReference } from "../spillCandidate";
 import type { CellValue } from "../types";
-import { determinant, frequency, identity, inverse, multiply, type Matrix } from "./matrix-math";
-import { numberArg } from "./table-args";
+import { determinant, frequency, identity, inverse, multiply, sumOfProducts, type Matrix } from "./matrix-math";
+import { numberArg, tableArg } from "./table-args";
 import { fitsInSheet } from "../cellArray";
 
 /** The matrix an argument holds, or #VALUE! for a cell that is not a number, or the first error cell. */
@@ -26,7 +26,7 @@ function matrixArg(args: string[], context: FunctionContext, index: number): Mat
  *  out), or the one number written. */
 function numbersArg(args: string[], context: FunctionContext, index: number): number[] | SpreadsheetError {
   const arg = requiredArg(context, args, index);
-  if (isSoleReference(arg) || isSpillingCall(arg)) {
+  if (isSoleReference(arg) || answersTable(arg)) {
     const cells = context.getRangeValuesKeepingBlanks?.(arg) ?? context.getRangeValues(arg);
     return cells.find(isSpreadsheetErrorValue) ?? cells.filter((cell): cell is number => typeof cell === "number");
   }
@@ -62,6 +62,8 @@ const frequencyHandler: FunctionHandler = (args, context) => {
   const bins = numbersArg(args, context, 1);
   return Array.isArray(bins) ? frequency(values, bins).map((count) => [count]) : bins;
 };
+
+const sumproductHandler: FunctionHandler = (args, context) => sumOfProducts(args.map((_, index) => tableArg(args, context, index)));
 
 interface MatrixFunction {
   name: string;
@@ -124,6 +126,16 @@ const MATRIX_FUNCTIONS: MatrixFunction[] = [
     examples: ["FREQUENCY(A2:A100, C2:C5)"],
     category: "Statistical",
     spills: true,
+  },
+  {
+    name: "SUMPRODUCT",
+    handler: sumproductHandler,
+    minArgs: 1,
+    maxArgs: 255,
+    description: "Multiplies the cells of tables of one shape position by position and returns the sum; a cell that is not a number counts as 0",
+    examples: ["SUMPRODUCT(A2:A9, B2:B9)", "SUMPRODUCT((A2:A9>5)*B2:B9)"],
+    category: "Mathematical",
+    spills: false,
   },
 ];
 

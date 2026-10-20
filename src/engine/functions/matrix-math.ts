@@ -1,10 +1,11 @@
 /**
- * MMULT, MINVERSE, MDETERM, MUNIT and FREQUENCY over plain numbers. The inverse and the determinant
+ * MMULT, MINVERSE, MDETERM, MUNIT, FREQUENCY and SUMPRODUCT over plain numbers. The inverse and the determinant
  * come from one LU decomposition with scaled partial pivoting (as LibreOffice computes them); a
  * matrix is singular when a pivot is exactly 0.
  */
 
-import { NUM_ERROR, VALUE_ERROR, type SpreadsheetError } from "../spreadsheet-errors";
+import { isSpreadsheetErrorValue, NUM_ERROR, VALUE_ERROR, type SpreadsheetError } from "../spreadsheet-errors";
+import type { CellValue } from "../types";
 
 export type Matrix = number[][];
 
@@ -121,4 +122,24 @@ export function frequency(values: number[], bins: number[]): number[] {
   }, 0);
   counts[bins.length] = sortedValues.length - counted;
   return counts;
+}
+
+/** SUMPRODUCT: the sum, over every position, of the product of the tables' cells there. The tables
+ *  must have one shape (#VALUE! otherwise); a cell that is not a number counts as 0, and the first
+ *  error cell, in argument order, is the answer. */
+export function sumOfProducts(tables: CellValue[][][]): number | SpreadsheetError {
+  const [first = []] = tables;
+  const width = first[0]?.length ?? 0;
+  const sameShape = tables.every((table) => table.length === first.length && table.every((row) => row.length === width));
+  if (!sameShape) return VALUE_ERROR;
+  const error = tables.flatMap((table) => table.flat()).find(isSpreadsheetErrorValue);
+  if (error) return error;
+  const numberAt = (table: CellValue[][], row: number, col: number): number => {
+    const cell = table[row]?.[col];
+    return typeof cell === "number" ? cell : 0;
+  };
+  return first.reduce<number>(
+    (sum, row, r) => sum + row.reduce<number>((rowSum, _, c) => rowSum + tables.reduce((product, table) => product * numberAt(table, r, c), 1), 0),
+    0,
+  );
 }

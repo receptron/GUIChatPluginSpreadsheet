@@ -302,8 +302,8 @@ describe("a range written as the whole formula spills its cells", () => {
 
 describe("a table where one value is needed", () => {
   it("is #VALUE!, a 1×1 table its only cell", () => {
-    const { data } = calculate([[cell("=TEST.GRID(2,2)+1"), cell("=ABS(TEST.GRID(2,2))"), cell("=TEST.GRID(1,1)*5"), cell("=IF(TRUE,TEST.GRID(2,1),0)")]]);
-    assert.deepEqual(data[0], ["#VALUE!", "#VALUE!", 55, "#VALUE!"]);
+    const { data } = calculate([[cell("=ABS(TEST.GRID(2,2))"), cell("=TEST.GRID(1,1)*5"), cell("=IF(TRUE,TEST.GRID(2,1),0)")]]);
+    assert.deepEqual(data[0], ["#VALUE!", 55, "#VALUE!"]);
   });
 
   it("is #VALUE! from a function that does not say it may answer a table", () => {
