@@ -352,6 +352,7 @@ function openSheet(
     const coords = expandRangeOrCell(rangeRef);
     if (!coords) return [];
 
+    const sourceRows = sourceSheetOf(range);
     const values: CellValue[] = [];
     for (const { row, col } of coords) {
       const gridRow = row >= 0 ? sheetData[row] : undefined;
@@ -359,6 +360,9 @@ function openSheet(
       // it would shorten a positional read, and every row after it would pair with the wrong one.
       const cell = gridRow && col >= 0 ? gridRow[col] : undefined;
       const rawValue = read(cell, gridRow ? { cells: gridRow, row, col } : undefined);
+      // Told by the sheet as written, as isCellEmpty is: a formula cell is never blank (its `=" "`
+      // included), whether it was calculated before this read or by it.
+      const fromFormula = isFormulaSource(sourceRows?.[row]?.[col]);
 
       if (rangeOptions.numericOnly) {
         // A blank cell is not a value. Dropping it from the NUMERIC list keeps
@@ -372,7 +376,7 @@ function openSheet(
         }
       } else {
         // A calculated error has no `v`, so isEmptyCell would call it blank; it is a value.
-        const isBlank = isEmptyCell(cell) && !isSpreadsheetErrorValue(cell);
+        const isBlank = !fromFormula && isEmptyCell(cell) && !isSpreadsheetErrorValue(cell);
         values.push(rangeOptions.keepBlanks && isBlank ? "" : rawValue);
       }
     }

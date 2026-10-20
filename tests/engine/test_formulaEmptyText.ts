@@ -5,7 +5,22 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { SpreadsheetEngine, type CellValue } from "../../src/engine/index.ts";
 
-const READERS = ["=X<1", "=X=0", '=X=""', "=X+1", '=X&"x"', "=LEN(X)", "=COUNTA(X)", '=IF(X="","empty","not")', '=Y&"x"', "=Z", "=Z*2"];
+const READERS = [
+  "=X<1",
+  "=X=0",
+  '=X=""',
+  "=X+1",
+  '=X&"x"',
+  "=LEN(X)",
+  "=COUNTA(X)",
+  '=IF(X="","empty","not")',
+  '=Y&"x"',
+  "=Z",
+  "=Z*2",
+  '=COUNTIF(Y:Y,"")',
+  '=COUNTIF(X:X,"")',
+  "=COUNT(Z:Z)",
+];
 
 /** Each reader's answer with X = `=""`, Y = `=" "` and Z = `="1,200"` written above the readers, or below them. */
 function answers(placement: "above" | "below"): CellValue[] {
@@ -20,7 +35,7 @@ function answers(placement: "above" | "below"): CellValue[] {
 
 describe("a formula's empty text and text", () => {
   it("reads as Excel reads it", () => {
-    assert.deepEqual(answers("above"), [false, false, true, "#VALUE!", "x", 0, 1, "empty", " x", "1,200", 2400]);
+    assert.deepEqual(answers("above"), [false, false, true, "#VALUE!", "x", 0, 1, "empty", " x", "1,200", 2400, 0, 1, 1]);
   });
 
   it("reads the same whether the formula was calculated before or after its reader", () => {
