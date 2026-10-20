@@ -1,5 +1,5 @@
 /**
- * Regression and covariance functions: FORECAST.LINEAR, TREND at one new x, STEYX,
+ * Regression and covariance functions: FORECAST.LINEAR, TREND (at several new x through linest.ts), STEYX,
  * COVARIANCE.S/.P. The rules live in regression-math.ts; this file reads the arguments.
  */
 
@@ -8,6 +8,7 @@ import { collectArgumentValues } from "./statistical";
 import { pairedHandler, pairsFrom, scalarArg } from "./statistical-analysis";
 import { defaultKnownXs, forecastLinear, populationCovariance, sampleCovariance, standardErrorOfEstimate, trendAt } from "./regression-math";
 import { coerceToBoolean } from "../coerce-boolean";
+import { trendOverTable } from "./linest";
 import { holdsNumber, toScalarNumber } from "../numericCoercion";
 import { isSpreadsheetErrorValue, VALUE_ERROR, type SpreadsheetError } from "../spreadsheet-errors";
 
@@ -35,7 +36,8 @@ function withConstantArg(args: string[], context: FunctionContext): boolean | Sp
   return isSpreadsheetErrorValue(value) ? value : coerceToBoolean(value);
 }
 
-const trendHandler: FunctionHandler = (args, context) => {
+/** TREND at one new x. */
+const trendAtOneX: FunctionHandler = (args, context) => {
   const readRaw = blankAwareRangeReader(context);
   const knownYs = readRaw(requiredArg(context, args, 0));
   const knownXArg = args[1]?.trim();
@@ -44,6 +46,14 @@ const trendHandler: FunctionHandler = (args, context) => {
   if (typeof newX !== "number") return newX;
   const withConstant = withConstantArg(args, context);
   return typeof withConstant === "boolean" ? trendAt(knownYs, knownXs, newX, withConstant) : withConstant;
+};
+
+/** TREND: at one new x as before, and at a table of new x (or known_x, when new_x is left out) a table. */
+const trendHandler: FunctionHandler = (args, context) => {
+  const newXArg = args[2]?.trim();
+  const grid = newXArg && context.getRangeGrid ? context.getRangeGrid(newXArg) : null;
+  const isOneValue = newXArg !== undefined && newXArg !== "" && (grid === null || (grid.length === 1 && grid[0]?.length === 1));
+  return isOneValue ? trendAtOneX(args, context) : trendOverTable(args, context);
 };
 
 const REGRESSION_FUNCTIONS = [
@@ -58,10 +68,12 @@ const REGRESSION_FUNCTIONS = [
   {
     name: "TREND",
     handler: trendHandler,
-    minArgs: 3,
+    minArgs: 1,
     maxArgs: 4,
-    description: "Returns the least-squares line's value at one new x (known_x defaults to 1, 2, 3, …; const FALSE fits through the origin)",
-    examples: ["TREND(B2:B20, A2:A20, 30)", "TREND(B2:B20, , 21)"],
+    description:
+      "Returns the least-squares fit's value at each new x, over one or more x variables (known_x defaults to 1, 2, 3, …, new_x to known_x; const FALSE fits through the origin); spills",
+    examples: ["TREND(B2:B20, A2:A20, 30)", "TREND(B2:B20, , 21)", "TREND(C2:C20, A2:B20, A21:B23)"],
+    spills: true,
   },
   {
     name: "STEYX",
