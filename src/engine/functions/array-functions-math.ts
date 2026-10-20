@@ -70,7 +70,7 @@ export function sortTableBy(table: CellArray, byArrays: ByArray[]): TableResult 
 }
 
 /** A cell's identity for UNIQUE: two cells share it exactly when Excel finds them equal. */
-function cellIdentity(cell: CellValue): string {
+export function cellIdentity(cell: CellValue): string {
   if (isSpreadsheetErrorValue(cell)) return `e:${cell.code}`;
   if (typeof cell === "string") return `t:${collationIdentity(cell)}`;
   return `${typeof cell}:${String(cell)}`;
