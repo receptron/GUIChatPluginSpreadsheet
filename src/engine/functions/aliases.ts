@@ -33,6 +33,7 @@ const ALIASES: Readonly<Record<string, string>> = {
   FTEST: "F.TEST",
   ZTEST: "Z.TEST",
   CHITEST: "CHISQ.TEST",
+  "MODE.SNGL": "MODE",
   FORECAST: "FORECAST.LINEAR",
   PEARSON: "CORREL",
 };
