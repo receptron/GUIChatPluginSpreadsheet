@@ -10,7 +10,7 @@ import { evaluateFormula as evaluateFormulaFn } from "./evaluator";
 import { expandRangeOrCell, parseSingleCellRef } from "./formulaRefs";
 import { parseDate, getDefaultDateFormat } from "./date-parser";
 import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaInfo, SpreadsheetCell, CalculateOptions, FormulaValue } from "./types";
-import { cellsOf, isCellArray, scalarOf } from "./cellArray";
+import { cellsOf, isCellArray, MAX_TABLE_COLUMNS, MAX_TABLE_ROWS, scalarOf } from "./cellArray";
 import { isSoleReference, maySpill } from "./spillCandidate";
 import { spillTargets } from "./spillTargets";
 import { isObj, isRecord } from "./guards";
@@ -288,6 +288,11 @@ function openSheet(
    *  value, or the anchor is #SPILL! when a cell it needs is taken. */
   const placeResult = (value: FormulaValue, anchor: CellCoordinates, formulaText: string): CellValue => {
     if (!isCellArray(value)) return value;
+    const width = value.reduce((widest, row) => Math.max(widest, row.length), 0);
+    if (anchor.row + value.length > MAX_TABLE_ROWS || anchor.col + width > MAX_TABLE_COLUMNS) {
+      errors.push({ cell: anchor, formula: formulaText, error: "Spill range goes past the edge of the sheet", type: "unknown" });
+      return SPILL_ERROR;
+    }
     const targets = spillTargets(anchor, value);
     if (targets.some(({ row, col }) => isSpillTargetTaken(row, col))) {
       errors.push({ cell: anchor, formula: formulaText, error: "Spill range is not blank", type: "unknown" });
