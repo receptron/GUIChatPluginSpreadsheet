@@ -10,6 +10,7 @@ import { correlation, mean, sumOfSquaredDeviations, type NumericPairs } from "./
 type Result = number | SpreadsheetError;
 
 const QUARTERS = 4;
+const MIN_SKEWNESS_VALUES = 3;
 // Probabilities that should sum to 1 rarely do exactly in floating point (0.1 + 0.2 + 0.7).
 const PROBABILITY_SUM_TOLERANCE = 1e-9;
 
@@ -34,10 +35,10 @@ export function averageDeviation(values: readonly number[]): Result {
 /** DEVSQ: the sum of squared deviations from the mean. No values: #NUM!. */
 export const squaredDeviations = (values: readonly number[]): Result => (values.length === 0 ? NUM_ERROR : sumOfSquaredDeviations([...values]));
 
-/** SKEW.P: the population skewness, the third central moment over the second to the 3/2. No
- *  values, or values that never vary: #DIV/0!. */
+/** SKEW.P: the population skewness, the third central moment over the second to the 3/2. Fewer
+ *  than three values, or values that never vary: #DIV/0!, as for SKEW. */
 export function populationSkewness(values: readonly number[]): Result {
-  if (values.length === 0) return DIV_ZERO_ERROR;
+  if (values.length < MIN_SKEWNESS_VALUES) return DIV_ZERO_ERROR;
   const center = mean([...values]);
   const moment = (power: number): number => values.reduce((sum, value) => sum + (value - center) ** power, 0) / values.length;
   const variance = moment(2);

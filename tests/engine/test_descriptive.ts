@@ -85,8 +85,9 @@ describe("argument rules", () => {
     ]);
   });
 
-  it("AVEDEV and DEVSQ need a value, SKEW.P one that varies", () => {
+  it("AVEDEV and DEVSQ need a value, SKEW.P three that vary", () => {
     assert.deepEqual(valuesOf(["=AVEDEV(D1:D2)", "=DEVSQ(D1:D2)", "=SKEW.P(A1:A3)", "=SKEW.P(D1:D2)"], [[2, 2, 2]]), ["#NUM!", "#NUM!", "#DIV/0!", "#DIV/0!"]);
+    assert.deepEqual(valuesOf(["=SKEW.P(A1)", "=SKEW.P(A1:A2)"], [[1, 2]]), ["#DIV/0!", "#DIV/0!"]);
   });
 
   it("QUARTILE.EXC takes 1 to 3, truncated", () => {
