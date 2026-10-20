@@ -10,6 +10,7 @@ import "./statistical-analysis";
 import "./regression";
 import "./distributions";
 import "./shape";
+import "./descriptive";
 import "./mathematical";
 import "./logical";
 import "./text";
