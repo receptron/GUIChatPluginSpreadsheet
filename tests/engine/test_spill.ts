@@ -96,6 +96,20 @@ describe("a table spills from the formula's cell", () => {
 });
 
 describe("#SPILL!", () => {
+  it("when the table would run past the edge of the sheet", () => {
+    const wide: Cell[] = Array.from({ length: 16_383 }, () => ({}));
+    wide.push(cell("=TEST.GRID(1,2)"));
+    const { data, errors } = calculate([wide]);
+    assert.equal(data[0]?.[16_383], "#SPILL!");
+    assert.equal(data[0]?.length, 16_384, "nothing written past the last column");
+    assert.deepEqual(errors, ["Spill range goes past the edge of the sheet"]);
+    const tall: Cell[][] = Array.from({ length: 1_048_575 }, () => []);
+    tall.push([cell("=TEST.GRID(2,1)")]);
+    assert.equal(calculate(tall).data[1_048_575]?.[0], "#SPILL!", "past the last row");
+    // TEST.GRID's last cell in row 1 is 10 + 16,384.
+    assert.equal(calculate([[cell("=TEST.GRID(1,16384)")]]).data[0]?.[16_383], 16_394, "exactly to the edge still spills");
+  });
+
   it("when a cell the table needs holds a value, a formula, or a formula answering empty text", () => {
     [cell("x"), cell(0), cell("=1+1"), cell('=IF(TRUE,"",1)')].forEach((blocker) => {
       const { data, errors } = calculate([[cell("=TEST.GRID(2,2)")], [cell(""), blocker]]);

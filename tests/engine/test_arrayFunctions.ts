@@ -109,6 +109,7 @@ describe("SEQUENCE and TRANSPOSE", () => {
       assert.deepEqual(spilled(formula, []), [["#VALUE!"]], formula),
     );
     assert.equal(spilled("=ROWS(SEQUENCE(1048576))", [])[0]?.[0], 1048576, "a whole column still fits");
+    assert.deepEqual(spilled("=TRANSPOSE(SEQUENCE(16385))", []), [["#SPILL!"]], "a table past the sheet's last column does not spill");
   });
 
   it("TRANSPOSE turns rows into columns", () => {
