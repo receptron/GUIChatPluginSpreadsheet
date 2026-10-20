@@ -123,7 +123,11 @@ Dates are serial numbers on the real calendar, as in LibreOffice and Google Shee
 `AND`, `BYCOL`, `BYROW`, `FALSE`, `IF`, `IFERROR`, `IFNA`, `IFS`, `LAMBDA`, `LET`, `MAP`, `NOT`, `OR`, `REDUCE`, `TRUE`
 
 ### Lookup & Reference
+<<<<<<< HEAD
 `CHOOSECOLS`, `CHOOSEROWS`, `COLUMN`, `COLUMNS`, `DROP`, `GROUPBY`, `HLOOKUP`, `HSTACK`, `INDEX`, `MATCH`, `PIVOTBY`, `ROW`, `ROWS`, `SORT`, `SORTBY`, `TAKE`, `TRANSPOSE`, `UNIQUE`, `VLOOKUP`, `VSTACK`, `XLOOKUP`, `XMATCH`
+=======
+`CHOOSECOLS`, `CHOOSEROWS`, `COLUMN`, `COLUMNS`, `DROP`, `FILTER`, `HLOOKUP`, `HSTACK`, `INDEX`, `MATCH`, `ROW`, `ROWS`, `SORT`, `SORTBY`, `TAKE`, `TRANSPOSE`, `UNIQUE`, `VLOOKUP`, `VSTACK`, `XLOOKUP`, `XMATCH`
+>>>>>>> origin/main
 
 A range is written `A1:C10`, `Data!A1:C10` or `'My Sheet'!A1:C10`. A whole column (`A:A`, `B:D`) or a whole row (`1:1`) covers its sheet as far as the data reaches, which gives the same answers, since everything past the data is blank. `ROW()` and `COLUMN()` give the number of the cell the formula is in; given a range, they answer for its first cell.
 
@@ -144,6 +148,7 @@ A formula that is a range and nothing else, such as `=A1:C5` or `=Data!A1:B10`, 
 - **Formatting.** A spilled cell takes its own cell's number format if it has one, and the formula cell's format otherwise.
 - **Saving.** Only the formula is saved. The spilled values are rebuilt on every calculation.
 
+<<<<<<< HEAD
 A function can answer a table too: `GROUPBY`, `PIVOTBY`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `MMULT`, `MINVERSE`, `MUNIT` and `FREQUENCY` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A range argument accepts such a call, as in `=SUM(…)` over it.
 
 ### Grouping
@@ -155,6 +160,9 @@ A function can answer a table too: `GROUPBY`, `PIVOTBY`, `SORT`, `SORTBY`, `UNIQ
 - sort_order: columns of the answer, 1-based, negative for descending, one or an array; left out, each key column ascending. PIVOTBY's row_sort_order and col_sort_order number the key columns and then the values, which sorts by each row's or column's total.
 - filter_array: TRUE (or a number other than 0) for each data row to keep.
 - Not supported: GROUPBY's field_relationship, PIVOTBY's relative_to, more than one PIVOTBY values column and PIVOTBY subtotals; each is `#VALUE!`.
+=======
+A function can answer a table too: `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `MMULT`, `MINVERSE`, `MUNIT` and `FREQUENCY` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A range argument accepts such a call, as in `=SUM(…)` over it.
+>>>>>>> origin/main
 
 ### Arrays in expressions
 

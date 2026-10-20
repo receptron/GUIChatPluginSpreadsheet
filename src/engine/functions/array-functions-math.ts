@@ -1,5 +1,5 @@
 /**
- * The rules of the functions that build and reshape tables: SORT, SORTBY, UNIQUE, SEQUENCE,
+ * The rules of the functions that build and reshape tables: FILTER, SORT, SORTBY, UNIQUE, SEQUENCE,
  * TRANSPOSE, CHOOSECOLS, CHOOSEROWS, HSTACK, VSTACK, TAKE and DROP. Each takes and answers rows of
  * cells; an answer with no cells is #CALC!, an argument out of range #VALUE!, as in Excel.
  */
@@ -159,4 +159,27 @@ export function takeFrom(table: CellArray, rows: number | undefined, columns: nu
 export function dropFrom(table: CellArray, rows: number | undefined, columns: number | undefined): TableResult {
   const width = widthOf(table);
   return sliced(table, droppedSpan(rows ?? 0, table.length), droppedSpan(columns ?? 0, width));
+}
+
+/** Whether FILTER keeps the row (or column) one include cell stands for: a logical value as it is,
+ *  a number unless it is 0; text is #VALUE!, and an error cell is that error. */
+function includes(cell: CellValue): boolean | SpreadsheetError {
+  if (isSpreadsheetErrorValue(cell)) return cell;
+  if (typeof cell === "boolean") return cell;
+  return typeof cell === "number" ? cell !== 0 : VALUE_ERROR;
+}
+
+/** FILTER: the rows `include` keeps when it is one column as tall as the table, or the columns when
+ *  it is one row as wide; any other shape is #VALUE!. Null when nothing is kept, which the caller
+ *  answers with if_empty or #CALC!. */
+export function filterTable(table: CellArray, include: CellArray): CellArray | SpreadsheetError | null {
+  const [height, width] = [table.length, widthOf(table)];
+  const byRows = include.length === height && widthOf(include) === 1;
+  const byColumns = !byRows && include.length === 1 && widthOf(include) === width;
+  if (!byRows && !byColumns) return VALUE_ERROR;
+  const flags = include.flat().map(includes);
+  const error = flags.find(isSpreadsheetErrorValue);
+  if (error) return error;
+  const kept = byRows ? table.filter((_, row) => flags[row] === true) : table.map((row) => row.filter((_, col) => flags[col] === true));
+  return kept.length === 0 || widthOf(kept) === 0 ? null : kept;
 }
