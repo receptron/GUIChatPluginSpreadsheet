@@ -48,6 +48,7 @@ export interface EvaluatorContext {
    *  is right for arithmetic and wrong for `&`, where a blank cell joins as "". */
   isCellEmpty?: ((ref: string) => boolean) | undefined;
   currentCell?: CellCoordinates | undefined;
+  currentSheet?: string | undefined;
 }
 
 /** Render a cell's value as the text that stands in for it inside an
@@ -516,6 +517,7 @@ export function evaluateFormula(writtenFormula: string, context: EvaluatorContex
         },
         preferDDMMYYYY: context.preferDDMMYYYY,
         currentCell: context.currentCell,
+        currentSheet: context.currentSheet,
       });
       return func.spills === true ? normalizedValue(result) : scalarOf(result);
     }

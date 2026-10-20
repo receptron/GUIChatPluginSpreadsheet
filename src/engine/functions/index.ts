@@ -16,6 +16,7 @@ import "./hypothesis-tests";
 import "./shape";
 import "./descriptive";
 import "./mathematical";
+import "./random";
 import "./logical";
 import "./let-lambda";
 import "./text";
