@@ -148,6 +148,18 @@ describe("argument rules", () => {
     );
   });
 
+  it("answers #NUM! where an inverse's quantile is infinite, and the finite end where it is not", () => {
+    assert.deepEqual(valuesOf(["=CHISQ.INV(1,2)", "=CHISQ.INV.RT(0,2)", "=F.INV(1,2,3)", "=F.INV.RT(0,2,3)", "=CHIINV(0,2)", "=FINV(0,2,3)"]), [
+      "#NUM!",
+      "#NUM!",
+      "#NUM!",
+      "#NUM!",
+      "#NUM!",
+      "#NUM!",
+    ]);
+    assert.deepEqual(valuesOf(["=CHISQ.INV(0,2)", "=CHISQ.INV.RT(1,2)", "=F.INV(0,2,3)", "=F.INV.RT(1,2,3)", "=BETA.INV(1,2,3,1,3)"]), [0, 0, 0, 0, 3]);
+  });
+
   it("answers #NUM! for counts out of range, and truncates them", () => {
     assert.deepEqual(
       valuesOf([

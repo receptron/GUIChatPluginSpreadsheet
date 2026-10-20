@@ -89,11 +89,15 @@ const chiSquareDistRight = ([x = 0, rawDf = 0]: number[]): Result => {
   return df === null || x < 0 ? NUM_ERROR : chiSquareUpper(x, df);
 };
 
+/** An inverse is #NUM! at the end of 0..1 whose quantile is infinite: 1 for a left tail, 0 for a right. */
+const LEFT_TAIL_INFINITE_AT = 1;
+const RIGHT_TAIL_INFINITE_AT = 0;
+
 const chiSquareInv =
-  (quantile: (p: number, df: number) => number) =>
+  (quantile: (p: number, df: number) => number, infiniteAt: number) =>
   ([p = 0, rawDf = 0]: number[]): Result => {
     const df = boundedDegrees(rawDf);
-    return df === null || !isProbability(p) ? NUM_ERROR : quantile(p, df);
+    return df === null || !isProbability(p) || p === infiniteAt ? NUM_ERROR : quantile(p, df);
   };
 
 // ---------------------------------------------------------------- F
@@ -115,10 +119,10 @@ const fDistRight = ([x = 0, raw1 = 0, raw2 = 0]: number[]): Result => {
 };
 
 const fInv =
-  (quantile: (p: number, d1: number, d2: number) => number) =>
+  (quantile: (p: number, d1: number, d2: number) => number, infiniteAt: number) =>
   ([p = 0, raw1 = 0, raw2 = 0]: number[]): Result => {
     const degrees = fDegrees(raw1, raw2);
-    return degrees === null || !isProbability(p) ? NUM_ERROR : quantile(p, ...degrees);
+    return degrees === null || !isProbability(p) || p === infiniteAt ? NUM_ERROR : quantile(p, ...degrees);
   };
 
 // ---------------------------------------------------------------- discrete
@@ -234,21 +238,33 @@ const FAMILY_FUNCTIONS: FamilyFunction[] = [
   fixed(
     "CHISQ.INV",
     2,
-    numericHandler(2, chiSquareInv(chiSquareQuantile)),
+    numericHandler(2, chiSquareInv(chiSquareQuantile, LEFT_TAIL_INFINITE_AT)),
     "Returns the inverse of the left tail of the chi-square distribution",
     "CHISQ.INV(0.93, 1)",
   ),
   fixed(
     "CHISQ.INV.RT",
     2,
-    numericHandler(2, chiSquareInv(chiSquareUpperQuantile)),
+    numericHandler(2, chiSquareInv(chiSquareUpperQuantile, RIGHT_TAIL_INFINITE_AT)),
     "Returns the inverse of the right tail of the chi-square distribution",
     "CHISQ.INV.RT(0.050001, 10)",
   ),
   fixed("F.DIST", 4, withCumulative(3, fDist), "Returns the F distribution (cumulative or density)", "F.DIST(15.2069, 6, 4, TRUE)"),
   fixed("F.DIST.RT", 3, numericHandler(3, fDistRight), "Returns the right tail of the F distribution", "F.DIST.RT(15.2069, 6, 4)"),
-  fixed("F.INV", 3, numericHandler(3, fInv(fQuantile)), "Returns the inverse of the left tail of the F distribution", "F.INV(0.01, 6, 4)"),
-  fixed("F.INV.RT", 3, numericHandler(3, fInv(fUpperQuantile)), "Returns the inverse of the right tail of the F distribution", "F.INV.RT(0.01, 6, 4)"),
+  fixed(
+    "F.INV",
+    3,
+    numericHandler(3, fInv(fQuantile, LEFT_TAIL_INFINITE_AT)),
+    "Returns the inverse of the left tail of the F distribution",
+    "F.INV(0.01, 6, 4)",
+  ),
+  fixed(
+    "F.INV.RT",
+    3,
+    numericHandler(3, fInv(fUpperQuantile, RIGHT_TAIL_INFINITE_AT)),
+    "Returns the inverse of the right tail of the F distribution",
+    "F.INV.RT(0.01, 6, 4)",
+  ),
   fixed("BINOM.DIST", 4, withCumulative(3, binomDist), "Returns the binomial distribution (cumulative or mass)", "BINOM.DIST(6, 10, 0.5, FALSE)"),
   fixed(
     "BINOM.INV",
