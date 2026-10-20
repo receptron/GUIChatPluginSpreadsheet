@@ -9,16 +9,19 @@ import { formulaShowsDate, type DateSource } from "./dateDisplay";
 import { evaluateFormula as evaluateFormulaFn } from "./evaluator";
 import { expandRangeOrCell, parseSingleCellRef } from "./formulaRefs";
 import { parseDate, getDefaultDateFormat } from "./date-parser";
-import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaInfo, SpreadsheetCell, CalculateOptions } from "./types";
+import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaInfo, SpreadsheetCell, CalculateOptions, FormulaValue } from "./types";
+import { cellsOf, isCellArray, scalarOf } from "./cellArray";
+import { isSoleReference, maySpill } from "./spillCandidate";
+import { spillTargets } from "./spillTargets";
 import { isObj, isRecord } from "./guards";
 import { isBlankCell, isEmptyCell } from "./cellEmpty";
 import { isRangeNumber, parseNumericString } from "./numericCoercion";
 import { splitSheetReference } from "./sheetReference";
-import type { CellCoordinates } from "./registry";
-import { boundWholeReferences, type SheetExtent } from "./wholeReferences";
+import { functionRegistry, isSpillingCall, type CellCoordinates } from "./registry";
+import { boundWholeReferences, type ExtentReach, type SheetExtent } from "./wholeReferences";
 import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
-import { isSpreadsheetErrorValue, spreadsheetError } from "./spreadsheet-errors";
+import { isSpreadsheetErrorValue, SPILL_ERROR, spreadsheetError } from "./spreadsheet-errors";
 
 // Where a cell sits in the grid of the sheet it belongs to, carrying the row so a formula's result is
 // written back without re-indexing.
@@ -37,6 +40,12 @@ type CellReader = (cell: unknown, position?: CellPosition) => CellValue;
 interface OpenSheet {
   calculated: (SpreadsheetCell | CellValue)[][];
   read: CellReader;
+  /** Calculates first every formula that could spill into the cell, so a read finds what spilled there. */
+  ensureSpillsReaching: (row: number, col: number) => void;
+  /** Whether the cell holds part of a table spilled from another cell. */
+  isSpilled: (row: number, col: number) => boolean;
+  /** How far the sheet reaches, spilled tables included that could reach `reach`. */
+  extent: (reach?: ExtentReach) => SheetExtent;
 }
 
 /** The sheets opened so far in one calculation, by name. */
@@ -47,6 +56,7 @@ interface ResolvedSheetRef {
   sheetData: (SpreadsheetCell | CellValue)[][];
   ref: string;
   read: CellReader;
+  sheet: OpenSheet;
 }
 
 /**
@@ -146,11 +156,44 @@ function preprocessDates(data: SpreadsheetCell[][], preferDDMMYYYY: boolean): Sp
   );
 }
 
+/** How a range is read: only its numbers, or every cell (a blank one as "" with `keepBlanks`). */
+interface RangeReadOptions {
+  numericOnly: boolean;
+  keepBlanks?: boolean;
+}
+
 // `skipFormatting` is internal, not a public knob: a cross-sheet reference
 // computes its target sheet only to READ values, so the display-formatting pass
 // is skipped there — a date must stay a serial, not become "03/04/2025" that a
 // downstream parseFloat reads as 3 (issue #2332).
 type SheetCalculateOptions = CalculateOptions & { skipFormatting?: boolean };
+
+/** A cell a table spilled into, and the formula cell it spilled from. */
+interface SpilledCell {
+  row: number;
+  col: number;
+  anchor: CellCoordinates;
+}
+
+const formatCodeAt = (cell: unknown): string => (isRecord(cell) && typeof cell["f"] === "string" ? cell["f"] : "");
+
+/** Before a range is read, the spills that could reach any of its cells: those reaching its
+ *  bottom-right corner, since a table spills right and down. */
+function ensureSpillsCovering(sheet: OpenSheet, coords: readonly CellCoordinates[]): void {
+  const corner = coords.reduce((far, { row, col }) => ({ row: Math.max(far.row, row), col: Math.max(far.col, col) }), { row: -1, col: -1 });
+  if (corner.row >= 0) sheet.ensureSpillsReaching(corner.row, corner.col);
+}
+
+/** Cells read in reading order, put back into the rows they came from. */
+function rowsOfCells(coords: readonly CellCoordinates[], values: readonly CellValue[]): CellValue[][] {
+  const rows = new Map<number, CellValue[]>();
+  coords.forEach(({ row }, index) => {
+    const cells = rows.get(row) ?? [];
+    cells.push(values[index] ?? "");
+    rows.set(row, cells);
+  });
+  return Array.from(rows.values());
+}
 
 /**
  * Calculate formulas in a single sheet
@@ -206,10 +249,72 @@ function openSheet(
   // it in between, so `ROW()` answers for whichever is on top.
   const cellsBeingCalculated: CellCoordinates[] = [];
 
-  // How far a sheet's data reaches, for bounding `A:A` and `1:1`; null for a sheet that does not exist.
-  const extentOf = (name: string | null): SheetExtent | null => {
-    const rows = name === null || name === sheetName ? data : processedAllSheets?.find((other) => other.name === name)?.data;
-    return rows ? { rows: rows.length, columns: rows.reduce((longest, row) => Math.max(longest, row.length), 0) } : null;
+  // How far a sheet reaches, for bounding `A:A` and `1:1`; null for a sheet that does not exist.
+  const extentOf = (name: string | null, reach?: ExtentReach): SheetExtent | null => {
+    const sheet = name === null || name === sheetName ? self : (opened.get(name) ?? openOther(name));
+    return sheet ? sheet.extent(reach) : null;
+  };
+
+  const formulaAt = (row: number, col: number): string | null => {
+    const cell = data[row]?.[col];
+    const value = isObj(cell) ? cell.v : undefined;
+    return typeof value === "string" && value.startsWith("=") ? value : null;
+  };
+  const isSpillingFunction = (name: string): boolean => functionRegistry.get(name)?.spills === true;
+  // The formula cells that may answer a table, in reading order, decided from their text alone.
+  const spillCandidates: CellCoordinates[] = data.flatMap((dataRow, row) =>
+    dataRow.flatMap((_, col) => {
+      const formula = formulaAt(row, col);
+      return formula !== null && maySpill(formula.substring(1), isSpillingFunction) ? [{ row, col }] : [];
+    }),
+  );
+  // Each spilled cell, by its key, with the cell it spilled from.
+  const spilledCells = new Map<string, SpilledCell>();
+
+  // A cell of the calculated grid, the grid grown to hold it when a table spills past the data.
+  const writeCalculated = (row: number, col: number, value: CellValue): void => {
+    while (calculated.length <= row) calculated.push([]);
+    const cells = calculated[row];
+    if (!cells) return;
+    while (cells.length < col) cells.push("");
+    cells[col] = value;
+  };
+
+  // Something written in the sheet (a value, a formula, one answering "" included) or a table
+  // already spilled there keeps a table out.
+  const isSpillTargetTaken = (row: number, col: number): boolean => !isEmptyCell(data[row]?.[col]) || spilledCells.has(`${row},${col}`);
+
+  /** A candidate's answer placed in the grid: a table spills and its top-left cell is the anchor's
+   *  value, or the anchor is #SPILL! when a cell it needs is taken. */
+  const placeResult = (value: FormulaValue, anchor: CellCoordinates, formulaText: string): CellValue => {
+    if (!isCellArray(value)) return value;
+    const targets = spillTargets(anchor, value);
+    if (targets.some(({ row, col }) => isSpillTargetTaken(row, col))) {
+      errors.push({ cell: anchor, formula: formulaText, error: "Spill range is not blank", type: "unknown" });
+      return SPILL_ERROR;
+    }
+    targets.forEach(({ row, col, value: cellValue }) => {
+      writeCalculated(row, col, cellValue);
+      spilledCells.set(`${row},${col}`, { row, col, anchor });
+    });
+    return value[0]?.[0] ?? SPILL_ERROR;
+  };
+
+  // A table spills right and down, so only a candidate above and to the left can reach a cell. One
+  // being calculated is skipped: it is what is reading, and cannot have spilled yet.
+  const ensureSpillsReaching = (row: number, col: number): void => {
+    spillCandidates.forEach((candidate) => {
+      const key = `${candidate.row},${candidate.col}`;
+      if (candidate.row > row || candidate.col > col || evaluated.has(key) || calculating.has(key)) return;
+      const cells = calculated[candidate.row];
+      const formula = formulaAt(candidate.row, candidate.col);
+      if (cells && formula) resolveFormulaCell(formula, { cells, row: candidate.row, col: candidate.col });
+    });
+  };
+
+  const sheetExtent = (reach: ExtentReach = {}): SheetExtent => {
+    ensureSpillsReaching(reach.lastRow ?? Infinity, reach.lastColumn ?? Infinity);
+    return { rows: calculated.length, columns: calculated.reduce((longest, row) => Math.max(longest, row.length), 0) };
   };
 
   // Evaluate one formula cell, guarding circular references, caching the result,
@@ -225,7 +330,8 @@ function openSheet(
     calculating.add(cellKey);
     cellsBeingCalculated.push({ row, col });
     try {
-      const result = evaluateFormula(boundWholeReferences(formulaText.substring(1), extentOf)); // drop leading "="
+      const value = evaluateValue(boundWholeReferences(formulaText.substring(1), extentOf)); // drop leading "="
+      const result = placeResult(value, { row, col }, formulaText);
       cells[col] = result;
       return result;
     } catch (error) {
@@ -285,9 +391,9 @@ function openSheet(
   // sheets are RAW: an opened sheet is never formatted, so a date reads as its serial, not "03/04/2025".
   const resolveSheetData = (fullRef: string): ResolvedSheetRef | null => {
     const qualified = splitSheetReference(fullRef);
-    if (!qualified) return { sheetData: calculated, ref: fullRef, read: getRawValue };
+    if (!qualified) return { sheetData: calculated, ref: fullRef, read: getRawValue, sheet: self };
     const target = opened.get(qualified.sheetName) ?? openOther(qualified.sheetName);
-    return target ? { sheetData: target.calculated, ref: qualified.ref, read: target.read } : null;
+    return target ? { sheetData: target.calculated, ref: qualified.ref, read: target.read, sheet: target } : null;
   };
 
   const openOther = (name: string): OpenSheet | null => {
@@ -301,13 +407,14 @@ function openSheet(
   const locateCell = (ref: string): { cell: unknown; position: CellPosition; read: CellReader } | null => {
     const resolved = resolveSheetData(ref);
     if (!resolved) throw invalidRefError(ref); // Sheet not found → #REF!
-    const { sheetData, ref: cellRef, read } = resolved;
+    const { sheetData, ref: cellRef, read, sheet } = resolved;
 
     // `$` symbols and the A1 shape are parsed by the shared single-cell reader.
     const coord = parseSingleCellRef(cellRef);
     if (!coord) return null;
 
     const { row, col } = coord;
+    sheet.ensureSpillsReaching(row, col);
     const gridRow = row >= 0 ? sheetData[row] : undefined;
     if (!gridRow || col < 0 || col >= gridRow.length) return null;
 
@@ -332,13 +439,22 @@ function openSheet(
     return isBlankCell(isFormula ? read(cell, position) : cell);
   };
 
-  const collectRangeValues = (range: string, rangeOptions: { numericOnly: boolean; keepBlanks?: boolean }): CellValue[] => {
+  // The cells of a table a call answers where a range is read (`SUM(SORT(A1:A9))`), kept as a
+  // range's would be: the numeric read keeps only numbers.
+  const calledRangeValues = (call: string, rangeOptions: RangeReadOptions): CellValue[] => {
+    const cells = cellsOf(evaluateValue(call));
+    return rangeOptions.numericOnly ? cells.filter((value) => value !== "" && isRangeNumber(value)) : cells;
+  };
+
+  const collectRangeValues = (range: string, rangeOptions: RangeReadOptions): CellValue[] => {
+    if (isSpillingCall(range)) return calledRangeValues(range, rangeOptions);
     const resolved = resolveSheetData(range);
     if (!resolved) return []; // Sheet not found → empty range
-    const { sheetData, ref: rangeRef, read } = resolved;
+    const { sheetData, ref: rangeRef, read, sheet } = resolved;
 
     const coords = expandRangeOrCell(rangeRef);
     if (!coords) return [];
+    ensureSpillsCovering(sheet, coords);
 
     const values: CellValue[] = [];
     for (const { row, col } of coords) {
@@ -380,6 +496,7 @@ function openSheet(
   // The cells of a range that hold something — a value or a formula, even one answering "" —
   // which is what COUNTA counts. It reads the cells as written: in the calculated grid a
   // formula that answered "" already looks blank.
+  // A spilled cell holds a value, so it is filled too.
   const countFilledCells = (range: string): number => {
     const resolved = resolveSheetData(range);
     const coords = resolved ? expandRangeOrCell(resolved.ref) : null;
@@ -387,30 +504,49 @@ function openSheet(
     const sourceName = splitSheetReference(range)?.sheetName ?? sheetName;
     const source = sourceName === sheetName ? data : processedAllSheets?.find((s) => s.name === sourceName)?.data;
     if (!source) return 0;
+    ensureSpillsCovering(resolved.sheet, coords);
     return coords.filter(({ row, col }) => {
       const cell = source[row]?.[col];
-      return cell !== undefined && !isEmptyCell(cell);
+      return (cell !== undefined && !isEmptyCell(cell)) || resolved.sheet.isSpilled(row, col);
     }).length;
   };
 
-  // Evaluate a formula with context
-  const evaluateFormula = (formula: string): CellValue => {
-    return evaluateFormulaFn(formula, {
+  /** A reference's cells row by row, a blank one as "", or the table a call answers (one value as a
+   *  1×1 table). A reference to a sheet that does not exist is #REF!. */
+  const getRangeGrid = (range: string): CellValue[][] => {
+    if (!isSoleReference(range)) {
+      const value = evaluateValue(range);
+      return isCellArray(value) ? value : [[value]];
+    }
+    const resolved = resolveSheetData(range);
+    const coords = resolved ? expandRangeOrCell(resolved.ref) : null;
+    if (!coords) throw invalidRefError(range);
+    return rowsOfCells(coords, collectRangeValues(range, { numericOnly: false, keepBlanks: true }));
+  };
+
+  // Evaluate a formula with context: its value, a table included, and where one value is needed,
+  // the one a table stands for (scalarOf).
+  const evaluateValue = (formula: string): FormulaValue =>
+    evaluateFormulaFn(formula, {
       getCellValue,
       getRangeValues,
       getRangeValuesRaw,
       getRangeValuesKeepingBlanks,
       countFilledCells,
       evaluateFormula,
+      evaluateValue,
+      getRangeGrid,
       preferDDMMYYYY,
       isCellEmpty,
       currentCell: cellsBeingCalculated.at(-1),
     });
-  };
+  const evaluateFormula = (formula: string): CellValue => scalarOf(evaluateValue(formula));
 
   // Compute one cell into its calculated row. A cell not in {v, f} format is
   // left as-is (it is already a plain value).
   const calculateCell = (originalCell: SpreadsheetCell, position: CellPosition): void => {
+    // A blank cell a table spilled into holds the spilled value, which copying the cell would erase.
+    if (spilledCells.has(`${position.row},${position.col}`)) return;
     if (!isObj(originalCell) || !("v" in originalCell)) return;
     const value = originalCell.v;
 
@@ -446,8 +582,26 @@ function openSheet(
     });
   };
 
+  /** A spilled cell is shown as its anchor's formula would show it there: in the cell's own format
+   *  where the sheet gives it one, else the anchor's, and as a date when the anchor's formula is one. */
+  const formatSpilledCell = ({ row, col, anchor }: SpilledCell, dateSource: DateSource): void => {
+    const cells = calculated[row];
+    if (!cells) return;
+    const formula = formulaAt(anchor.row, anchor.col) ?? "";
+    const format = formatCodeAt(data[row]?.[col]) || formatCodeAt(data[anchor.row]?.[anchor.col]);
+    const showsDate = formulaShowsDate(formula, sheetName, dateSource);
+    cells[col] = formatCellForDisplay({ v: formula, f: format }, cells[col], preferDDMMYYYY, showsDate);
+  };
+
+  const self: OpenSheet = {
+    calculated,
+    read: getRawValue,
+    ensureSpillsReaching,
+    isSpilled: (row, col) => spilledCells.has(`${row},${col}`),
+    extent: sheetExtent,
+  };
   // Opened before anything is calculated, so a sheet that reads this one back finds it here.
-  opened.set(sheetName, { calculated, read: getRawValue });
+  opened.set(sheetName, self);
 
   const finish = (): CalculatedSheet => {
     // Process all cells and calculate formulas; formatting comes at the end. A formula already
@@ -465,6 +619,7 @@ function openSheet(
         const showsDate = source.startsWith("=") && formulaShowsDate(source, sheetName, dateSource);
         cells[col] = formatCellForDisplay(originalCell, cells[col], preferDDMMYYYY, showsDate);
       });
+      spilledCells.forEach((spilled) => formatSpilledCell(spilled, dateSource));
     }
 
     return {

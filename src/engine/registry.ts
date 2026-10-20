@@ -5,10 +5,11 @@
  * allowing modular organization and easy extension of formula capabilities.
  */
 
-import type { CellValue } from "./types";
+import type { CellValue, FormulaValue } from "./types";
 import { holdsNumber, parseNumericString } from "./numericCoercion";
 import { parseDate } from "./date-parser";
 import { isSpreadsheetErrorValue, type SpreadsheetError } from "./spreadsheet-errors";
+import { soleCallName } from "./spillCandidate";
 export type { CellValue };
 export type CellGetter = (ref: string) => CellValue;
 export type RangeGetter = (range: string) => CellValue[];
@@ -25,6 +26,10 @@ export interface FunctionContext {
   /** How many cells of a range hold something, a formula's "" included (COUNTA). */
   countFilledCells?: ((range: string) => number) | undefined;
   evaluateFormula: (formula: string) => CellValue;
+  /** An argument's value, a table included where `evaluateFormula` stands it for one value. */
+  evaluateValue?: ((formula: string) => FormulaValue) | undefined;
+  /** A reference's cells row by row, a blank one as "", or the table a call answers. */
+  getRangeGrid?: ((range: string) => CellValue[][]) | undefined;
   /** Whether an argument is nothing but a reference to a blank cell, which evaluating reads as 0. */
   isBlankReference?: ((arg: string) => boolean) | undefined;
   /** Read an ambiguous `01/02/2020` as day-first, as the sheet's own dates are. */
@@ -75,7 +80,7 @@ export const rawRangeReader = (context: FunctionContext): RangeGetter => context
  *  blank reads as 0 the way Excel's INDEX returns it. */
 export const blankAwareRangeReader = (context: FunctionContext): RangeGetter => context.getRangeValuesKeepingBlanks ?? rawRangeReader(context);
 
-export type FunctionHandler = (args: string[], context: FunctionContext) => CellValue;
+export type FunctionHandler = (args: string[], context: FunctionContext) => FormulaValue;
 
 export interface FunctionDefinition {
   name: string;
@@ -85,6 +90,9 @@ export interface FunctionDefinition {
   description?: string;
   examples?: string[];
   category?: string;
+  /** May answer a table, which spills from the formula's cell when the call is the whole formula.
+   *  Only such a function's result spills; any other answering a table is #VALUE!. */
+  spills?: boolean;
 }
 
 class FunctionRegistry {
@@ -144,6 +152,13 @@ class FunctionRegistry {
 }
 
 export const functionRegistry = new FunctionRegistry();
+
+/** Whether `text` is one call, and nothing more, to a function that may answer a table: an
+ *  argument read as a range is then read as that table's cells (`SUM(SORT(A1:A9))`). */
+export function isSpillingCall(text: string): boolean {
+  const name = soleCallName(text);
+  return name !== null && functionRegistry.get(name)?.spills === true;
+}
 
 /** Whether `name` written before "(" is a function call. A letters-only name is,
  *  registered or not (an unknown one reports #NAME?). A name with digits is only
