@@ -11,6 +11,7 @@ import "./regression";
 import "./distributions";
 import "./distribution-families";
 import "./shape";
+import "./descriptive";
 import "./mathematical";
 import "./logical";
 import "./text";

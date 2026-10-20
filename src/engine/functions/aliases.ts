@@ -30,6 +30,7 @@ const ALIASES: Readonly<Record<string, string>> = {
   BETAINV: "BETA.INV",
   LOGINV: "LOGNORM.INV",
   WEIBULL: "WEIBULL.DIST",
+  "MODE.SNGL": "MODE",
   FORECAST: "FORECAST.LINEAR",
   PEARSON: "CORREL",
 };
