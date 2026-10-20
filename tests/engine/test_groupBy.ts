@@ -73,6 +73,28 @@ describe("GROUPBY", () => {
     ]);
   });
 
+  it("gives a subtotal for each prefix of the keys up to total_depth − 1, three key columns giving two levels by default", () => {
+    const rows: CellValue[][] = [
+      ["a", "x", "p", 1],
+      ["a", "x", "q", 2],
+      ["a", "y", "p", 4],
+      ["b", "x", "p", 8],
+    ];
+    assert.deepEqual(answer("=GROUPBY(A1:C4,D1:D4,SUM,0)", rows), [
+      ["a", "x", "p", 1],
+      ["a", "x", "q", 2],
+      ["a", "x", "", 3],
+      ["a", "y", "p", 4],
+      ["a", "y", "", 4],
+      ["a", "", "", 7],
+      ["b", "x", "p", 8],
+      ["b", "x", "", 8],
+      ["b", "", "", 8],
+      ["Total", "", "", 15],
+    ]);
+    assert.equal(answer("=GROUPBY(A1:C4,D1:D4,SUM,0,2)", rows).length, 4 + 2 + 1);
+  });
+
   it("sorts by a column of the answer, descending when negative, and keeps the rows filter_array keeps", () => {
     assert.deepEqual(
       answer("=GROUPBY(A2:A6,C2:C6,SUM,0,1,-2)").map((row) => row[0]),
@@ -117,7 +139,18 @@ describe("PIVOTBY", () => {
     assert.deepEqual(answer("=PIVOTBY(A1:A6,B1:B6,C1:C6,COUNT)").at(-1), ["Total", 3, 1, 1, 5]);
   });
 
-  it("is #VALUE! for more than one values column, and for relative_to", () => {
+  it("sorts rows and columns by their totals with the index past the keys, and shows no headers in mode 2", () => {
+    assert.deepEqual(
+      answer("=PIVOTBY(A2:A6,B2:B6,C2:C6,SUM,0,1,-2,1,-2)").map((row) => row[0]),
+      ["", "West", "East", "North", "Total"],
+    );
+    assert.deepEqual(answer("=PIVOTBY(A2:A6,B2:B6,C2:C6,SUM,0,1,-2,1,-2)")[0], ["", "Bob", "Ann", "Cy", "Total"]);
+    assert.deepEqual(answer("=PIVOTBY(A2:A6,B2:B6,C2:C6,SUM,2)"), answer("=PIVOTBY(A2:A6,B2:B6,C2:C6,SUM,0)"));
+  });
+
+  it("is #VALUE! for subtotals, more than one values column, and relative_to", () => {
+    assert.deepEqual(answer("=PIVOTBY(A2:A6,B2:B6,C2:C6,SUM,0,2)"), [["#VALUE!"]]);
+    assert.deepEqual(answer("=PIVOTBY(A2:A6,B2:B6,C2:C6,SUM,0,1,1,-2)"), [["#VALUE!"]]);
     assert.deepEqual(answer("=PIVOTBY(A2:A6,B2:B6,B2:C6,SUM)"), [["#VALUE!"]]);
     assert.deepEqual(answer("=PIVOTBY(A2:A6,B2:B6,C2:C6,SUM,0,1,1,1,1,,1)"), [["#VALUE!"]]);
   });

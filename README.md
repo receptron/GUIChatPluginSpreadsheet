@@ -150,11 +150,11 @@ A function can answer a table too: `GROUPBY`, `PIVOTBY`, `SORT`, `SORTBY`, `UNIQ
 
 `GROUPBY(row_fields, values, function, [field_headers], [total_depth], [sort_order], [filter_array])` answers a row per group of row_fields (text keys compared without regard to case), each value column aggregated by function: a function's name such as `SUM`, `AVERAGE` or `COUNT`, or a `LAMBDA` of one parameter, given the group's values as a column. `PIVOTBY(row_fields, col_fields, values, function, [field_headers], [row_total_depth], [row_sort_order], [col_total_depth], [col_sort_order], [filter_array])` lays the col_fields keys across the top and the row_fields keys down the side; a cell no row has both keys for is blank.
 
-- field_headers: 0 none, 1 there and hidden, 2 not there and made up (`Row Field 1`, `Value 1`), 3 there and shown; left out, there when the first value is text and the second a number (GROUPBY shows them; PIVOTBY leaves them out).
-- Totals: a `Total` row (and for PIVOTBY a `Total` column) by default; 0 for none, negative to put it first. GROUPBY with two key columns or more also gives a subtotal for each first key (total_depth 2, the default there).
-- sort_order: columns of the answer, 1-based, negative for descending, one or an array; left out, each key column ascending.
+- field_headers: 0 none, 1 there and hidden, 2 not there and made up (`Row Field 1`, `Value 1`), 3 there and shown; left out, there when the first value is text and the second a number, and then shown. PIVOTBY reads headers the same way but shows none, in any mode.
+- Totals: a `Total` row (and for PIVOTBY a `Total` column) by default; 0 for none, negative to put it first. GROUPBY's total_depth n also gives subtotals for the first 1 … n − 1 key columns (as many as there are), each after its rows; it defaults to the number of key columns. PIVOTBY's depths are 0, 1 or -1; subtotals there are `#VALUE!`.
+- sort_order: columns of the answer, 1-based, negative for descending, one or an array; left out, each key column ascending. PIVOTBY's row_sort_order and col_sort_order number the key columns and then the values, which sorts by each row's or column's total.
 - filter_array: TRUE (or a number other than 0) for each data row to keep.
-- Not supported: GROUPBY's field_relationship, PIVOTBY's relative_to and more than one PIVOTBY values column; each is `#VALUE!`.
+- Not supported: GROUPBY's field_relationship, PIVOTBY's relative_to, more than one PIVOTBY values column and PIVOTBY subtotals; each is `#VALUE!`.
 
 ### Arrays in expressions
 

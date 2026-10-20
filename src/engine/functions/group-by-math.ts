@@ -58,49 +58,65 @@ export function sortedRows(rows: CellArray, sortOrder: readonly number[]): CellA
 export interface GroupByOptions {
   /** Header cells to show above the answer, or null for none. */
   headers: CellValue[] | null;
-  /** 0 none; 1 a grand total; 2 also a subtotal for each first key (needs two key columns or more); negative at the top. */
+  /** 0 none; 1 a grand total; n also subtotals for the first 1 … n − 1 keys (as many as the key
+   *  columns allow); negative at the top. */
   totalDepth: number;
   sortOrder: number[];
+}
+
+/** One group's row of the answer, with the data rows it aggregates. */
+interface Leaf {
+  row: CellValue[];
+  dataRows: number[];
 }
 
 /** GROUPBY's answer: a row per group (keys, then aggregates), sorted, with totals as asked. */
 export function groupByTable(keys: CellArray, values: CellArray, included: readonly boolean[], aggregate: Aggregate, options: GroupByOptions): CellArray {
   const keyWidth = keys[0]?.length ?? 0;
-  const blankKey = (first: CellValue): CellValue[] => [first, ...Array.from({ length: keyWidth - 1 }, () => "")];
-  const leafRows = sortedRows(
-    groupsOf(keys, included).map((group) => aggregatedRow(group.key, values, group.rows, aggregate)),
+  const leaves = groupsOf(keys, included).map((group): Leaf => ({ row: aggregatedRow(group.key, values, group.rows, aggregate), dataRows: group.rows }));
+  const sorted = sortedRows(
+    leaves.map((leaf, index) => [...leaf.row, index]),
     options.sortOrder,
-  );
+  ).map((row) => leaves[Number(row.at(-1))] ?? { row: [], dataRows: [] });
   const atTop = options.totalDepth < 0;
   const depth = Math.abs(options.totalDepth);
-  const withSubtotals = depth >= 2 && keyWidth >= 2 ? subtotalled(leafRows, keys, values, included, aggregate, blankKey, atTop) : leafRows;
+  const subtotalLevels = Math.min(depth, keyWidth) - 1;
+  const layout: SubtotalLayout = { keyWidth, levels: subtotalLevels, values, aggregate, atTop };
   const allRows = included.flatMap((isIncluded, row) => (isIncluded ? [row] : []));
-  const grandTotal = depth >= 1 ? [aggregatedRow(blankKey(TOTAL), values, allRows, aggregate)] : [];
-  const body = atTop ? [...grandTotal, ...withSubtotals] : [...withSubtotals, ...grandTotal];
+  const grandTotal = depth >= 1 ? [aggregatedRow(keyPrefix([TOTAL], keyWidth), values, allRows, aggregate)] : [];
+  const groupRows = withSubtotals(sorted, 1, layout);
+  const body = atTop ? [...grandTotal, ...groupRows] : [...groupRows, ...grandTotal];
   return options.headers ? [options.headers, ...body] : body;
 }
 
-/** The sorted rows with, for each first key, a subtotal row after its rows (before them when `atTop`). */
-function subtotalled(
-  rows: CellArray,
-  keys: CellArray,
-  values: CellArray,
-  included: readonly boolean[],
-  aggregate: Aggregate,
-  blankKey: (first: CellValue) => CellValue[],
-  atTop: boolean,
-): CellArray {
-  const firstKeys = groupsOf(
-    keys.map((key) => [key[0] ?? ""]),
-    included,
-  );
-  // The first keys in the order the sorted rows meet them, so the blocks keep the sort.
-  const order = rows.map((row) => cellIdentity(row[0] ?? "")).filter((identity, index, all) => all.indexOf(identity) === index);
-  return order.flatMap((identity) => {
-    const block = rows.filter((row) => cellIdentity(row[0] ?? "") === identity);
-    const group = firstKeys.find((candidate) => cellIdentity(candidate.key[0] ?? "") === identity);
-    const subtotal = aggregatedRow(blankKey(group?.key[0] ?? ""), values, group?.rows ?? [], aggregate);
-    return atTop ? [subtotal, ...block] : [...block, subtotal];
+/** The first cells of a key, then blanks to the key's width. */
+const keyPrefix = (cells: CellValue[], keyWidth: number): CellValue[] => [...cells, ...Array.from({ length: keyWidth - cells.length }, () => "")];
+
+interface SubtotalLayout {
+  keyWidth: number;
+  levels: number;
+  values: CellArray;
+  aggregate: Aggregate;
+  atTop: boolean;
+}
+
+/** The leaves' rows with a subtotal for each first `prefix` keys, then for each longer prefix up to
+ *  `levels`, each after its rows (before them when `atTop`). Blocks keep the order the sorted leaves
+ *  meet them in. */
+function withSubtotals(leaves: Leaf[], prefix: number, layout: SubtotalLayout): CellArray {
+  if (prefix > layout.levels) return leaves.map((leaf) => leaf.row);
+  const identityOf = (leaf: Leaf): string => JSON.stringify(leaf.row.slice(0, prefix).map(cellIdentity));
+  const blocks = leaves.reduce((grouped, leaf) => grouped.set(identityOf(leaf), [...(grouped.get(identityOf(leaf)) ?? []), leaf]), new Map<string, Leaf[]>());
+  return Array.from(blocks.values()).flatMap((block) => {
+    const inner = withSubtotals(block, prefix + 1, layout);
+    const key = keyPrefix(block[0]?.row.slice(0, prefix) ?? [], layout.keyWidth);
+    const subtotal = aggregatedRow(
+      key,
+      layout.values,
+      block.flatMap((leaf) => leaf.dataRows),
+      layout.aggregate,
+    );
+    return layout.atTop ? [subtotal, ...inner] : [...inner, subtotal];
   });
 }
 
@@ -122,13 +138,17 @@ export function pivotTable(
   aggregate: Aggregate,
   options: PivotOptions,
 ): CellArray {
-  const rowGroups = sortedGroups(groupsOf(rowKeys, included), options.rowSortOrder);
-  const columnGroups = sortedGroups(groupsOf(columnKeys, included), options.columnSortOrder);
+  const cell = (rows: readonly number[]): CellValue => (rows.length === 0 ? "" : aggregate(columnAt(values, 0, rows)));
+  const rowGroups = sortedGroups(groupsOf(rowKeys, included), options.rowSortOrder, cell);
+  const columnGroups = sortedGroups(groupsOf(columnKeys, included), options.columnSortOrder, cell);
   const [rowWidth, columnDepth] = [rowKeys[0]?.length ?? 0, columnKeys[0]?.length ?? 0];
   const allRows = included.flatMap((isIncluded, row) => (isIncluded ? [row] : []));
-  const cell = (rows: readonly number[]): CellValue => (rows.length === 0 ? "" : aggregate(columnAt(values, 0, rows)));
-  const both = (rowGroup: Group | null, columnGroup: Group | null): number[] =>
-    allRows.filter((row) => (rowGroup === null || rowGroup.rows.includes(row)) && (columnGroup === null || columnGroup.rows.includes(row)));
+  const columnSets = new Map(columnGroups.map((group) => [group, new Set(group.rows)]));
+  // The rows with both keys: the row group's rows that are also in the column group, a total taking all.
+  const both = (rowGroup: Group | null, columnGroup: Group | null): number[] => {
+    const inColumn = columnGroup === null ? null : columnSets.get(columnGroup);
+    return (rowGroup?.rows ?? allRows).filter((row) => inColumn === null || inColumn === undefined || inColumn.has(row));
+  };
   const columns: (Group | null)[] = withTotal(columnGroups, options.columnTotals);
   const rows: (Group | null)[] = withTotal(rowGroups, options.rowTotals);
   const blankRowKey = Array.from({ length: rowWidth }, (): CellValue => "");
@@ -143,10 +163,11 @@ export function pivotTable(
   return [...headerRows, ...bodyRows];
 }
 
-/** Groups sorted by their key cells (1-based indexes into the key; negative is descending). */
-function sortedGroups(groups: Group[], sortOrder: readonly number[]): Group[] {
+/** Groups sorted by their key cells, then their total (1-based indexes into key and total; negative
+ *  is descending). */
+function sortedGroups(groups: Group[], sortOrder: readonly number[], totalOf: (rows: readonly number[]) => CellValue): Group[] {
   const sortedKeys = sortedRows(
-    groups.map((group, index) => [...group.key, index]),
+    groups.map((group, index) => [...group.key, totalOf(group.rows), index]),
     sortOrder,
   );
   return sortedKeys.map((row) => groups[Number(row.at(-1))] ?? { key: [], rows: [] });

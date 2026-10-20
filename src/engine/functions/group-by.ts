@@ -68,7 +68,7 @@ const groupByHandler: FunctionHandler = (args, context) => {
   const values = split(valuesTable, mode === 1 || mode === 3);
   const keyWidth = keys.data[0]?.length ?? 0;
   const width = keyWidth + (values.data[0]?.length ?? 0);
-  const totalDepth = optionalNumberArg(args, context, 4, keyWidth >= 2 ? 2 : 1);
+  const totalDepth = optionalNumberArg(args, context, 4, Math.max(keyWidth, 1));
   const sortOrder = sortOrderArg(args, context, 5, width, keyWidth);
   const included = includedRows(args, context, 6, keys.data.length);
   if (typeof totalDepth !== "number" || isSpreadsheetErrorValue(sortOrder) || isSpreadsheetErrorValue(included)) {
@@ -96,9 +96,9 @@ const pivotByHandler: FunctionHandler = (args, context) => {
   const rowWidth = rowKeys?.[0]?.length ?? 0;
   const columnDepth = columnKeys?.[0]?.length ?? 0;
   const rowTotals = optionalNumberArg(args, context, 5, 1);
-  const rowSortOrder = sortOrderArg(args, context, 6, rowWidth, rowWidth);
+  const rowSortOrder = sortOrderArg(args, context, 6, rowWidth + 1, rowWidth);
   const columnTotals = optionalNumberArg(args, context, 7, 1);
-  const columnSortOrder = sortOrderArg(args, context, 8, columnDepth, columnDepth);
+  const columnSortOrder = sortOrderArg(args, context, 8, columnDepth + 1, columnDepth);
   const included = includedRows(args, context, 9, rowKeys?.length ?? 0);
   const read = [rowTotals, rowSortOrder, columnTotals, columnSortOrder, included];
   const error = read.find(isSpreadsheetErrorValue);
@@ -111,9 +111,12 @@ const pivotByHandler: FunctionHandler = (args, context) => {
     !Array.isArray(included)
   )
     return VALUE_ERROR;
+  // Subtotals are not supported: a depth beyond a grand total is #VALUE! rather than a grand total alone.
+  const [rowDepth, columnDepthOfTotals] = [Math.trunc(rowTotals), Math.trunc(columnTotals)];
+  if (Math.abs(rowDepth) > 1 || Math.abs(columnDepthOfTotals) > 1) return VALUE_ERROR;
   return pivotTable(rowKeys ?? [], columnKeys ?? [], values ?? [], included, aggregate, {
-    rowTotals: Math.sign(Math.trunc(rowTotals)),
-    columnTotals: Math.sign(Math.trunc(columnTotals)),
+    rowTotals: rowDepth,
+    columnTotals: columnDepthOfTotals,
     rowSortOrder,
     columnSortOrder,
   });
