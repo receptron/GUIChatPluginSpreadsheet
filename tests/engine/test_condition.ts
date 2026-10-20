@@ -361,9 +361,9 @@ describe("IFS compares the way the rest of the engine does", () => {
     assert.equal(ifs(0, '=IF(""<1,"y","n")'), "n");
   });
 
-  // A cell whose formula answers "" is read as 0 by every reader of a cell (the engine's
-  // getRawValue), so IFS and IF agree on it too.
+  // A formula's "" is text, so it sorts after every number, as in Excel.
   it("agrees with IF on a cell whose formula answers nothing", () => {
-    assert.equal(ifs('=""', '=IFS(A1<1,"y",TRUE,"n")'), ifs('=""', '=IF(A1<1,"y","n")'));
+    assert.equal(ifs('=""', '=IFS(A1<1,"y",TRUE,"n")'), "n");
+    assert.equal(ifs('=""', '=IF(A1<1,"y","n")'), "n");
   });
 });

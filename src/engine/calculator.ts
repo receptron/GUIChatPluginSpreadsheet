@@ -152,6 +152,8 @@ function preprocessDates(data: SpreadsheetCell[][], preferDDMMYYYY: boolean): Sp
 // downstream parseFloat reads as 3 (issue #2332).
 type SheetCalculateOptions = CalculateOptions & { skipFormatting?: boolean };
 
+const isFormulaSource = (cell: unknown): boolean => isRecord(cell) && typeof cell["v"] === "string" && cell["v"].startsWith("=");
+
 /**
  * Calculate formulas in a single sheet
  *
@@ -243,8 +245,14 @@ function openSheet(
     }
   };
 
+  const isCalculatedFormula = ({ row, col }: CellPosition): boolean => evaluated.has(`${row},${col}`) && isFormulaSource(data[row]?.[col]);
+
   // Helper to extract raw value from cell with recursive formula evaluation
   const getRawValue = (cell: any, position?: CellPosition): CellValue => {
+    // A formula already calculated holds its answer, which reads as it was answered: its "" stays
+    // "" and its text "1,200" stays text, as they read before it was calculated.
+    if (position && isCalculatedFormula(position)) return cell;
+
     // Handle null/undefined cells - treat as 0
     if (cell === null || cell === undefined) return 0;
 
@@ -321,15 +329,19 @@ function openSheet(
   };
 
   /** Whether a reference names a cell that holds nothing — outside the grid included. A formula
-   *  cell is judged by what it answers, calculated here if it has not been yet: judged by its
-   *  source it read as not empty only until it was calculated, so the answer depended on order. */
+   *  cell is never empty, whatever it answers (`=""` and `=" "` included), as in Excel; it is told
+   *  by the sheet as written, which no calculation changes, so the answer does not depend on order. */
   const isCellEmpty = (ref: string): boolean => {
     const located = locateCell(ref);
     if (located === null) return true;
-    const { cell, position, read } = located;
-    const source = isRecord(cell) ? cell["v"] : undefined;
-    const isFormula = typeof source === "string" && source.startsWith("=");
-    return isBlankCell(isFormula ? read(cell, position) : cell);
+    if (isFormulaSource(sourceSheetOf(ref)?.[located.position.row]?.[located.position.col])) return false;
+    return isBlankCell(located.cell);
+  };
+
+  /** The rows of the sheet a reference names, as written. */
+  const sourceSheetOf = (ref: string): SpreadsheetCell[][] | undefined => {
+    const name = splitSheetReference(ref)?.sheetName ?? sheetName;
+    return name === sheetName ? data : processedAllSheets?.find((other) => other.name === name)?.data;
   };
 
   const collectRangeValues = (range: string, rangeOptions: { numericOnly: boolean; keepBlanks?: boolean }): CellValue[] => {
@@ -340,6 +352,7 @@ function openSheet(
     const coords = expandRangeOrCell(rangeRef);
     if (!coords) return [];
 
+    const sourceRows = sourceSheetOf(range);
     const values: CellValue[] = [];
     for (const { row, col } of coords) {
       const gridRow = row >= 0 ? sheetData[row] : undefined;
@@ -347,6 +360,9 @@ function openSheet(
       // it would shorten a positional read, and every row after it would pair with the wrong one.
       const cell = gridRow && col >= 0 ? gridRow[col] : undefined;
       const rawValue = read(cell, gridRow ? { cells: gridRow, row, col } : undefined);
+      // Told by the sheet as written, as isCellEmpty is: a formula cell is never blank (its `=" "`
+      // included), whether it was calculated before this read or by it.
+      const fromFormula = isFormulaSource(sourceRows?.[row]?.[col]);
 
       if (rangeOptions.numericOnly) {
         // A blank cell is not a value. Dropping it from the NUMERIC list keeps
@@ -360,7 +376,7 @@ function openSheet(
         }
       } else {
         // A calculated error has no `v`, so isEmptyCell would call it blank; it is a value.
-        const isBlank = isEmptyCell(cell) && !isSpreadsheetErrorValue(cell);
+        const isBlank = !fromFormula && isEmptyCell(cell) && !isSpreadsheetErrorValue(cell);
         values.push(rangeOptions.keepBlanks && isBlank ? "" : rawValue);
       }
     }
