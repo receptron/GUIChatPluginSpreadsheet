@@ -58,6 +58,37 @@ describe("FILTER", () => {
     assert.deepEqual(answer("=FILTER(A1:B4,B1:B4/(B1:B4-80))", sales), [["#DIV/0!"]]);
   });
 
+  it("answers a table if_empty as a table, and keeps an array's blank cells as 0 and error cells as their errors", () => {
+    assert.deepEqual(answer('=FILTER(A1:B4,B1:B4>1000,{"-","-"})', sales), [["-", "-"]]);
+    const withGaps: CellValue[][] = [
+      ["East", ""],
+      ["West", "=1/0"],
+      ["East", 5],
+    ];
+    assert.deepEqual(answer('=FILTER(A1:B3,A1:A3<>"North")', withGaps), [
+      ["East", 0],
+      ["West", "#DIV/0!"],
+      ["East", 5],
+    ]);
+  });
+
+  it("filters a range on another sheet", () => {
+    const data = [[{ v: "=FILTER(Data!A1:B3,Data!B1:B3>1)" }]];
+    const other = [
+      [{ v: "a" }, { v: 1 }],
+      [{ v: "b" }, { v: 2 }],
+      [{ v: "c" }, { v: 3 }],
+    ];
+    const [sheet] = new SpreadsheetEngine().calculateWorkbook([
+      { name: "S", data },
+      { name: "Data", data: other },
+    ]);
+    assert.deepEqual(sheet?.data, [
+      ["b", 2],
+      ["c", 3],
+    ]);
+  });
+
   it("is read by other functions, and reads a call's table", () => {
     assert.deepEqual(answer('=SUM(FILTER(B1:B4,A1:A4="East"))', sales), [[160]]);
     assert.deepEqual(answer("=FILTER(SORT(A1:B4,2,-1),{1;1;0;0})", sales), [
