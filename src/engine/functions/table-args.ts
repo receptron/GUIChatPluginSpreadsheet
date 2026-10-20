@@ -36,8 +36,9 @@ export const optionalNumberArg = (args: string[], context: FunctionContext, inde
 export const optionalCountArg = (args: string[], context: FunctionContext, index: number): Read<number> | undefined =>
   isLeftOut(args, index) ? undefined : numberArg(args, context, index);
 
-export function booleanArg(args: string[], context: FunctionContext, index: number): Read<boolean> {
-  if (isLeftOut(args, index)) return false;
+/** A flag that may be left out: `fallback` then. */
+export function booleanArg(args: string[], context: FunctionContext, index: number, fallback = false): Read<boolean> {
+  if (isLeftOut(args, index)) return fallback;
   const value = context.evaluateFormula(requiredArg(context, args, index));
   return isSpreadsheetErrorValue(value) ? value : coerceToBoolean(value);
 }
