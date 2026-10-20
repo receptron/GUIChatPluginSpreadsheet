@@ -83,6 +83,11 @@ describe("Microsoft's worked examples", () => {
       [1, 0, 0, 1],
       "a formula's empty text counts 0, and the blank past it is still skipped",
     );
+    assert.deepEqual(
+      valuesOf(['=AVERAGEA("",4)', '=MAXA(-1,"")', '=MINA("",3)', '=MAXA("x")']),
+      [2, 0, 0, "#VALUE!"],
+      "empty text written as an argument is 0",
+    );
   });
 });
 

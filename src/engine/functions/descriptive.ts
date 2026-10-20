@@ -72,10 +72,10 @@ const countBlankHandler: FunctionHandler = (args, context) =>
 
 /** One collected value as AVERAGEA, MAXA and MINA count it: in a range, text counts as 0 and a
  *  logical value as 1 or 0, and a blank is skipped; written as an argument, it is read as SUM
- *  reads one. */
+ *  reads one, except that empty text is 0. */
 const countingText = ({ value, isScalar }: { value: CellValue; isScalar: boolean }): (number | SpreadsheetError)[] => {
   if (isSpreadsheetErrorValue(value)) return [value];
-  if (isScalar) return [toScalarNumber(value)];
+  if (isScalar) return [value === "" ? 0 : toScalarNumber(value)];
   if (value === "") return [];
   if (typeof value === "boolean") return [value ? 1 : 0];
   return [typeof value === "number" ? value : 0];
