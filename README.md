@@ -133,6 +133,17 @@ A range is written `A1:C10`, `Data!A1:C10` or `'My Sheet'!A1:C10`. A whole colum
 ### Financial
 `FV`, `IPMT`, `IRR`, `NPER`, `NPV`, `PMT`, `PPMT`, `PV`, `RATE`
 
+## Formulas that answer a table
+
+A formula that is a range and nothing else, such as `=A1:C5` or `=Data!A1:B10`, answers the whole range. Its values spill from the formula's cell to the right and down, as dynamic arrays do in Excel 365. Each cell reads as `=A1` would read it, so a blank cell spills as 0.
+
+- **Blocked spills.** If a cell the result needs already holds something (a value, a formula, or part of another spilled result), the formula shows `#SPILL!` and nothing spills.
+- **Reading spilled cells.** Other formulas read spilled cells like any others: `=B3`, `=SUM(B:B)` and `=COUNTA(B1:B9)` all see them.
+- **Formatting.** A spilled cell takes its own cell's number format if it has one, and the formula cell's format otherwise.
+- **Saving.** Only the formula is saved. The spilled values are rebuilt on every calculation.
+
+A function can answer a table too. In that case it spills only when the call is the whole formula. Inside a larger expression, a table of more than one cell is `#VALUE!` until element-wise array arithmetic is supported. A range argument accepts such a call, as in `=SUM(…)` over it.
+
 ## Workbook functions
 
 A workbook can define functions of its own, for an analysis no built-in function does. Each sheet may carry an optional `functions` list; a function defined on any sheet is callable from every sheet of that workbook:

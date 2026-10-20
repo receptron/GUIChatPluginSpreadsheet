@@ -8,7 +8,10 @@ import { FUNCTION_NAME_SOURCE, functionRegistry, isCallableName, tooFewArguments
 
 const SIMPLE_CALL = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\((.*)\\)$`, "i");
 const CALL_START = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\(`, "i");
-import type { CellValue } from "./types";
+import type { CellValue, FormulaValue } from "./types";
+import { normalizedValue, scalarOf } from "./cellArray";
+import { isSoleRangeReference } from "./spillCandidate";
+import { parseRangeBounds } from "./formulaRefs";
 import { endOfQuotedSheetName, UNQUOTED_SHEET_NAME } from "./sheetReference";
 import { parseDate } from "./date-parser";
 import { concatOperands, concatToSum, topLevelGroups } from "./concatPrecedence";
@@ -33,6 +36,9 @@ export interface EvaluatorContext {
   getRangeValuesKeepingBlanks?: ((range: string) => CellValue[]) | undefined;
   countFilledCells?: ((range: string) => number) | undefined;
   evaluateFormula: (formula: string) => CellValue;
+  /** A formula's value, a table included; see FunctionContext. */
+  evaluateValue?: ((formula: string) => FormulaValue) | undefined;
+  getRangeGrid?: ((range: string) => CellValue[][]) | undefined;
   /** Reading order for an ambiguous slash date; see engine/date-locale.ts. */
   preferDDMMYYYY?: boolean | undefined;
   /** Whether the referenced cell holds nothing. `getCellValue` reads such a cell as 0, which
@@ -332,6 +338,18 @@ function withGroupsEvaluated(expr: string, context: EvaluatorContext): string {
   }, expr);
 }
 
+/** A range's cells as `=A1:B3` answers them, in one read of the range: each as `=A1` reads that
+ *  one cell (a blank as 0). Null for a range not written cell to cell, such as a whole column of a
+ *  sheet that does not exist. */
+function rangeAsValues(range: string, context: EvaluatorContext): CellValue[][] | null {
+  const bounds = parseRangeBounds(range);
+  if (!bounds || !context.getRangeValuesRaw) return null;
+  const width = Math.abs(bounds.endCol - bounds.startCol) + 1;
+  const cells = context.getRangeValuesRaw(range);
+  if (cells.length === 0) return null;
+  return Array.from({ length: Math.ceil(cells.length / width) }, (_, row) => cells.slice(row * width, (row + 1) * width));
+}
+
 /**
  * Evaluate a formula string
  *
@@ -349,7 +367,7 @@ function withGroupsEvaluated(expr: string, context: EvaluatorContext): string {
  * @param context - Evaluation context with cell/range accessors
  * @returns Evaluated result (number or string)
  */
-export function evaluateFormula(writtenFormula: string, context: EvaluatorContext): CellValue {
+export function evaluateFormula(writtenFormula: string, context: EvaluatorContext): FormulaValue {
   // TRUE written in the formula reads as a logical cell does from here on.
   const formula = logicalLiteralsAsBooleans(writtenFormula);
   // A formula that is one string literal is its text. Only one: `"a"="b"` also
@@ -366,6 +384,12 @@ export function evaluateFormula(writtenFormula: string, context: EvaluatorContex
     }
 
     return stringValue;
+  }
+
+  // A formula that is a range and nothing else answers its cells, each as `=A1` reads it.
+  if (isSoleRangeReference(trimmed)) {
+    const cells = rangeAsValues(trimmed, context) ?? context.getRangeGrid?.(trimmed);
+    if (cells) return normalizedValue(cells);
   }
 
   // Check if it's a SIMPLE function call (not a complex expression)
@@ -403,8 +427,8 @@ export function evaluateFormula(writtenFormula: string, context: EvaluatorContex
         throw new Error(`${normalizedFuncName} accepts at most ${func.maxArgs} argument${func.maxArgs !== 1 ? "s" : ""}`);
       }
 
-      // Execute function with context
-      return func.handler(args, {
+      // Execute function with context. Only a function that says it may answer a table answers one.
+      const result = func.handler(args, {
         functionName: normalizedFuncName,
         getCellValue: context.getCellValue,
         getRangeValues: context.getRangeValues,
@@ -412,6 +436,8 @@ export function evaluateFormula(writtenFormula: string, context: EvaluatorContex
         getRangeValuesKeepingBlanks: context.getRangeValuesKeepingBlanks,
         countFilledCells: context.countFilledCells,
         evaluateFormula: context.evaluateFormula,
+        evaluateValue: context.evaluateValue,
+        getRangeGrid: context.getRangeGrid,
         isBlankReference: (arg) => {
           const ref = loneReference(arg);
           return ref !== null && context.isCellEmpty?.(ref) === true;
@@ -419,6 +445,7 @@ export function evaluateFormula(writtenFormula: string, context: EvaluatorContex
         preferDDMMYYYY: context.preferDDMMYYYY,
         currentCell: context.currentCell,
       });
+      return func.spills === true ? normalizedValue(result) : scalarOf(result);
     }
 
     // A balanced `NAME(...)` spanning the whole formula whose NAME is not a

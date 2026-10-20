@@ -2,9 +2,18 @@
  * Lookup and Reference Functions
  */
 
-import { functionRegistry, rawRangeReader, requiredArg, toNumber, parseCriteria, type FunctionHandler, type FunctionContext } from "../registry";
+import {
+  functionRegistry,
+  isSpillingCall,
+  rawRangeReader,
+  requiredArg,
+  toNumber,
+  parseCriteria,
+  type FunctionHandler,
+  type FunctionContext,
+} from "../registry";
 import { indexToColumn } from "../parser";
-import { parseRangeBounds, resolveIndexTarget, resolveTableOffset } from "../formulaRefs";
+import { parseRangeBounds, resolveIndexTarget, resolveTableOffset, type RangeBounds } from "../formulaRefs";
 import { isApproximateMatch } from "./lookup-math";
 import type { CellValue } from "../types";
 import { NA_ERROR, REF_ERROR, VALUE_ERROR } from "../spreadsheet-errors";
@@ -13,13 +22,30 @@ import { compareText } from "../textCollation";
 
 const inclusiveRange = (start: number, end: number): number[] => Array.from({ length: Math.max(0, end - start + 1) }, (_, i) => start + i);
 
+/** The table VLOOKUP, HLOOKUP and INDEX read: a reference's bounds and its cells, or the table a
+ *  spilling call answers, laid out as if it started at A1. Rows are numbered from 1, columns from 0. */
+interface LookupTable {
+  bounds: RangeBounds;
+  cellAt: (row: number, col: number) => CellValue;
+}
+
+function lookupTable(arg: string, context: FunctionContext): LookupTable | null {
+  if (isSpillingCall(arg) && context.getRangeGrid) {
+    const grid = context.getRangeGrid(arg);
+    const bounds = { sheetPrefix: "", startRow: 1, startCol: 0, endRow: grid.length, endCol: (grid[0]?.length ?? 1) - 1 };
+    return { bounds, cellAt: (row, col) => grid[row - 1]?.[col] ?? "" };
+  }
+  const bounds = parseRangeBounds(arg);
+  return bounds ? { bounds, cellAt: (row, col) => context.getCellValue(`${bounds.sheetPrefix}${indexToColumn(col)}${row}`) } : null;
+}
+
 // Read a vertical slice (one column, `startRow`..`endRow`) as VLOOKUP's lookup column.
-const columnValues = (context: FunctionContext, sheetPrefix: string, colStr: string, startRow: number, endRow: number): CellValue[] =>
-  inclusiveRange(startRow, endRow).map((r) => context.getCellValue(`${sheetPrefix}${colStr}${r}`));
+const columnValues = (table: LookupTable, col: number, startRow: number, endRow: number): CellValue[] =>
+  inclusiveRange(startRow, endRow).map((r) => table.cellAt(r, col));
 
 // Read a horizontal slice (one row, `startCol`..`endCol`) as HLOOKUP's lookup row.
-const rowValues = (context: FunctionContext, sheetPrefix: string, row: number, startCol: number, endCol: number): CellValue[] =>
-  inclusiveRange(startCol, endCol).map((c) => context.getCellValue(`${sheetPrefix}${indexToColumn(c)}${row}`));
+const rowValues = (table: LookupTable, row: number, startCol: number, endCol: number): CellValue[] =>
+  inclusiveRange(startCol, endCol).map((c) => table.cellAt(row, c));
 
 /** The index of the LAST value that satisfies `matches`, or -1. Array.findIndex
  *  only walks forward, and XLOOKUP's `searchMode: -1` searches from the end. */
@@ -75,8 +101,9 @@ const findMatchIndex = (
 
 const vlookupHandler: FunctionHandler = (args, context) => {
   const lookupValue = context.evaluateFormula(requiredArg(context, args, 0));
-  const bounds = parseRangeBounds(requiredArg(context, args, 1));
-  if (!bounds) throw new Error("Invalid table array range");
+  const table = lookupTable(requiredArg(context, args, 1), context);
+  if (!table) throw new Error("Invalid table array range");
+  const { bounds } = table;
   const colIndexNum = toNumber(context.evaluateFormula(requiredArg(context, args, 2)));
   const rangeLookup = args.length === 4 ? context.evaluateFormula(requiredArg(context, args, 3)) : true;
   const matchType = isApproximateMatch(rangeLookup) ? 1 : 0;
@@ -88,20 +115,18 @@ const vlookupHandler: FunctionHandler = (args, context) => {
   const colOffset = resolveTableOffset(colIndexNum, bounds.endCol - bounds.startCol + 1);
   if (colOffset === null) return REF_ERROR;
 
-  const startColStr = indexToColumn(bounds.startCol);
-  const lookupArray = columnValues(context, bounds.sheetPrefix, startColStr, bounds.startRow, bounds.endRow);
+  const lookupArray = columnValues(table, bounds.startCol, bounds.startRow, bounds.endRow);
   const matchIdx = findMatchIndex(lookupValue, lookupArray, matchType);
   if (matchIdx === -1) return NA_ERROR;
 
-  const resultColStr = indexToColumn(bounds.startCol + colOffset);
-  const resultRow = bounds.startRow + matchIdx;
-  return context.getCellValue(`${bounds.sheetPrefix}${resultColStr}${resultRow}`);
+  return table.cellAt(bounds.startRow + matchIdx, bounds.startCol + colOffset);
 };
 
 const hlookupHandler: FunctionHandler = (args, context) => {
   const lookupValue = context.evaluateFormula(requiredArg(context, args, 0));
-  const bounds = parseRangeBounds(requiredArg(context, args, 1));
-  if (!bounds) throw new Error("Invalid range format");
+  const table = lookupTable(requiredArg(context, args, 1), context);
+  if (!table) throw new Error("Invalid range format");
+  const { bounds } = table;
   const rowIndexNum = toNumber(context.evaluateFormula(requiredArg(context, args, 2)));
   const rangeLookup = args.length === 4 ? context.evaluateFormula(requiredArg(context, args, 3)) : true;
   const matchType = isApproximateMatch(rangeLookup) ? 1 : 0;
@@ -109,13 +134,11 @@ const hlookupHandler: FunctionHandler = (args, context) => {
   const rowOffset = resolveTableOffset(rowIndexNum, bounds.endRow - bounds.startRow + 1);
   if (rowOffset === null) return REF_ERROR;
 
-  const lookupArray = rowValues(context, bounds.sheetPrefix, bounds.startRow, bounds.startCol, bounds.endCol);
+  const lookupArray = rowValues(table, bounds.startRow, bounds.startCol, bounds.endCol);
   const matchIdx = findMatchIndex(lookupValue, lookupArray, matchType);
   if (matchIdx === -1) return NA_ERROR;
 
-  const resultColStr = indexToColumn(bounds.startCol + matchIdx);
-  const resultRow = bounds.startRow + rowOffset;
-  return context.getCellValue(`${bounds.sheetPrefix}${resultColStr}${resultRow}`);
+  return table.cellAt(bounds.startRow + rowOffset, bounds.startCol + matchIdx);
 };
 
 const matchHandler: FunctionHandler = (args, context) => {
@@ -133,14 +156,15 @@ const matchHandler: FunctionHandler = (args, context) => {
 };
 
 const indexHandler: FunctionHandler = (args, context) => {
-  const bounds = parseRangeBounds(requiredArg(context, args, 0));
-  if (!bounds) throw new Error("Invalid range format");
+  const table = lookupTable(requiredArg(context, args, 0), context);
+  if (!table) throw new Error("Invalid range format");
+  const { bounds } = table;
   const rowNum = toNumber(context.evaluateFormula(requiredArg(context, args, 1)));
   const colNum = args.length >= 3 ? toNumber(context.evaluateFormula(requiredArg(context, args, 2))) : 1; // Default to 1 if omitted (for 1D arrays)
 
   const target = resolveIndexTarget(bounds, rowNum, colNum);
   if (!target) return REF_ERROR;
-  return context.getCellValue(`${bounds.sheetPrefix}${indexToColumn(target.colIndex)}${target.row}`);
+  return table.cellAt(target.row, target.colIndex);
 };
 
 const xlookupHandler: FunctionHandler = (args, context) => {
@@ -222,10 +246,12 @@ const positionHandler =
     return bounds ? of({ row: bounds.startRow - 1, col: bounds.startCol }) : VALUE_ERROR;
   };
 
+// ROWS / COLUMNS: of a reference, or of the table a spilling call answers.
 const sizeHandler =
-  (of: (bounds: NonNullable<ReturnType<typeof referenceBounds>>) => number): FunctionHandler =>
+  (of: (bounds: RangeBounds) => number): FunctionHandler =>
   (args, context) => {
-    const bounds = referenceBounds(requiredArg(context, args, 0));
+    const arg = requiredArg(context, args, 0);
+    const bounds = isSpillingCall(arg) ? (lookupTable(arg, context)?.bounds ?? null) : referenceBounds(arg);
     return bounds ? of(bounds) : VALUE_ERROR;
   };
 

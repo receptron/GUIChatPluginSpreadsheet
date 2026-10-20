@@ -11,6 +11,12 @@ export type StoredCellValue = number | string | boolean;
 /** A value as the engine COMPUTES it: a stored value, or a formula error. */
 export type CellValue = StoredCellValue | SpreadsheetError;
 
+/** A table a formula answers, rows of cells, spilled from the formula's cell (see cellArray.ts). */
+export type CellArray = CellValue[][];
+
+/** What a formula or a function answers: one value, or a table of them. */
+export type FormulaValue = CellValue | CellArray;
+
 export interface SpreadsheetCell {
   v: StoredCellValue; // Value or formula (formulas start with "=")
   f?: string; // Format code (e.g., "$#,##0.00")

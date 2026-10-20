@@ -2,7 +2,7 @@
  * Financial Functions
  */
 
-import { functionRegistry, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
+import { functionRegistry, isSpillingCall, requiredArg, toNumber, type FunctionContext, type FunctionHandler } from "../registry";
 import { computeFv, computePmt, computeIpmt, computePpmt, computePv, computeNper, computeRate, computeNpv, computeIrr } from "../financial-math";
 
 // The annuity functions all read some mandatory numeric operands followed by
@@ -112,7 +112,7 @@ const ppmtHandler: FunctionHandler = makePeriodicComponentHandler(computePpmt);
 // The order defines each flow's discount period, so ranges and the scalars
 // after them must stay in argument order.
 const collectCashFlows = (valueArgs: string[], context: FunctionContext): number[] =>
-  valueArgs.flatMap((arg) => (arg.includes(":") ? context.getRangeValues(arg) : [context.evaluateFormula(arg)]).map(toNumber));
+  valueArgs.flatMap((arg) => (arg.includes(":") || isSpillingCall(arg) ? context.getRangeValues(arg) : [context.evaluateFormula(arg)]).map(toNumber));
 
 const npvHandler: FunctionHandler = (args, context) => {
   const rate = toNumber(context.evaluateFormula(requiredArg(context, args, 0)));

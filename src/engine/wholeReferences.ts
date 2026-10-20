@@ -14,8 +14,15 @@ export interface SheetExtent {
   columns: number;
 }
 
+/** The last column (0-based) a whole-column reference covers, or the last row (0-based) a
+ *  whole-row one does: as far as a table spilled from another cell would have to reach to matter. */
+export interface ExtentReach {
+  lastColumn?: number;
+  lastRow?: number;
+}
+
 /** The extent of the sheet a reference names (`null` for the formula's own sheet), or null when there is no such sheet. */
-export type ExtentOf = (sheetName: string | null) => SheetExtent | null;
+export type ExtentOf = (sheetName: string | null, reach?: ExtentReach) => SheetExtent | null;
 
 // An optional sheet prefix (`Data!`, `'My Sheet'!`), then two column letters or two row numbers
 // joined by a colon, standing alone as an operand: only what may sit beside an operand can touch
@@ -45,18 +52,16 @@ interface WholeReference {
 
 /** The bounded form of one whole reference, or null when its sheet does not exist. */
 function boundedReference({ whole, sheetName, columns, rows }: WholeReference, extentOf: ExtentOf): string | null {
-  const extent = extentOf(sheetName);
-  if (!extent) return null;
   const prefix = whole.slice(0, whole.lastIndexOf("!") + 1);
-  // An empty sheet still has its first row and column, so the range is never inverted.
-  const lastRowNumber = Math.max(extent.rows, 1);
   if (columns) {
     const [firstColumn, lastColumn] = inOrder(columns, columnToIndex);
-    return `${prefix}${firstColumn}1:${lastColumn}${lastRowNumber}`;
+    const extent = extentOf(sheetName, { lastColumn: columnToIndex(lastColumn) });
+    // An empty sheet still has its first row and column, so the range is never inverted.
+    return extent ? `${prefix}${firstColumn}1:${lastColumn}${Math.max(extent.rows, 1)}` : null;
   }
-  const lastColumnLetter = indexToColumn(Math.max(extent.columns, 1) - 1);
   const [firstRow, lastRow] = inOrder(rows ?? ["1", "1"], Number);
-  return `${prefix}A${firstRow}:${lastColumnLetter}${lastRow}`;
+  const extent = extentOf(sheetName, { lastRow: Number(lastRow) - 1 });
+  return extent ? `${prefix}A${firstRow}:${indexToColumn(Math.max(extent.columns, 1) - 1)}${lastRow}` : null;
 }
 
 /** Each whole reference outside a string literal, rewritten as its bounded range. */

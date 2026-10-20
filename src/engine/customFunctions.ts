@@ -17,7 +17,7 @@ import {
   type QuickJSSyncVariant,
   type QuickJSWASMModule,
 } from "quickjs-emscripten-core";
-import { functionRegistry, type FunctionContext, type FunctionDefinition } from "./registry";
+import { functionRegistry, isSpillingCall, type FunctionContext, type FunctionDefinition } from "./registry";
 // The built-ins registered before any check: a workbook may not redefine one, and asking before
 // they are loaded would answer that none exist.
 import "./functions";
@@ -239,9 +239,18 @@ const toJsonCell = (value: CellValue): JsonCell | SpreadsheetError => {
 /** One argument: a range as rows of cells, anything else — a single cell included — as its value. */
 function argumentValue(arg: string, context: FunctionContext): ArgumentValue {
   if (RANGE.test(arg)) return rangeRows(arg, context);
+  if (isSpillingCall(arg) && context.getRangeGrid) return tableRows(context.getRangeGrid(arg));
   // Read like a range's cells, so a blank one is null here too rather than the 0 a formula reads.
   if (SINGLE_CELL.test(arg)) return toJsonCell(cellsReader(context)(arg)[0] ?? "");
   return toJsonCell(context.evaluateFormula(arg));
+}
+
+/** The table a spilling call answers, as rows of cells; an error cell stops the call, as in a range. */
+function tableRows(table: CellValue[][]): JsonCell[][] | SpreadsheetError {
+  if (table.reduce((count, row) => count + row.length, 0) > MAX_ARGUMENT_CELLS) return VALUE_ERROR;
+  const rows = table.map((row) => row.map(toJsonCell));
+  const failed = rows.flat().find(isSpreadsheetErrorValue);
+  return failed ?? rows.map((row) => row.filter((cell): cell is JsonCell => !isSpreadsheetErrorValue(cell)));
 }
 
 /** The reader that keeps a blank cell as "" where the host offers one. */

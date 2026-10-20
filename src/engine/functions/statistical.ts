@@ -8,6 +8,7 @@ import {
   requiredArg,
   toNumber,
   criteriaArg,
+  isSpillingCall,
   type FunctionContext,
   type FunctionHandler,
   type RangeGetter,
@@ -16,6 +17,7 @@ import { computeAverage, computeMedian, computeMode, sampleStdev, sampleVariance
 import { DIV_ZERO_ERROR, isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
 import { holdsNumber, isRangeNumber, toScalarNumber } from "../numericCoercion";
 import type { CellValue } from "../types";
+import { cellsOf } from "../cellArray";
 
 // Excel accepts up to 255 arguments for its aggregate functions.
 const MAX_AGGREGATE_ARGS = 255;
@@ -58,7 +60,8 @@ export const collectArgumentValues = (args: string[], context: FunctionContext, 
     const arg = rawArg?.trim();
     if (!arg) continue;
 
-    if (isReference(arg)) {
+    // A call that may answer a table is read as a range is, its cells as a range's (`SUM(SORT(A1:A9))`).
+    if (isReference(arg) || isSpillingCall(arg)) {
       readRange(arg).forEach((value) => collected.push({ value, isScalar: false }));
     } else {
       collected.push({ value: context.evaluateFormula(arg), isScalar: true });
@@ -153,6 +156,8 @@ const isFilledValue = (value: CellValue): boolean => value !== null && value !==
  *  from a blank. */
 const countaOf = (arg: string, context: FunctionContext): number => {
   if (isReference(arg) && context.countFilledCells) return context.countFilledCells(arg);
+  // A table has no blank cells: empty text in one is text, and COUNTA counts every cell.
+  if (isSpillingCall(arg) && context.evaluateValue) return cellsOf(context.evaluateValue(arg)).length;
   return collectRawValues([arg], context).filter(isFilledValue).length;
 };
 
