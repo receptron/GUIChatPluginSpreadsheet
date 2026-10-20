@@ -190,7 +190,7 @@ A LAMBDA given the wrong number of arguments is `#VALUE!`, and one written but n
 - `EMA` is the exponential moving average (pandas `ewm(alpha=…, adjust=False)`), one value per point; alpha must be in (0, 1].
 - `DECOMPOSE` is the classical decomposition (statsmodels `seasonal_decompose`): for each point, its trend (a centred moving average over one period, `#N/A` where the window does not fit), seasonal and residual parts, additive by default or `"multiplicative"`. The lag and the period must be whole numbers (a fraction is `#NUM!`); the period must be at least 2, with two full periods of values.
 
-Monthly or weekly totals need no function of their own: `GROUPBY` over `EOMONTH(date, 0)` (or a week's first day) as the key gives them.
+Monthly or weekly totals need no function of their own: group by each date's month end, `=GROUPBY(MAP(A2:A100, LAMBDA(d, EOMONTH(d, 0))), B2:B100, SUM)` (or by each week's first day). `EOMONTH` takes one date, so `MAP` gives it each one.
 
 ## Workbook functions
 

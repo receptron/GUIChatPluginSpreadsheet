@@ -171,6 +171,21 @@ describe("PIVOTBY", () => {
   });
 });
 
+describe("totals by month, as the README shows", () => {
+  it("groups dates by their month end through MAP and EOMONTH", () => {
+    const rows: CellValue[][] = [
+      ["2024-01-05", 10],
+      ["2024-01-20", 5],
+      ["2024-02-03", 7],
+    ];
+    assert.deepEqual(answer("=GROUPBY(MAP(A1:A3,LAMBDA(d,EOMONTH(d,0))),B1:B3,SUM)", rows), [
+      ["01/31/2024", 15],
+      ["02/29/2024", 7],
+      ["Total", 22],
+    ]);
+  });
+});
+
 describe("the rules", () => {
   it("groupsOf keeps first-appearance order and only the included rows", () => {
     assert.deepEqual(groupsOf([["b"], ["a"], ["B"]], [true, true, true]), [
