@@ -21,7 +21,7 @@ export const transpose = (table: CellArray): CellArray => Array.from({ length: w
 
 /** Excel's sort order — numbers, text, logical values — in `order`, with errors after all of
  *  them whichever way it runs. */
-function compareForSort(left: CellValue, right: CellValue, order: number): number {
+export function compareForSort(left: CellValue, right: CellValue, order: number): number {
   const [leftError, rightError] = [isSpreadsheetErrorValue(left), isSpreadsheetErrorValue(right)];
   if (leftError || rightError) return Number(leftError) - Number(rightError);
   return order * compareCellValues(left, right);

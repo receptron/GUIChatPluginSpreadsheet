@@ -101,6 +101,14 @@ describe("GROUPBY", () => {
       ["West", "East", "North", "Total"],
     );
     assert.deepEqual(answer("=GROUPBY(A2:A6,C2:C6,SUM,0,1,3)"), [["#VALUE!"]]);
+    const withError: CellValue[][] = [
+      ["=1/0", 1],
+      ["b", 2],
+      ["a", 3],
+    ];
+    ["1", "-1"].forEach((order) =>
+      assert.equal(answer(`=GROUPBY(A1:A3,B1:B3,SUM,0,0,${order})`, withError).at(-1)?.[0], "#DIV/0!", `an error key sorts last at ${order}`),
+    );
     assert.deepEqual(answer("=GROUPBY(A2:A6,C2:C6,COUNT,0,1,1,C2:C6>5)"), [
       ["East", 1],
       ["North", 1],

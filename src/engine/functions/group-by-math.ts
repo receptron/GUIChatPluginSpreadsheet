@@ -4,9 +4,8 @@
  * out the answer with its header row and totals.
  */
 
-import { compareCellValues } from "../textComparison";
 import type { CellArray, CellValue } from "../types";
-import { cellIdentity } from "./array-functions-math";
+import { cellIdentity, compareForSort } from "./array-functions-math";
 
 export type Aggregate = (values: CellArray) => CellValue;
 
@@ -41,14 +40,14 @@ const aggregatedRow = (key: CellValue[], values: CellArray, rows: readonly numbe
   ...Array.from({ length: values[0]?.length ?? 0 }, (_, col) => aggregate(columnAt(values, col, rows))),
 ];
 
-/** Rows ordered by sort indexes into the row (1-based; negative is descending), each in turn; ties
- *  keep their order, as Array.prototype.sort is stable. */
+/** Rows ordered by sort indexes into the row (1-based; negative is descending), each in turn, as SORT
+ *  orders cells (errors last either way); ties keep their order, as Array.prototype.sort is stable. */
 export function sortedRows(rows: CellArray, sortOrder: readonly number[]): CellArray {
   const positions = rows.map((_, index) => index);
   const compare = (left: number, right: number): number => {
     const decided = sortOrder.map((index) => {
       const col = Math.abs(index) - 1;
-      return Math.sign(index) * compareCellValues(rows[left]?.[col] ?? "", rows[right]?.[col] ?? "");
+      return compareForSort(rows[left]?.[col] ?? "", rows[right]?.[col] ?? "", Math.sign(index));
     });
     return decided.find((difference) => difference !== 0) ?? 0;
   };
