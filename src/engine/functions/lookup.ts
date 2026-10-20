@@ -9,6 +9,7 @@ import { isApproximateMatch } from "./lookup-math";
 import type { CellValue } from "../types";
 import { NA_ERROR, REF_ERROR, VALUE_ERROR } from "../spreadsheet-errors";
 import { referenceBounds } from "./reference-math";
+import { compareText } from "../textCollation";
 
 const inclusiveRange = (start: number, end: number): number[] => Array.from({ length: Math.max(0, end - start + 1) }, (_, i) => start + i);
 
@@ -39,6 +40,11 @@ const compare = (a: CellValue, b: CellValue) => {
   return String(a).localeCompare(String(b));
 };
 
+/** An exact match as the lookups find one: two texts without regard to case (accents still count),
+ *  as Excel compares them; anything else as loosely as before (`"10"` matches 10). */
+const isSameLookupValue = (item: CellValue, lookupValue: CellValue): boolean =>
+  typeof item === "string" && typeof lookupValue === "string" ? compareText(item, lookupValue) === 0 : item == lookupValue;
+
 // Helper to find match index
 const findMatchIndex = (
   lookupValue: CellValue,
@@ -51,7 +57,7 @@ const findMatchIndex = (
     // Handle wildcards for strings if it's an exact match request.
     // Loose equality otherwise, for "10" == 10.
     const usesWildcards = typeof lookupValue === "string" && (lookupValue.includes("*") || lookupValue.includes("?"));
-    const isMatch = usesWildcards ? parseCriteria(lookupValue) : (item: CellValue) => item == lookupValue;
+    const isMatch = usesWildcards ? parseCriteria(lookupValue) : (item: CellValue) => isSameLookupValue(item, lookupValue);
     return searchMode === 1 ? lookupArray.findIndex(isMatch) : findLastMatchIndex(lookupArray, isMatch);
   }
 
@@ -178,7 +184,7 @@ const xlookupHandler: FunctionHandler = (args, context) => {
       const idx = searchMode === 1 ? i : lookupArray.length - 1 - i;
       const item = lookupArray[idx];
 
-      if (item == lookupValue) {
+      if (isSameLookupValue(item, lookupValue)) {
         matchIdx = idx;
         break;
       }
