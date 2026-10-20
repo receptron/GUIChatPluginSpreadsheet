@@ -5,7 +5,7 @@
 import { describe, it, after } from "node:test";
 import assert from "node:assert/strict";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
-import { calculateWith, loadCustomFunctions, asCellValue, type CustomFunctionSet } from "../../src/engine/customFunctions.ts";
+import { calculateWith, loadCustomFunctions, asCellValue, decodedResult, type CustomFunctionSet } from "../../src/engine/customFunctions.ts";
 import { checkedSpecs, problemWith, specsOf, type CustomFunctionSpec } from "../../src/engine/customFunctionSpecs.ts";
 import { functionRegistry } from "../../src/engine/registry.ts";
 import { NUM_ERROR, VALUE_ERROR } from "../../src/engine/spreadsheet-errors.ts";
@@ -83,6 +83,42 @@ describe("asCellValue", () => {
   });
 });
 
+describe("decodedResult", () => {
+  it("reads one tagged value, and a table of tagged cells", () => {
+    assert.equal(decodedResult('["v",["n",3]]'), 3);
+    assert.equal(decodedResult('["v",["s","a"]]'), "a");
+    assert.equal(decodedResult('["v",["e","#NUM!"]]'), NUM_ERROR);
+    assert.deepEqual(decodedResult('["t",[[["n",1],["z"]],[["b",true],["e","#VALUE!"]]]]'), [
+      [1, ""],
+      [true, VALUE_ERROR],
+    ]);
+  });
+
+  it("answers #VALUE! for anything not shaped as the caller writes it, a lone blank, and a table wider than a sheet", () => {
+    [
+      "",
+      "3",
+      "null",
+      '"v"',
+      '["v",["z"]]',
+      '["v",["n","3"]]',
+      '["v",["x",1]]',
+      '["t",[1]]',
+      '["t",[[1]]]',
+      '["t",[[1,["n",2]]]]',
+      '["t",[]]',
+      '["q",[]]',
+      '["v",["n",3],"extra"]',
+      '["v",["n",3,"extra"]]',
+      '["v",["e","not-an-error"]]',
+      '["t",[[["b",true,"extra"],["n",2]]]]',
+      '["v",["z","x"]]',
+    ].forEach((encoded) => assert.equal(decodedResult(encoded), VALUE_ERROR, encoded));
+    const wide = JSON.stringify(["t", [Array.from({ length: 16_385 }, () => ["n", 1])]]);
+    assert.equal(decodedResult(wide), VALUE_ERROR);
+  });
+});
+
 const FUNCTIONS: CustomFunctionSpec[] = [
   spec(
     "MOVING.AVG",
@@ -103,6 +139,13 @@ const FUNCTIONS: CustomFunctionSpec[] = [
   spec("TO.JSON", [], "return { toJSON() { return 7; } };"),
   spec("SLOW.GETTER", [], "return { get x() { while (true) {} } };"),
   spec("SLOW.THROW", [], "throw { get message() { while (true) {} } };"),
+  spec("TABLE", [], "return [[1, 2], [3, 4]];"),
+  spec("LIST", [], "return ['a', 'b', 'c'];"),
+  spec("RAGGED", [], "return [1, [2, 3]];"),
+  spec("CELLS", [], "return [[0 / 0, null, { a: 1 }, true, undefined]];"),
+  spec("TAMPER", [], "JSON.stringify = () => 5; return 1;"),
+  spec("NOTHING", [], "return [];"),
+  spec("SLOW.ROWS", [], "return new Proxy([1, 2], { get() { while (true) {} } });"),
 ];
 
 const sheetWith = (rows: SheetData["data"]): SheetData & { functions: CustomFunctionSpec[] } => ({ name: "Data", functions: FUNCTIONS, data: rows });
@@ -190,6 +233,40 @@ describe("calling a workbook's functions", () => {
       ["#VALUE!", "#VALUE!", "#VALUE!"],
     );
     assert.ok(Date.now() - started < 1000, "nothing ran past the call's deadline");
+  });
+
+  it("spills a table it returns: an array of rows, a flat array as a column, ragged rows filled with #N/A", () => {
+    assert.deepEqual(calculate([[{ v: "=TABLE()" }]]), [
+      [1, 2],
+      [3, 4],
+    ]);
+    assert.deepEqual(calculate([[{ v: "=LIST()" }]]), [["a"], ["b"], ["c"]]);
+    assert.deepEqual(
+      calculate([[{ v: "=RAGGED()" }]]).map((row) => row.map(String)),
+      [
+        ["1", "#N/A"],
+        ["2", "3"],
+      ],
+    );
+  });
+
+  it("keeps each cell of a returned table as a cell holds it: #NUM! for a number that is not finite, a blank for null, #VALUE! for an object", () => {
+    assert.deepEqual(
+      calculate([[{ v: "=CELLS()" }]]).map((row) => row.map(String)),
+      [["#NUM!", "", "#VALUE!", "true", ""]],
+    );
+  });
+
+  it("answers #VALUE! when the function has tampered with how its answer is written back", () => {
+    assert.equal(cellAt(calculate([[{ v: "=TAMPER()" }]]), 0, 0), "#VALUE!");
+  });
+
+  it("answers #VALUE! for an empty array, is read by other functions, and stops a table whose reading runs too long", () => {
+    const out = calculate([[{ v: "=NOTHING()" }, { v: "=SUM(TABLE())" }, { v: "=SLOW.ROWS()" }]]);
+    assert.deepEqual(
+      [0, 1, 2].map((col) => cellAt(out, 0, col)),
+      ["#VALUE!", 10, "#NUM!"],
+    );
   });
 
   it("stops a function that asks for more memory than the cap", () => {
