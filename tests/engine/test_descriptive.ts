@@ -51,18 +51,18 @@ describe("Microsoft's worked examples", () => {
     assert.deepEqual(valuesOf(["=QUARTILE.EXC(A1:A11,1)", "=QUARTILE.EXC(A1:A11,3)"], [[6, 7, 15, 36, 39, 40, 41, 42, 43, 47, 49]]), [15, 43]);
   });
 
-  it("RANK.AVG, MODE.SNGL and PROB", () => {
+  it("RANK.AVG, MODE.SNGL and PROB, whose bounds may come in either order", () => {
     assert.equal(valuesOf(["=RANK.AVG(94,A1:A7)"], [[89, 88, 92, 101, 94, 97, 95]])[0], 4);
     assert.equal(valuesOf(["=MODE.SNGL(A1:A6)"], [[5.6, 4, 4, 3, 2, 4]])[0], 4);
     assert.deepEqual(
       valuesOf(
-        ["=PROB(A1:A4,B1:B4,2)", "=PROB(A1:A4,B1:B4,1,3)"],
+        ["=PROB(A1:A4,B1:B4,2)", "=PROB(A1:A4,B1:B4,1,3)", "=PROB(A1:A4,B1:B4,3,1)"],
         [
           [0, 1, 2, 3],
           [0.2, 0.3, 0.1, 0.4],
         ],
       ),
-      [0.1, 0.8],
+      [0.1, 0.8, 0.8],
     );
   });
 
@@ -239,7 +239,7 @@ describe(`properties over generated samples (seed ${baseSeed})`, () => {
       const distinct = [...new Set(sample)].toSorted((left, right) => left - right);
       assert.deepEqual(
         averageRanks(distinct),
-        distinct.map((_, position) => position + 1),
+        distinct.map((_value, position) => position + 1),
       );
     });
   });

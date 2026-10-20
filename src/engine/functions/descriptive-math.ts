@@ -96,12 +96,14 @@ export function averageRanks(values: readonly number[]): number[] {
 }
 
 /** PROB: the probability that a value lies between `lower` and `upper` (or equals `lower` when
- *  there is no upper). A probability outside 0 < p ≤ 1, or probabilities that do not sum to 1: #NUM!. */
+ *  there is no upper), bounds given in either order as LibreOffice reads them. A probability
+ *  outside 0 < p ≤ 1, or probabilities that do not sum to 1: #NUM!. */
 export function probability({ ys: values, xs: probabilities }: NumericPairs, lower: number, upper: number): Result {
   if (probabilities.some((p) => p <= 0 || p > 1)) return NUM_ERROR;
   const total = probabilities.reduce((sum, p) => sum + p, 0);
   if (Math.abs(total - 1) > PROBABILITY_SUM_TOLERANCE) return NUM_ERROR;
-  return values.reduce((sum, value, index) => (value >= lower && value <= upper ? sum + (probabilities[index] ?? 0) : sum), 0);
+  const [low, high] = lower <= upper ? [lower, upper] : [upper, lower];
+  return values.reduce((sum, value, index) => (value >= low && value <= high ? sum + (probabilities[index] ?? 0) : sum), 0);
 }
 
 /** SPEARMAN: the Pearson correlation of the two sides' average ranks. */
