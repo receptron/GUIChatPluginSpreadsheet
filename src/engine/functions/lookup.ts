@@ -2,16 +2,7 @@
  * Lookup and Reference Functions
  */
 
-import {
-  functionRegistry,
-  isSpillingCall,
-  rawRangeReader,
-  requiredArg,
-  toNumber,
-  parseCriteria,
-  type FunctionHandler,
-  type FunctionContext,
-} from "../registry";
+import { functionRegistry, answersTable, rawRangeReader, requiredArg, toNumber, parseCriteria, type FunctionHandler, type FunctionContext } from "../registry";
 import { indexToColumn } from "../parser";
 import { parseRangeBounds, resolveIndexTarget, resolveTableOffset, type RangeBounds } from "../formulaRefs";
 import { isApproximateMatch } from "./lookup-math";
@@ -30,7 +21,7 @@ interface LookupTable {
 }
 
 function lookupTable(arg: string, context: FunctionContext): LookupTable | null {
-  if (isSpillingCall(arg) && context.getRangeGrid) {
+  if (answersTable(arg) && context.getRangeGrid) {
     const grid = context.getRangeGrid(arg);
     const bounds = { sheetPrefix: "", startRow: 1, startCol: 0, endRow: grid.length, endCol: (grid[0]?.length ?? 1) - 1 };
     return { bounds, cellAt: (row, col) => grid[row - 1]?.[col] ?? "" };
@@ -281,7 +272,7 @@ const sizeHandler =
   (of: (bounds: RangeBounds) => number): FunctionHandler =>
   (args, context) => {
     const arg = requiredArg(context, args, 0);
-    const bounds = isSpillingCall(arg) ? (lookupTable(arg, context)?.bounds ?? null) : referenceBounds(arg);
+    const bounds = answersTable(arg) ? (lookupTable(arg, context)?.bounds ?? null) : referenceBounds(arg);
     return bounds ? of(bounds) : VALUE_ERROR;
   };
 
