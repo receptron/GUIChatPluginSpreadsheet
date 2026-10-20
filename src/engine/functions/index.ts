@@ -8,6 +8,7 @@
 import "./statistical";
 import "./statistical-analysis";
 import "./regression";
+import "./linest";
 import "./time-series";
 import "./distributions";
 import "./distribution-families";
