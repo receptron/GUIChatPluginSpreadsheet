@@ -6,7 +6,6 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import {
   averageDeviation,
   averageRank,
@@ -20,14 +19,8 @@ import {
 } from "../../src/engine/functions/descriptive-math.ts";
 import { valuesOf } from "./formulaColumns.ts";
 import { pick, seededRandom } from "./seededRandom.ts";
-
-const RELATIVE_TOLERANCE = 1e-9;
-
-const assertClose = (actual: unknown, expected: number, label: string): void => {
-  assert.equal(typeof actual, "number", `${label}: ${String(actual)}`);
-  const error = Math.abs(Number(actual) - expected) / Math.max(Math.abs(expected), 1);
-  assert.ok(error <= RELATIVE_TOLERANCE, `${label}: ${String(actual)} vs ${expected}`);
-};
+import { assertRelativelyClose as assertClose } from "./closeness.ts";
+import { referenceCases } from "./referenceFixture.ts";
 
 const rounded = (digits: number, value: unknown): number => Number(Number(value).toFixed(digits));
 
@@ -186,10 +179,7 @@ interface ReferenceCase {
 const isReferenceCase = (value: unknown): value is ReferenceCase =>
   typeof value === "object" && value !== null && Array.isArray(Reflect.get(value, "xs")) && typeof Reflect.get(value, "kendall") === "number";
 
-const parsed: unknown = JSON.parse(readFileSync(new URL("./fixtures/descriptive-reference.json", import.meta.url), "utf8"));
-const referenceCases: unknown = typeof parsed === "object" && parsed !== null ? Reflect.get(parsed, "cases") : undefined;
-assert.ok(Array.isArray(referenceCases) && referenceCases.every(isReferenceCase), "the reference fixture holds cases");
-const cases: ReferenceCase[] = referenceCases.filter(isReferenceCase);
+const cases: ReferenceCase[] = referenceCases("descriptive-reference.json", isReferenceCase);
 
 describe("against numpy and scipy", () => {
   it("PERCENTILE.EXC, SKEW.P, AVEDEV and DEVSQ", () => {

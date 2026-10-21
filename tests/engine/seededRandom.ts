@@ -22,3 +22,16 @@ export const pick = <T>(random: Random, items: readonly T[]): T => {
   if (item === undefined) throw new Error("pick needs at least one item");
   return item;
 };
+
+const LCG_MULTIPLIER = 1103515245;
+const LCG_INCREMENT = 12345;
+const LCG_MODULUS = 2147483648;
+
+/** The linear congruential stream the older generated tests draw from, kept so their seeds replay. */
+export function lcgRandom(seed: number): Random {
+  const state = { value: seed };
+  return () => {
+    state.value = (state.value * LCG_MULTIPLIER + LCG_INCREMENT) % LCG_MODULUS;
+    return state.value / LCG_MODULUS;
+  };
+}

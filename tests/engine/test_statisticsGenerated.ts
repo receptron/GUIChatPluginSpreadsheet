@@ -8,19 +8,14 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import type { StoredCellValue } from "../../src/engine/types.ts";
+import { lcgRandom } from "./seededRandom.ts";
 
 const ROUNDS = 150;
 const MAX_ROWS = 12;
 const RELATIVE_TOLERANCE = 1e-9;
 const SEED = Number(process.env.STATISTICS_SEED ?? Date.now() % 1_000_000);
 
-const random = (() => {
-  let state = SEED;
-  return (): number => {
-    state = (state * 1103515245 + 12345) % 2147483648;
-    return state / 2147483648;
-  };
-})();
+const random = lcgRandom(SEED);
 const pick = <T>(items: [T, ...T[]]): T => items[Math.floor(random() * items.length)] ?? items[0];
 
 const generateCell = (): StoredCellValue => {

@@ -7,19 +7,14 @@ import assert from "node:assert/strict";
 import { calculateSheet, type SheetData } from "../../src/engine/index.ts";
 import { indexToColumn } from "../../src/engine/parser.ts";
 import { functionRegistry, type FunctionDefinition } from "../../src/engine/registry.ts";
+import { lcgRandom } from "./seededRandom.ts";
 
 const ROUNDS = 60;
 const MAX_ROWS = 8;
 const MAX_COLUMNS = 6;
 const SEED = Number(process.env.SHEETS_SEED ?? Date.now() % 1_000_000);
 
-const random = (() => {
-  let state = SEED;
-  return (): number => {
-    state = (state * 1103515245 + 12345) % 2147483648;
-    return state / 2147483648;
-  };
-})();
+const random = lcgRandom(SEED);
 const below = (n: number): number => Math.floor(random() * n);
 
 interface Grid {

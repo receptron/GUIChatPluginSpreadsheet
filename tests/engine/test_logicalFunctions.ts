@@ -5,9 +5,8 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { coerceToBoolean } from "../../src/engine/coerce-boolean.ts";
-import { cellAt } from "./cellAccess.ts";
+import { formulaValue } from "./formulaAnswers.ts";
 
 describe("coerceToBoolean", () => {
   it("passes booleans through", () => {
@@ -51,8 +50,7 @@ describe("coerceToBoolean", () => {
   });
 });
 
-const evalFormula = (formula: string): unknown =>
-  cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: formula }]] } satisfies SheetData).data, 0, 0);
+const evalFormula = formulaValue;
 
 describe("IF and AND/OR/NOT agree on the same value", () => {
   // Each value should send IF down the false branch exactly when AND/OR/NOT read

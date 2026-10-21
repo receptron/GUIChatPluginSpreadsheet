@@ -9,7 +9,7 @@ import { toScalarNumber } from "../numericCoercion";
 import { DIV_ZERO_ERROR, isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
 import type { CellValue } from "../types";
 import { collectArgumentValues, collectNumbersOrError, overNumbers } from "./statistical";
-import { pairedHandler, pairsFrom, scalarArg } from "./statistical-analysis";
+import { pairedHandler, pairsFrom, rankedHandler, rankingHandler, scalarArg } from "./statistical-analysis";
 import {
   averageDeviation,
   averageRank,
@@ -27,16 +27,6 @@ import {
 const MAX_AGGREGATE_ARGS = 255;
 const DEFAULT_SIGNIFICANCE = 3;
 
-/** `(range, k)`: the numbers in the range, read first, and then k as a number. */
-const rangeAndNumber =
-  (rule: (values: number[], k: number) => number | SpreadsheetError): FunctionHandler =>
-  (args, context) => {
-    const values = collectNumbersOrError([requiredArg(context, args, 0)], context);
-    if (!Array.isArray(values)) return values;
-    const k = scalarArg(args, context, 1);
-    return typeof k === "number" ? rule(values, k) : k;
-  };
-
 const percentRankExclusiveHandler: FunctionHandler = (args, context) => {
   const values = collectNumbersOrError([requiredArg(context, args, 0)], context);
   if (!Array.isArray(values)) return values;
@@ -46,14 +36,7 @@ const percentRankExclusiveHandler: FunctionHandler = (args, context) => {
   return typeof significance === "number" ? percentRankExclusive(values, x, significance) : significance;
 };
 
-const averageRankHandler: FunctionHandler = (args, context) => {
-  const target = scalarArg(args, context, 0);
-  if (typeof target !== "number") return target;
-  const values = collectNumbersOrError([requiredArg(context, args, 1)], context);
-  if (!Array.isArray(values)) return values;
-  const order = args.length > 2 ? scalarArg(args, context, 2) : 0;
-  return typeof order === "number" ? averageRank(target, values, order !== 0) : order;
-};
+const averageRankHandler = rankingHandler(averageRank);
 
 /** PROB(x_range, prob_range, lower, [upper]): the pairs, then the bounds; without an upper bound,
  *  the probability of exactly `lower`. */
@@ -116,7 +99,7 @@ interface DescriptiveFunction {
 const DESCRIPTIVE_FUNCTIONS: DescriptiveFunction[] = [
   {
     name: "TRIMMEAN",
-    handler: rangeAndNumber(trimmedMean),
+    handler: rankedHandler(trimmedMean),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the mean of the values with a share of the largest and smallest left out",
@@ -148,7 +131,7 @@ const DESCRIPTIVE_FUNCTIONS: DescriptiveFunction[] = [
   },
   {
     name: "PERCENTILE.EXC",
-    handler: rangeAndNumber(percentileExclusive),
+    handler: rankedHandler(percentileExclusive),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns the k-th percentile, k strictly between 0 and 1, excluding the ends",
@@ -156,7 +139,7 @@ const DESCRIPTIVE_FUNCTIONS: DescriptiveFunction[] = [
   },
   {
     name: "QUARTILE.EXC",
-    handler: rangeAndNumber(quartileExclusive),
+    handler: rankedHandler(quartileExclusive),
     minArgs: 2,
     maxArgs: 2,
     description: "Returns a quartile (1 to 3), interpolated like PERCENTILE.EXC",

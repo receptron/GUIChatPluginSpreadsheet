@@ -7,19 +7,14 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { blankBeside, withBlankSides } from "../../src/engine/blankOperands.ts";
-import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import type { SpreadsheetCell } from "../../src/engine/types.ts";
-import { cellAt } from "./cellAccess.ts";
 import { pick, seededRandom } from "./seededRandom.ts";
+import { valuesBesideCells } from "./formulaColumns.ts";
 
 // A1 is blank, A2 holds 0, A3 holds "x", A4 is a {} cell; the formulas go in column B.
 const DATA: SpreadsheetCell[] = [{ v: "" }, { v: 0 }, { v: "x" }, {}];
 
-function valuesOf(formulas: string[]): unknown[] {
-  const rows = Array.from({ length: Math.max(DATA.length, formulas.length) }, (_, row) => [DATA[row] ?? { v: "" }, { v: formulas[row] ?? "" }]);
-  const grid = new SpreadsheetEngine().calculate({ name: "S", data: rows } satisfies SheetData).data;
-  return formulas.map((_, row) => cellAt(grid, row, 1));
-}
+const valuesOf = (formulas: string[]): unknown[] => valuesBesideCells(formulas, DATA);
 
 describe("blankBeside and withBlankSides", () => {
   it('reads a blank as 0 beside a number, FALSE beside a logical value, and "" otherwise', () => {

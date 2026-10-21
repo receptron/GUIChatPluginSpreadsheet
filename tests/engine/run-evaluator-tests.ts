@@ -5,40 +5,9 @@
 
 import { parseFunctionArgs, evaluateFormula, type EvaluatorContext } from "../../src/engine/evaluator";
 import "../../src/engine/functions"; // Load all functions
+import { expect, scriptRunner } from "./scriptRunner";
 
-let passedTests = 0;
-let failedTests = 0;
-const failures: string[] = [];
-
-function test(name: string, fn: () => void) {
-  try {
-    fn();
-    passedTests++;
-    console.log(`✓ ${name}`);
-  } catch (error) {
-    failedTests++;
-    const message = error instanceof Error ? error.message : String(error);
-    failures.push(`✗ ${name}: ${message}`);
-    console.log(`✗ ${name}`);
-  }
-}
-
-function expect(actual: any) {
-  return {
-    toBe(expected: any) {
-      if (actual !== expected) {
-        throw new Error(`Expected "${expected}", got "${actual}"`);
-      }
-    },
-    toEqual(expected: any) {
-      const actualStr = JSON.stringify(actual);
-      const expectedStr = JSON.stringify(expected);
-      if (actualStr !== expectedStr) {
-        throw new Error(`Expected ${expectedStr}, got ${actualStr}`);
-      }
-    },
-  };
-}
+const { test, finish } = scriptRunner();
 
 // Helper to create mock context
 function createContext(
@@ -211,16 +180,4 @@ test("evaluates SQRT function", () => {
   expect(evaluateFormula("SQRT(16)", ctx)).toBe(4);
 });
 
-// Summary
-console.log("\n=== Test Summary ===");
-console.log(`Passed: ${passedTests}`);
-console.log(`Failed: ${failedTests}`);
-
-if (failures.length > 0) {
-  console.log("\n=== Failures ===");
-  failures.forEach((f) => console.log(f));
-  process.exit(1);
-} else {
-  console.log("\n✓ All tests passed!");
-  process.exit(0);
-}
+finish();

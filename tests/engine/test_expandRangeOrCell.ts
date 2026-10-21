@@ -6,15 +6,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { expandRangeOrCell } from "../../src/engine/formulaRefs.ts";
+import { rowMajorCells } from "./formulaAnswers.ts";
 
 describe("expandRangeOrCell — ranges", () => {
   it("expands a simple range top-to-bottom, left-to-right", () => {
-    assert.deepEqual(expandRangeOrCell("A1:B2"), [
-      { row: 0, col: 0 },
-      { row: 0, col: 1 },
-      { row: 1, col: 0 },
-      { row: 1, col: 1 },
-    ]);
+    assert.deepEqual(expandRangeOrCell("A1:B2"), rowMajorCells(2, 2));
   });
 
   it("expands a single-column range", () => {

@@ -10,6 +10,7 @@ import { ceilingToSignificance, floorToSignificance, power, roundDownTo, roundTo
 import { DIV_ZERO_ERROR, NUM_ERROR, type SpreadsheetError } from "../../src/engine/spreadsheet-errors.ts";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { cellAt } from "./cellAccess.ts";
+import { lcgRandom } from "./seededRandom.ts";
 
 describe("rounding works on the written decimal", () => {
   it("ROUND breaks a written half away from zero", () => {
@@ -88,13 +89,7 @@ const MAX_DECIMALS = 6;
 const MAX_NEGATIVE_DIGITS = 3;
 const SEED = Number(process.env.ROUNDING_SEED ?? Date.now() % 1_000_000);
 
-const random = (() => {
-  let state = SEED;
-  return (): number => {
-    state = (state * 1103515245 + 12345) % 2147483648;
-    return state / 2147483648;
-  };
-})();
+const random = lcgRandom(SEED);
 const randomInt = (below: number): number => Math.floor(random() * below);
 
 type Direction = "half" | "up" | "down";

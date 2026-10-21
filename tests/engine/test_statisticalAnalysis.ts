@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { functionRegistry } from "../../src/engine/functions/index.ts";
 import { cellAt } from "./cellAccess.ts";
+import { assertWithin } from "./closeness.ts";
 
 const TOLERANCE = 1e-6;
 
@@ -27,10 +28,7 @@ const evaluate = (formula: string): unknown => {
   return cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 4);
 };
 
-const assertClose = (actual: unknown, expected: number): void => {
-  assert.equal(typeof actual, "number", `expected a number, got ${String(actual)}`);
-  assert.ok(Math.abs(Number(actual) - expected) < TOLERANCE, `${String(actual)} is not ${expected}`);
-};
+const assertClose = (actual: unknown, expected: number): void => assertWithin(actual, expected, TOLERANCE);
 
 describe("analysis functions are registered as Statistical", () => {
   it("each name is callable", () => {

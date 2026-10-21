@@ -33,20 +33,30 @@ function endOfQuoted(text: string, start: number): number {
   return close === -1 ? text.length : start + close + 2;
 }
 
-/** Index just past the bracket that closes the one opening at `start`, skipping quoted text. */
-function endOfBracket(text: string, start: number): number {
-  const state = { depth: 0, index: start };
+/** The first index from `from`, outside quoted text, at which `found` holds; -1 when there is none. */
+function findOutsideQuotes(text: string, from: number, found: (index: number) => boolean): number {
+  const state = { index: from };
   while (state.index < text.length) {
     const char = text[state.index] ?? "";
     if (char === '"' || char === "'") {
       state.index = endOfQuoted(text, state.index);
       continue;
     }
-    if (char === "(" || char === "{") state.depth += 1;
-    if ((char === ")" || char === "}") && --state.depth === 0) return state.index + 1;
+    if (found(state.index)) return state.index;
     state.index += 1;
   }
-  return text.length;
+  return -1;
+}
+
+/** Index just past the bracket that closes the one opening at `start`, skipping quoted text. */
+function endOfBracket(text: string, start: number): number {
+  const depth = { value: 0 };
+  const close = findOutsideQuotes(text, start, (index) => {
+    const char = text[index];
+    if (char === "(" || char === "{") depth.value += 1;
+    return (char === ")" || char === "}") && --depth.value === 0;
+  });
+  return close === -1 ? text.length : close + 1;
 }
 
 /** `inner` split on its top-level commas, each part trimmed. */
@@ -160,18 +170,7 @@ export const substituteNames = (text: string, bindings: readonly Binding[]): str
 
 /** Where the first `LAMBDA(…)` written outside quotes starts, from `from`, or -1. */
 function nextLambda(text: string, from: number): number {
-  const state = { index: from };
-  while (state.index < text.length) {
-    const char = text[state.index] ?? "";
-    if (char === '"' || char === "'") {
-      state.index = endOfQuoted(text, state.index);
-      continue;
-    }
-    const startsWord = !IDENTIFIER_BEFORE.test(text[state.index - 1] ?? "");
-    if (startsWord && /^LAMBDA\s*\(/i.test(text.slice(state.index))) return state.index;
-    state.index += 1;
-  }
-  return -1;
+  return findOutsideQuotes(text, from, (index) => !IDENTIFIER_BEFORE.test(text[index - 1] ?? "") && /^LAMBDA\s*\(/i.test(text.slice(index)));
 }
 
 /** `text` with every `LAMBDA(…)(…)` call replaced by the LAMBDA's body over the arguments, or null

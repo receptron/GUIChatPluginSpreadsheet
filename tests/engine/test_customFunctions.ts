@@ -287,6 +287,15 @@ describe("calling a workbook's functions", () => {
   });
 });
 
+/** A broken body is the one problem reported, and FINE beside it still loads. */
+const assertOnlyBodyRejected = async (name: string, body: string): Promise<void> => {
+  const set = await loadCustomFunctions([{ functions: [spec(name, [], body), spec("FINE", [], "return 1;")] }]);
+  assert.equal(set.problems.length, 1);
+  assert.match(set.problems[0]?.reason ?? "", /does not compile/);
+  assert.equal(set.definitions.has("FINE"), true);
+  set.dispose();
+};
+
 describe("the functions are the workbook's alone", () => {
   it("are unknown outside calculateWith, also after a calculation that threw", async () => {
     const set = await loadCustomFunctions([sheetWith([])]);
@@ -327,20 +336,12 @@ describe("the functions are the workbook's alone", () => {
   });
 
   it("reports a body that does not compile, and keeps the others", async () => {
-    const set = await loadCustomFunctions([{ functions: [spec("BROKEN", [], "return ("), spec("FINE", [], "return 1;")] }]);
-    assert.equal(set.problems.length, 1);
-    assert.match(set.problems[0]?.reason ?? "", /does not compile/);
-    assert.equal(set.definitions.has("FINE"), true);
-    set.dispose();
+    await assertOnlyBodyRejected("BROKEN", "return (");
   });
 
   // A body can close its Function early and run code while it loads; that code is held to a deadline.
   it("stops code a body runs while it loads, and keeps the other functions", async () => {
-    const set = await loadCustomFunctions([{ functions: [spec("ESCAPE", [], "}); while (true) {} (function () {"), spec("FINE", [], "return 1;")] }]);
-    assert.equal(set.problems.length, 1);
-    assert.match(set.problems[0]?.reason ?? "", /does not compile/);
-    assert.equal(set.definitions.has("FINE"), true);
-    set.dispose();
+    await assertOnlyBodyRejected("ESCAPE", "}); while (true) {} (function () {");
   });
 
   it("does not load QuickJS for a workbook without functions", async () => {

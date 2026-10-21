@@ -5,17 +5,11 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
-import { cellAt } from "./cellAccess.ts";
 import { pick, seededRandom } from "./seededRandom.ts";
+import { valuesBesideCells } from "./formulaColumns.ts";
 
 // A1 holds "x", A2 TRUE, A3 5; the formulas go down column B.
-function valuesOf(formulas: string[]): unknown[] {
-  const cells = [{ v: "x" }, { v: true }, { v: 5 }];
-  const rows = Array.from({ length: Math.max(cells.length, formulas.length) }, (_, row) => [cells[row] ?? { v: "" }, { v: formulas[row] ?? "" }]);
-  const grid = new SpreadsheetEngine().calculate({ name: "S", data: rows } satisfies SheetData).data;
-  return formulas.map((_, row) => cellAt(grid, row, 1));
-}
+const valuesOf = (formulas: string[]): unknown[] => valuesBesideCells(formulas, [{ v: "x" }, { v: true }, { v: 5 }]);
 
 describe("a value written as an aggregate's argument", () => {
   it("answers the issue's formulas as Excel does", () => {

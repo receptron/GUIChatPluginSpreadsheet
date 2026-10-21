@@ -5,18 +5,11 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { forecastLinear, populationCovariance, sampleCovariance, standardErrorOfEstimate, trendAt } from "../../src/engine/functions/regression-math.ts";
 import { valuesOf } from "./formulaColumns.ts";
 import { seededRandom } from "./seededRandom.ts";
-
-const RELATIVE_TOLERANCE = 1e-9;
-
-const assertClose = (actual: unknown, expected: number, label: string): void => {
-  assert.equal(typeof actual, "number", `${label}: ${String(actual)}`);
-  const error = Math.abs(Number(actual) - expected) / Math.max(Math.abs(expected), 1);
-  assert.ok(error <= RELATIVE_TOLERANCE, `${label}: ${String(actual)} vs ${expected} (error ${error.toExponential(2)})`);
-};
+import { RELATIVE_TOLERANCE, assertRelativelyClose as assertClose } from "./closeness.ts";
+import { referenceCases } from "./referenceFixture.ts";
 
 const roundedTo = (digits: number, value: unknown): number => Number(Number(value).toFixed(digits));
 
@@ -84,10 +77,7 @@ const isReferenceCase = (value: unknown): value is ReferenceCase =>
   ["ys", "xs"].every((key) => Array.isArray(Reflect.get(value, key))) &&
   typeof Reflect.get(value, "newX") === "number";
 
-const parsed: unknown = JSON.parse(readFileSync(new URL("./fixtures/regression-reference.json", import.meta.url), "utf8"));
-const referenceCases: unknown = typeof parsed === "object" && parsed !== null ? Reflect.get(parsed, "cases") : undefined;
-assert.ok(Array.isArray(referenceCases) && referenceCases.length > 0 && referenceCases.every(isReferenceCase), "the reference fixture holds cases");
-const cases: ReferenceCase[] = referenceCases.filter(isReferenceCase);
+const cases: ReferenceCase[] = referenceCases("regression-reference.json", isReferenceCase);
 
 describe("the regression rules against exact references", () => {
   it("matches FORECAST.LINEAR and TREND with a constant", () => {
