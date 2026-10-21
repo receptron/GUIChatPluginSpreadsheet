@@ -5,7 +5,7 @@
  * on 52345 does not. Taking the size alone turned ordinary totals into 2043 dates.
  */
 
-import { findCellRefs } from "./evaluator";
+import { findCellRefs } from "./expressionText";
 import { isDateFormat } from "./formatter";
 
 // The functions whose answer is a date serial. NOW is left out: it carries a time of day.

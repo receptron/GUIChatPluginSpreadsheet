@@ -18,6 +18,7 @@ export * from "./translateFormula";
 export * from "./formulaError";
 export * from "./spreadsheet-errors";
 export * from "./evaluator";
+export * from "./expressionText";
 export * from "./calculator";
 export * from "./formulaRefs";
 export * from "./cellBuilder";

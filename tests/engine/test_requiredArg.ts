@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { functionRegistry, requiredArg, tooFewArgumentsError, type FunctionContext } from "../../src/engine/registry.ts";
 import "../../src/engine/functions/index.ts";
-import { substituteCellRefs, findCellRefs } from "../../src/engine/evaluator.ts";
+import { substituteCellRefs, findCellRefs } from "../../src/engine/expressionText.ts";
 
 const stubContext = (functionName: string): FunctionContext => ({
   functionName,
