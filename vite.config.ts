@@ -8,9 +8,9 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
-        index: resolve(__dirname, "src/index.ts"),
-        core: resolve(__dirname, "src/core/index.ts"),
-        vue: resolve(__dirname, "src/vue/index.ts"),
+        index: resolve(import.meta.dirname, "src/index.ts"),
+        core: resolve(import.meta.dirname, "src/core/index.ts"),
+        vue: resolve(import.meta.dirname, "src/vue/index.ts"),
       },
       name: "GUIChatPluginSpreadsheet",
       formats: ["es", "cjs"],
