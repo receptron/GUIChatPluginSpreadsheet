@@ -10,6 +10,7 @@ import "./statistical-analysis";
 import "./regression";
 import "./linest";
 import "./time-series";
+import "./forecast-ets";
 import "./distributions";
 import "./distribution-families";
 import "./hypothesis-tests";
