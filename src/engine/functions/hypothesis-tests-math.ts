@@ -86,8 +86,8 @@ interface Ranked {
   tieSizes: number[];
 }
 
-export function midRanks(values: readonly number[]): Ranked {
-  const order = values.map((value, index) => ({ value, index })).sort((left, right) => left.value - right.value);
+function midRanks(values: readonly number[]): Ranked {
+  const order = values.map((value, index) => ({ value, index })).toSorted((left, right) => left.value - right.value);
   const starts = order.flatMap((entry, position) => (position === 0 || entry.value !== order[position - 1]?.value ? [position] : []));
   const ranks = Array.from({ length: values.length }, () => 0);
   const tieSizes = starts.map((start, group) => {
@@ -192,8 +192,8 @@ const KOLMOGOROV_SMALL_LAMBDA = 1;
 /** The largest gap between the two empirical distribution functions, in units of 1 / (m·n) so
  *  that it is an integer: max |i·n − j·m| after each distinct value. */
 function largestGap(first: number[], second: number[]): number {
-  const [left, right] = [Float64Array.from(first).sort(), Float64Array.from(second).sort()];
-  const pooled = Float64Array.from([...left, ...right]).sort();
+  const [left, right] = [Float64Array.from(first).toSorted(), Float64Array.from(second).toSorted()];
+  const pooled = Float64Array.from([...left, ...right]).toSorted();
   const counter = { i: 0, j: 0, gap: 0 };
   pooled.forEach((value, position) => {
     if (pooled[position + 1] === value) return;
@@ -245,7 +245,7 @@ export function kolmogorovSmirnov(first: number[], second: number[]): Result {
   const gap = largestGap(first, second);
   if (gap === 0) return 1;
   if (m * n > KS_EXACT_MAX_PRODUCT) return kolmogorovUpper((gap / (m * n)) * Math.sqrt((m * n) / (m + n)));
-  const pooled = Float64Array.from([...first, ...second]).sort();
+  const pooled = Float64Array.from([...first, ...second]).toSorted();
   const observed = Array.from({ length: m + n + 1 }, (_, count) => count > 0 && pooled[count - 1] !== pooled[count]);
   return clampProbability(ksExactOutside(m, n, gap, observed));
 }
@@ -328,7 +328,7 @@ function shapiroProbability(oneMinusW: number, n: number): number {
 export function shapiroWilk(values: number[]): Result {
   const n = values.length;
   if (n < SW_MIN_VALUES) return DIV_ZERO_ERROR;
-  const sorted = Float64Array.from(values).sort();
+  const sorted = Float64Array.from(values).toSorted();
   if ((sorted[n - 1] ?? 0) - (sorted[0] ?? 0) === 0) return DIV_ZERO_ERROR;
   const center = sorted[Math.floor(n / 2)] ?? 0;
   const centered = sorted.map((value) => value - center);

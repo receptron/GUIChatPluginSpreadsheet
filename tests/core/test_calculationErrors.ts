@@ -84,13 +84,18 @@ describe("presentSpreadsheet's reply", () => {
 describe("a workbook that ran QuickJS out of time", () => {
   const workbook: SpreadsheetSheet[] = JSON.parse(readFileSync(path.join(import.meta.dirname, "fixtures/rfm-mutual-sheets.json"), "utf8"));
 
+  // One read after another, each loading and disposing its own functions.
+  const readInTurn = async ([range, ...rest]: string[]): Promise<void> => {
+    if (range === undefined) return;
+    const functions = await loadCustomFunctions(workbook);
+    const rows = calculatedRange(workbook, range, functions);
+    assert.doesNotThrow(() => functions.dispose());
+    assert.ok(rows.length > 0, `${range} came back`);
+    return readInTurn(rest);
+  };
+
   it("can be read again and again without taking later reads down", async () => {
-    for (const range of ["RFM!A1:J121", "Settings!A1:H11", "Summary!A1:D8"]) {
-      const functions = await loadCustomFunctions(workbook);
-      const rows = calculatedRange(workbook, range, functions);
-      assert.doesNotThrow(() => functions.dispose());
-      assert.ok(rows.length > 0, `${range} came back`);
-    }
+    await readInTurn(["RFM!A1:J121", "Settings!A1:H11", "Summary!A1:D8"]);
     const fresh = await loadCustomFunctions([{ functions: [{ name: "AFTER", params: [], body: "return 7;" }] }]);
     assert.equal(fresh.definitions.has("AFTER"), true);
     fresh.dispose();

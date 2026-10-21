@@ -75,7 +75,7 @@ const readLiteral = (pattern: string, scan: Scan): number => {
 
 /** The nearest date or time part from `start` stepping by `step`, past any text. */
 const neighbour = (tokens: DateToken[], start: number, step: number): DateToken | undefined => {
-  const rest = step < 0 ? tokens.slice(0, start + 1).reverse() : tokens.slice(start);
+  const rest = step < 0 ? tokens.slice(0, start + 1).toReversed() : tokens.slice(start);
   return rest.find((token) => token.kind !== "literal");
 };
 

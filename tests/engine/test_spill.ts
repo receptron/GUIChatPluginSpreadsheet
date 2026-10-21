@@ -18,7 +18,7 @@ functionRegistry.register({
   maxArgs: 2,
   handler: ([rows = "0", columns = "0"], context) =>
     Array.from({ length: numberOf(rows, context.evaluateFormula) }, (_, i) =>
-      Array.from({ length: numberOf(columns, context.evaluateFormula) }, (_, j) => (i + 1) * 10 + j + 1),
+      Array.from({ length: numberOf(columns, context.evaluateFormula) }, (_cell, j) => (i + 1) * 10 + j + 1),
     ),
 });
 // TEST.ECHO(range): the range as rows of cells.

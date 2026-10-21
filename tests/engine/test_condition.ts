@@ -246,23 +246,23 @@ describe("evaluateCondition — code is data", () => {
   // the formula. They must now be read as operands and nothing more.
   it("does not execute an assignment", () => {
     const marker = globalThis as Record<string, unknown>;
-    marker.__conditionProbe = false;
-    assert.equal(evaluateCondition("globalThis.__conditionProbe=true"), false, "an assignment is text, and text is not a comparison match");
-    assert.equal(marker.__conditionProbe, false, "nothing ran");
+    marker.spreadsheetConditionProbe = false;
+    assert.equal(evaluateCondition("globalThis.spreadsheetConditionProbe=true"), false, "an assignment is text, and text is not a comparison match");
+    assert.equal(marker.spreadsheetConditionProbe, false, "nothing ran");
   });
 
   it("does not execute a call or a sequence", () => {
     const marker = globalThis as Record<string, unknown>;
-    marker.__conditionProbe2 = false;
-    evaluateCondition("(globalThis.__conditionProbe2=true, 1)>0");
-    assert.equal(marker.__conditionProbe2, false);
+    marker.spreadsheetConditionProbe2 = false;
+    evaluateCondition("(globalThis.spreadsheetConditionProbe2=true, 1)>0");
+    assert.equal(marker.spreadsheetConditionProbe2, false);
   });
 
   it("does not honour a logical operator smuggled into the condition", () => {
     const marker = globalThis as Record<string, unknown>;
-    marker.__conditionProbe3 = false;
-    evaluateCondition("1>0&&(globalThis.__conditionProbe3=true)");
-    assert.equal(marker.__conditionProbe3, false);
+    marker.spreadsheetConditionProbe3 = false;
+    evaluateCondition("1>0&&(globalThis.spreadsheetConditionProbe3=true)");
+    assert.equal(marker.spreadsheetConditionProbe3, false);
   });
 
   it("never throws on syntactically broken input", () => {

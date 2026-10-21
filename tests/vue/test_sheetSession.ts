@@ -11,13 +11,10 @@ interface Deferred<T> {
 }
 
 function deferred<T>(): Deferred<T> {
-  let resolve: (value: T) => void = () => {};
-  let reject: (error: unknown) => void = () => {};
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
+  const settle: Partial<Pick<Deferred<T>, "resolve" | "reject">> = {};
+  // The executor runs before the constructor returns, so both are set from here on.
+  const promise = new Promise<T>((resolve, reject) => Object.assign(settle, { resolve, reject }));
+  return { promise, resolve: (value) => settle.resolve?.(value), reject: (error) => settle.reject?.(error) };
 }
 
 const sheet = (name: string): SpreadsheetSheet[] => [{ name, data: [[{ v: name }]] }];

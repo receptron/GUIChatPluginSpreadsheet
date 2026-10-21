@@ -71,10 +71,10 @@ const letHandler: FunctionHandler = (args, context) => {
   const pairs = Array.from({ length: (args.length - 1) / 2 }, (_, index) => ({ name: args[2 * index]?.trim() ?? "", written: args[2 * index + 1] ?? "" }));
   if (!pairs.every(({ name }) => isValidName(name))) return NAME_ERROR;
   return withHoldings((holdings) => {
-    const bindings = pairs.reduce<Binding[]>(
-      (bound, { name, written }) => [...bound, bindingFor(name, substituteNames(written, bound), context, holdings)],
-      [],
-    );
+    const bindings = pairs.reduce<Binding[]>((bound, { name, written }) => {
+      bound.push(bindingFor(name, substituteNames(written, bound), context, holdings));
+      return bound;
+    }, []);
     return valueOf(substituteNames(args.at(-1) ?? "", bindings), context);
   });
 };
@@ -168,7 +168,7 @@ const mapHandler: FunctionHandler = (args, context) => {
     const sources = args.slice(0, -1).map((arg) => elementSource(arg, context, holdings));
     const shape = combinedShape(sources.map((source) => ({ rows: source.rows, columns: source.columns })));
     return Array.from({ length: shape.rows }, (_, row) =>
-      Array.from({ length: shape.columns }, (_, col) => {
+      Array.from({ length: shape.columns }, (_cell, col) => {
         const positions = sources.map((source) => ({ source, sourceRow: alignedIndex(source.rows, row), sourceCol: alignedIndex(source.columns, col) }));
         if (positions.some(({ sourceRow, sourceCol }) => sourceRow < 0 || sourceCol < 0)) return NA_ERROR;
         const texts = positions.map(({ source, sourceRow, sourceCol }) => source.textAt(sourceRow, sourceCol));

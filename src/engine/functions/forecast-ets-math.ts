@@ -25,7 +25,7 @@ const sum = (values: readonly number[]): number => values.reduce((total, value) 
 const mean = (values: readonly number[]): number => sum(values) / values.length;
 
 function median(values: readonly number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
+  const sorted = values.toSorted((left, right) => left - right);
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 1 ? (sorted[middle] ?? 0) : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
 }
@@ -62,7 +62,7 @@ export interface RegularSeries {
 
 /** Each distinct time with the values at it, in time order. */
 function groupedByTime(points: readonly TimedValue[]): { time: number; values: number[] }[] {
-  const sorted = [...points].sort((left, right) => left.time - right.time);
+  const sorted = points.toSorted((left, right) => left.time - right.time);
   return sorted.reduce<{ time: number; values: number[] }[]>((groups, point) => {
     const last = groups.at(-1);
     const group = last && last.time === point.time ? last : { time: point.time, values: [] };
@@ -217,12 +217,13 @@ const squaredErrorOf = (values: readonly number[], period: number, smoothing: Sm
  *  one-step errors, least first (a tie in grid order). */
 function scoredGrid(values: readonly number[], period: number): Scored[] {
   const candidates = grid(1).flatMap((alpha) => grid(1).flatMap((beta) => (period === 0 ? [0] : grid(1 - alpha)).map((gamma) => ({ alpha, beta, gamma }))));
-  return candidates.map((smoothing) => ({ smoothing, error: squaredErrorOf(values, period, smoothing) })).sort((left, right) => left.error - right.error);
+  return candidates.map((smoothing) => ({ smoothing, error: squaredErrorOf(values, period, smoothing) })).toSorted((left, right) => left.error - right.error);
 }
+
+const clip = (value: number, limit: number): number => Math.min(Math.max(value, 0), limit);
 
 /** The smoothings one `step` from `at` along each parameter, kept within 0 ≤ α, β ≤ 1 and 0 ≤ γ ≤ 1 − α. */
 function neighbours(at: Smoothing, step: number, period: number): Smoothing[] {
-  const clip = (value: number, limit: number): number => Math.min(Math.max(value, 0), limit);
   const moved = [-step, step].flatMap((delta) => {
     const alpha = clip(at.alpha + delta, 1);
     const alongAlpha = { ...at, alpha, gamma: Math.min(at.gamma, 1 - alpha) };

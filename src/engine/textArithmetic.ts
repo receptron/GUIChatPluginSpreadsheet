@@ -25,7 +25,7 @@ function endOfLiteral(expr: string, start: number): number {
 function isEscaped(chars: readonly string[], offset: number): boolean {
   const run = chars
     .slice(0, offset)
-    .reverse()
+    .toReversed()
     .findIndex((char) => char !== "\\");
   const backslashes = run === -1 ? offset : run;
   return backslashes % 2 === 1;

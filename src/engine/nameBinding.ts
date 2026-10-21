@@ -83,7 +83,7 @@ const sameName = (left: string, right: string): boolean => left.toUpperCase() ==
 
 /** A LAMBDA's body with each parameter replaced by the bracketed argument written for it, or null when
  *  the arguments do not match the parameters one for one. */
-export function inlinedCall(lambda: Lambda, argumentTexts: string[]): string | null {
+function inlinedCall(lambda: Lambda, argumentTexts: string[]): string | null {
   if (argumentTexts.length !== lambda.params.length) return null;
   const bindings = lambda.params.map((name, index): Binding => ({ name, text: `(${argumentTexts[index] ?? ""})` }));
   return `(${substituteNames(lambda.body, bindings)})`;
@@ -156,7 +156,7 @@ export function substituteName(text: string, binding: Binding): string {
 
 /** `text` with each binding written in, the latest first, so a name bound twice takes its latest value. */
 export const substituteNames = (text: string, bindings: readonly Binding[]): string =>
-  [...bindings].reverse().reduce((written, binding) => substituteName(written, binding), text);
+  bindings.toReversed().reduce((written, binding) => substituteName(written, binding), text);
 
 /** Where the first `LAMBDA(…)` written outside quotes starts, from `from`, or -1. */
 function nextLambda(text: string, from: number): number {

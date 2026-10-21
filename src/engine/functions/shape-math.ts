@@ -68,7 +68,7 @@ export function percentRank(values: number[], x: number, significance: number): 
   const digits = Math.trunc(significance);
   if (digits < 1 || values.length === 0) return NUM_ERROR;
   // A Float64Array sorts by value; a plain array's default sort compares text.
-  const sorted = Array.from(Float64Array.from(values).sort());
+  const sorted = Array.from(Float64Array.from(values).toSorted());
   const [smallest, largest] = [sorted[0], sorted.at(-1)];
   if (smallest === undefined || largest === undefined || x < smallest || x > largest) return NA_ERROR;
   if (sorted.length === 1) return 1;

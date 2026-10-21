@@ -195,7 +195,7 @@ export function findCellRefs(expr: string): CellRefSpan[] {
  *  `=A1+A10` had its `A10` broken into `<A1's value>0` and produced a plausible
  *  wrong number (#2357). */
 export function substituteCellRefs(expr: string, cellRefs: CellRefSpan[], render: (ref: string, start: number) => string): string {
-  return [...cellRefs].reverse().reduce((text, { ref, start }) => text.slice(0, start) + render(ref, start) + text.slice(start + ref.length), expr);
+  return cellRefs.toReversed().reduce((text, { ref, start }) => text.slice(0, start) + render(ref, start) + text.slice(start + ref.length), expr);
 }
 
 /**
@@ -318,7 +318,7 @@ function blankComparisonSides(expr: string, context: EvaluatorContext): boolean[
 }
 
 /** The reference an operand is, perhaps in brackets, or null when it is anything more. */
-export function loneReference(operand: string): string | null {
+function loneReference(operand: string): string | null {
   const inner = stripOuterParens(operand).trim();
   const [only, ...rest] = findCellRefs(inner);
   return only && rest.length === 0 && only.start === 0 && only.ref.length === inner.length ? only.ref : null;

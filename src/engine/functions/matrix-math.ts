@@ -19,7 +19,7 @@ export function multiply(left: Matrix, right: Matrix): Matrix | SpreadsheetError
   return left.map((row) => Array.from({ length: width }, (_, col) => row.reduce((sum, value, k) => sum + value * (right[k]?.[col] ?? 0), 0)));
 }
 
-export const identity = (size: number): Matrix => Array.from({ length: size }, (_, row) => Array.from({ length: size }, (_, col) => (row === col ? 1 : 0)));
+export const identity = (size: number): Matrix => Array.from({ length: size }, (_, row) => Array.from({ length: size }, (_cell, col) => (row === col ? 1 : 0)));
 
 interface Decomposition {
   /** L below the diagonal (its unit diagonal left out) and U on and above it, in one matrix. */
@@ -111,9 +111,9 @@ export function determinant(matrix: Matrix): number | SpreadsheetError {
 /** FREQUENCY: how many values fall at or below each bin and above the one before it, in the bins'
  *  own order, and then how many lie above every bin. With no bins, the count of the values. */
 export function frequency(values: number[], bins: number[]): number[] {
-  const sortedBins = bins.map((bin, index) => ({ bin, index })).sort((left, right) => left.bin - right.bin);
+  const sortedBins = bins.map((bin, index) => ({ bin, index })).toSorted((left, right) => left.bin - right.bin);
   const counts = Array.from({ length: bins.length + 1 }, () => 0);
-  const sortedValues = [...values].sort((left, right) => left - right);
+  const sortedValues = values.toSorted((left, right) => left - right);
   const counted = sortedBins.reduce((cursor, { bin, index }) => {
     const reached = sortedValues.findIndex((value, position) => position >= cursor && value > bin);
     const next = reached === -1 ? sortedValues.length : reached;
@@ -123,6 +123,11 @@ export function frequency(values: number[], bins: number[]): number[] {
   counts[bins.length] = sortedValues.length - counted;
   return counts;
 }
+
+const numberAt = (table: CellValue[][], row: number, col: number): number => {
+  const cell = table[row]?.[col];
+  return typeof cell === "number" ? cell : 0;
+};
 
 /** SUMPRODUCT: the sum, over every position, of the product of the tables' cells there. The tables
  *  must have one shape (#VALUE! otherwise); a cell that is not a number counts as 0, and the first
@@ -134,10 +139,6 @@ export function sumOfProducts(tables: CellValue[][][]): number | SpreadsheetErro
   if (!sameShape) return VALUE_ERROR;
   const error = tables.flatMap((table) => table.flat()).find(isSpreadsheetErrorValue);
   if (error) return error;
-  const numberAt = (table: CellValue[][], row: number, col: number): number => {
-    const cell = table[row]?.[col];
-    return typeof cell === "number" ? cell : 0;
-  };
   return first.reduce<number>(
     (sum, row, r) => sum + row.reduce<number>((rowSum, _, c) => rowSum + tables.reduce((product, table) => product * numberAt(table, r, c), 1), 0),
     0,

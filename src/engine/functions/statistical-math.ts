@@ -29,7 +29,7 @@ export function computeAverage(values: number[]): number | SpreadsheetError {
  */
 export function computeMedian(values: number[]): number | SpreadsheetError {
   if (values.length === 0) return NUM_ERROR;
-  return arithmeticMean(middleValues([...values].sort((a, b) => a - b)));
+  return arithmeticMean(middleValues(values.toSorted((a, b) => a - b)));
 }
 
 /** The one or two values sitting in the middle of a sorted list — two when the

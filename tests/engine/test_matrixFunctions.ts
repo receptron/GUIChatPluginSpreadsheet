@@ -201,10 +201,10 @@ describe(`properties over generated matrices (seed ${baseSeed})`, () => {
       if (typeof detA !== "number" || Math.abs(detA) < 1e-6) return;
       assertClose(
         spilled(`=MMULT(A1:${last}${size},MINVERSE(A1:${last}${size}))`, fromRows(a)),
-        Array.from({ length: size }, (_, r) => Array.from({ length: size }, (_, c) => (r === c ? 1 : 0))),
+        Array.from({ length: size }, (_, r) => Array.from({ length: size }, (_cell, c) => (r === c ? 1 : 0))),
         label,
       );
-      const both = fromRows(a.map((row, r) => [...row, ...(b[r] ?? [])]));
+      const both = fromRows(a.map((row, r) => row.concat(b[r] ?? [])));
       const [left, right] = [`A1:${last}${size}`, `${columnLetter(size)}1:${columnLetter(2 * size - 1)}${size}`];
       const [detProduct] = spilled(`=MDETERM(MMULT(${left},${right}))`, both)[0] ?? [];
       const [detB] = spilled(`=MDETERM(${right})`, both)[0] ?? [];

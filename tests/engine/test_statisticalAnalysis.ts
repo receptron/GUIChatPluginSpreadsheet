@@ -22,7 +22,7 @@ const ROWS: (string | number)[][] = [
 
 /** The data in A1:C6 with `formula` in E1, calculated. */
 const evaluate = (formula: string): unknown => {
-  const data = ROWS.map((row, index) => [...row.map((v) => ({ v })), { v: "" }, { v: index === 0 ? formula : "" }]);
+  const data = ROWS.map((row, index) => row.map((v) => ({ v })).concat([{ v: "" }, { v: index === 0 ? formula : "" }]));
   const sheet: SheetData = { name: "S", data };
   return cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 4);
 };

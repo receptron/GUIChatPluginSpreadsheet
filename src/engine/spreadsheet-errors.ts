@@ -26,7 +26,7 @@ export class SpreadsheetError {
   }
 }
 
-export const NULL_ERROR = new SpreadsheetError("#NULL!");
+const NULL_ERROR = new SpreadsheetError("#NULL!");
 export const DIV_ZERO_ERROR = new SpreadsheetError("#DIV/0!");
 export const VALUE_ERROR = new SpreadsheetError("#VALUE!");
 export const REF_ERROR = new SpreadsheetError("#REF!");
@@ -37,7 +37,7 @@ export const NA_ERROR = new SpreadsheetError("#N/A");
 export const SPILL_ERROR = new SpreadsheetError("#SPILL!");
 /** A table function whose answer would have no cells (an UNIQUE that finds nothing, a TAKE of 0). */
 export const CALC_ERROR = new SpreadsheetError("#CALC!");
-export const UNKNOWN_ERROR = new SpreadsheetError("#ERROR!");
+const UNKNOWN_ERROR = new SpreadsheetError("#ERROR!");
 
 // One instance per code: two errors of the same kind compare equal, which is how
 // error strings behaved and what the condition/comparison paths still rely on.

@@ -51,7 +51,7 @@ export function sortedRows(rows: CellArray, sortOrder: readonly number[]): CellA
     });
     return decided.find((difference) => difference !== 0) ?? 0;
   };
-  return positions.sort(compare).map((index) => rows[index] ?? []);
+  return positions.toSorted(compare).map((index) => rows[index] ?? []);
 }
 
 export interface GroupByOptions {
@@ -115,7 +115,7 @@ function withSubtotals(leaves: Leaf[], prefix: number, layout: SubtotalLayout): 
       block.flatMap((leaf) => leaf.dataRows),
       layout.aggregate,
     );
-    return layout.atTop ? [subtotal, ...inner] : [...inner, subtotal];
+    return layout.atTop ? [subtotal].concat(inner) : inner.concat([subtotal]);
   });
 }
 
@@ -151,14 +151,12 @@ export function pivotTable(
   const columns: (Group | null)[] = withTotal(columnGroups, options.columnTotals);
   const rows: (Group | null)[] = withTotal(rowGroups, options.rowTotals);
   const blankRowKey = Array.from({ length: rowWidth }, (): CellValue => "");
-  const headerRows = Array.from({ length: columnDepth }, (_, level) => [
-    ...blankRowKey,
-    ...columns.map((group) => (group === null ? (level === 0 ? TOTAL : "") : (group.key[level] ?? ""))),
-  ]);
-  const bodyRows = rows.map((rowGroup) => [
-    ...(rowGroup === null ? [TOTAL, ...blankRowKey.slice(1)] : rowGroup.key),
-    ...columns.map((columnGroup) => cell(both(rowGroup, columnGroup))),
-  ]);
+  const headerRows = Array.from({ length: columnDepth }, (_, level) =>
+    blankRowKey.concat(columns.map((group) => (group === null ? (level === 0 ? TOTAL : "") : (group.key[level] ?? "")))),
+  );
+  const bodyRows = rows.map((rowGroup) =>
+    (rowGroup === null ? [TOTAL, ...blankRowKey.slice(1)] : rowGroup.key).concat(columns.map((columnGroup) => cell(both(rowGroup, columnGroup)))),
+  );
   return [...headerRows, ...bodyRows];
 }
 

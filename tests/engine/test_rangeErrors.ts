@@ -130,18 +130,19 @@ describe("reading an aggregate's arguments", () => {
   });
 });
 
+const host = (raw: unknown[]): FunctionContext => ({
+  functionName: "SUM",
+  getCellValue: () => 0,
+  getRangeValues: () => [3, 5],
+  getRangeValuesRaw: () => raw.filter(isCellValueForTest),
+  evaluateFormula: (formula) => {
+    if (formula === "1/0") return DIV_ZERO_ERROR;
+    return formula.startsWith('"') ? formula.slice(1, -1) : Number(formula);
+  },
+});
+
 describe("a host without the blank-aware read", () => {
   // The numeric read keeps 3 and 5; the raw read shows the blank as 0 and the error.
-  const host = (raw: unknown[]): FunctionContext => ({
-    functionName: "SUM",
-    getCellValue: () => 0,
-    getRangeValues: () => [3, 5],
-    getRangeValuesRaw: () => raw.filter(isCellValueForTest),
-    evaluateFormula: (formula) => {
-      if (formula === "1/0") return DIV_ZERO_ERROR;
-      return formula.startsWith('"') ? formula.slice(1, -1) : Number(formula);
-    },
-  });
 
   it("still answers a range error, read from the raw read", () => {
     const sum = functionRegistry.get("SUM");

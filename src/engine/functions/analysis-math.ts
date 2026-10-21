@@ -81,7 +81,7 @@ export function rSquared(pairs: NumericPairs): number | SpreadsheetError {
  */
 export function percentileInclusive(values: number[], k: number): number | SpreadsheetError {
   if (values.length === 0 || k < 0 || k > PERCENT_MAX) return NUM_ERROR;
-  const sorted = [...values].sort((a, b) => a - b);
+  const sorted = values.toSorted((a, b) => a - b);
   const position = k * (sorted.length - 1);
   const lower = sorted[Math.floor(position)] ?? 0;
   const upper = sorted[Math.ceil(position)] ?? lower;
@@ -100,14 +100,14 @@ export function quartileInclusive(values: number[], quarter: number): number | S
 export function kthLargest(values: number[], k: number): number | SpreadsheetError {
   const position = Math.ceil(k);
   if (position < 1 || position > values.length) return NUM_ERROR;
-  return [...values].sort((a, b) => b - a)[position - 1] ?? NUM_ERROR;
+  return values.toSorted((a, b) => b - a)[position - 1] ?? NUM_ERROR;
 }
 
 /** The k-th smallest value (SMALL), under the same rules as `kthLargest`. */
 export function kthSmallest(values: number[], k: number): number | SpreadsheetError {
   const position = Math.ceil(k);
   if (position < 1 || position > values.length) return NUM_ERROR;
-  return [...values].sort((a, b) => a - b)[position - 1] ?? NUM_ERROR;
+  return values.toSorted((a, b) => a - b)[position - 1] ?? NUM_ERROR;
 }
 
 /** RANK: 1 + how many values beat `target`, so equal values share the top rank.

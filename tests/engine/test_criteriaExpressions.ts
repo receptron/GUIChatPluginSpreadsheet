@@ -53,14 +53,14 @@ describe("criteria written as a literal still work", () => {
   });
 });
 
+const countIn = (range: string, criteria: string): unknown => {
+  const sheet: SheetData = { name: "S", data: [[{ v: "2020-01-01" }, { v: `=COUNTIF(${range},${criteria})` }], [{ v: 1 }], [{ v: "2020-01-02" }]] };
+  return cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 1);
+};
+
 // A date written as a literal is a date, as in Excel. Read as source text it was
 // parseFloat'ed to 1 and matched the NUMBER 1 instead of the date.
 describe("criteria written as a date", () => {
-  const countIn = (range: string, criteria: string): unknown => {
-    const sheet: SheetData = { name: "S", data: [[{ v: "2020-01-01" }, { v: `=COUNTIF(${range},${criteria})` }], [{ v: 1 }], [{ v: "2020-01-02" }]] };
-    return cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 1);
-  };
-
   it("matches the date, not the number its first digits spell", () => {
     assert.equal(countIn("A1", '"1/1/2020"'), 1);
     assert.equal(countIn("A2", '"1/1/2020"'), 0);

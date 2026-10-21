@@ -9,9 +9,9 @@ const listedNames = (): string[] => Object.values(registeredFunctionsByCategory(
 describe("registeredFunctionsByCategory", () => {
   it("lists every documented registered function once, sorted within its category", () => {
     const documented = functionRegistry.getAllFunctions().filter((definition) => definition.internal !== true);
-    assert.deepEqual(listedNames().sort(), documented.map((definition) => definition.name).sort());
+    assert.deepEqual(listedNames().toSorted(), documented.map((definition) => definition.name).toSorted());
     assert.equal(new Set(listedNames()).size, listedNames().length);
-    Object.values(registeredFunctionsByCategory()).forEach((names) => assert.deepEqual(names, [...names].sort()));
+    Object.values(registeredFunctionsByCategory()).forEach((names) => assert.deepEqual(names, names.toSorted()));
   });
 
   it("files each function under its own category", () => {

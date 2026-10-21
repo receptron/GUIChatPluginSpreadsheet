@@ -72,6 +72,8 @@ const calcRow = (row: unknown[], formula: string, otherSheets: SheetData[] = [])
 const blankAfter = (blank: unknown): unknown =>
   cellAt(new SpreadsheetEngine().calculate({ name: "S", data: normalizeData([[{ v: '=B1&"x"' }, blank, { v: "=B1+1" }]]) }).data, 0, 0);
 
+const joined = (cells: SheetData["data"][number], col: number): unknown => cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [cells] }).data, 0, col);
+
 describe("a blank cell in a & join", () => {
   // A1 blank, B1 = 3
   it("joins as nothing, as in Excel", () => {
@@ -106,8 +108,6 @@ describe("a blank cell in a & join", () => {
 
   // A formula cell is judged by its answer whether it is calculated before or after the join.
   it("joins a formula's answer the same whichever cell comes first", () => {
-    const joined = (cells: SheetData["data"][number], col: number): unknown =>
-      cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [cells] }).data, 0, col);
     ['=""', '=" "', '="y"', "=0"].forEach((answer) => {
       const after = joined([{ v: '=B1&"x"' }, { v: answer }], 0);
       const before = joined([{ v: answer }, { v: '=A1&"x"' }], 1);

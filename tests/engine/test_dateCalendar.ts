@@ -111,6 +111,8 @@ const evaluateInSheet = (formula: string): unknown => {
   return cellAt(new SpreadsheetEngine().calculate(sheet).data, 0, 4);
 };
 
+const isWeekday = (day: number): boolean => weekdayOf(day, 2) !== NUM_ERROR && Number(weekdayOf(day, 2)) <= 5;
+
 describe("edges of the calendar rules", () => {
   it("covers every WEEKDAY return type on a Thursday", () => {
     const thursday = serial(2008, 2, 14);
@@ -130,7 +132,6 @@ describe("edges of the calendar rules", () => {
   });
 
   it("agrees with a day-by-day count over generated spans", () => {
-    const isWeekday = (day: number): boolean => weekdayOf(day, 2) !== NUM_ERROR && Number(weekdayOf(day, 2)) <= 5;
     const seed = { value: 11 };
     const next = (): number => (seed.value = (seed.value * 16807) % 2147483647) / 2147483647;
     Array.from({ length: 300 }, (): [number, number] => [Math.floor(40000 + next() * 4000), Math.floor(next() * 400)]).forEach(([start, length]) => {
