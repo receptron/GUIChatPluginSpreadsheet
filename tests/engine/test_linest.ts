@@ -86,6 +86,33 @@ describe("against the exact references", () => {
 
 const column = (values: CellValue[]): CellValue[][] => values.map((value) => [value]);
 
+describe("with array expressions", () => {
+  it("Microsoft's Example 2: the line's value in month 9 as SUM(LINEST(…)*{9,1})", () => {
+    const sales = column([3100, 4500, 4400, 5400, 7500, 8100]);
+    const months = column([1, 2, 3, 4, 5, 6]);
+    assertTableClose(
+      spilledBeside([months, sales], ([x, y]) => `=SUM(LINEST(${y},${x})*{9,1})`),
+      [[11000]],
+      "Microsoft's published answer",
+    );
+  });
+
+  it("fits a polynomial when x is raised to an array of powers", () => {
+    const xs = [1, 2, 3, 4, 5, 6, 7];
+    const ys = column(xs.map((x) => 2 + 3 * x - 0.5 * x * x + 0.1 * x ** 3));
+    assertTableClose(
+      spilledBeside([ys, column(xs)], ([y, x]) => `=LINEST(${y},${x}^{1,2,3})`),
+      [[0.1, -0.5, 3, 2]],
+      "y = 0.1x³ − 0.5x² + 3x + 2",
+    );
+    assertTableClose(
+      spilledBeside([ys, column(xs)], ([y, x]) => `=TREND(${y},${x}^{1,2,3},8^{1,2,3})`),
+      [[2 + 24 - 32 + 51.2]],
+      "the cubic at 8",
+    );
+  });
+});
+
 describe("the argument rules", () => {
   const ys = column([3, 5, 9, 11]);
   const xs = column([1, 2, 4, 5]);

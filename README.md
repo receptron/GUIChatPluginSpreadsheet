@@ -146,9 +146,9 @@ A formula that is a range and nothing else, such as `=A1:C5` or `=Data!A1:B10`, 
 - **Formatting.** A spilled cell takes its own cell's number format if it has one, and the formula cell's format otherwise.
 - **Saving.** Only the formula is saved. The spilled values are rebuilt on every calculation.
 
-A function can answer a table too: `GROUPBY`, `PIVOTBY`, `DECOMPOSE`, `EMA`, `RANDARRAY`, `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `MMULT`, `MINVERSE`, `MUNIT`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND` and `GROWTH` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A range argument accepts such a call, as in `=SUM(…)` over it.
+A function can answer a table too: `XLOOKUP` (a whole row or column; see below), `GROUPBY`, `PIVOTBY`, `DECOMPOSE`, `EMA`, `RANDARRAY`, `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `MMULT`, `MINVERSE`, `MUNIT`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND` and `GROWTH` do, and they take each other's tables (`=SORT(UNIQUE(A2:A100))`). An answer with no cells is `#CALC!`. A range argument accepts such a call, as in `=SUM(…)` over it.
 
-`LINEST` and `LOGEST` fit one or more x variables by least squares (`LOGEST` fits ln y, so every y must be above 0). With known_y a column, each column of known_x is a variable; with known_y a row, each row is; known_x of known_y's own shape is one variable. They answer the coefficients from the last x to the first, then the constant; with stats `TRUE`, four more rows follow: the standard errors, r² and the standard error of y, F and the degrees of freedom, and the regression and residual sums of squares, with `#N/A` where a row has no more values. An x collinear with the ones before it (the constant first) is left out, with a coefficient and standard error of 0 and one more degree of freedom, as Excel documents. A statistic that divides by 0 (no degrees of freedom, a perfect fit's F) is `#NUM!`. `TREND` and `GROWTH` answer the fitted line or curve at each new x, at known_x when new_x is left out.
+`LINEST` and `LOGEST` fit one or more x variables by least squares (`LOGEST` fits ln y, so every y must be above 0). With known_y a column, each column of known_x is a variable; with known_y a row, each row is; known_x of known_y's own shape is one variable. They answer the coefficients from the last x to the first, then the constant; with stats `TRUE`, four more rows follow: the standard errors, r² and the standard error of y, F and the degrees of freedom, and the regression and residual sums of squares, with `#N/A` where a row has no more values. An x collinear with the ones before it (the constant first) is left out, with a coefficient and standard error of 0 and one more degree of freedom, as Excel documents. A statistic that divides by 0 (no degrees of freedom, a perfect fit's F) is `#NUM!`. `TREND` and `GROWTH` answer the fitted line or curve at each new x, at known_x when new_x is left out. A polynomial is a fit over powers of x: `=LINEST(B2:B20, A2:A20^{1,2,3})` fits a cubic, and `=TREND(B2:B20, A2:A20^{1,2,3}, 8^{1,2,3})` answers it at 8.
 
 ### Grouping
 
@@ -159,6 +159,10 @@ A function can answer a table too: `GROUPBY`, `PIVOTBY`, `DECOMPOSE`, `EMA`, `RA
 - sort_order: columns of the answer, 1-based, negative for descending, one or an array; left out, each key column ascending. PIVOTBY's row_sort_order and col_sort_order number the key columns and then the values, which sorts by each row's or column's total.
 - filter_array: TRUE (or a number other than 0) for each data row to keep.
 - Not supported: GROUPBY's field_relationship, PIVOTBY's relative_to, more than one PIVOTBY values column and PIVOTBY subtotals; each is `#VALUE!`.
+
+### XLOOKUP over a table
+
+When `XLOOKUP`'s return range has several rows and several columns, the answer is the whole matching row (the lookup ran down a column) or the whole matching column (it ran along a row), and it spills: `=XLOOKUP("b", A2:A9, B2:D9)` gives the three cells of B, C and D on the row where A holds "b". A return range of one row or one column gives one cell, as before.
 
 ### Arrays in expressions
 
