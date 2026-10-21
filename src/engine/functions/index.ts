@@ -23,6 +23,7 @@ import "./text";
 import "./financial";
 import "./lookup";
 import "./array-functions";
+import "./group-by";
 import "./matrix";
 import "./date";
 import "./calendar";

@@ -144,6 +144,22 @@ function callFor(lambda: Lambda, argumentTexts: string[], context: FunctionConte
 /** Where one value is wanted, a table of more than one cell is #CALC!. */
 const singleCell = (value: FormulaValue): CellValue => (isCellArray(value) ? CALC_ERROR : value);
 
+/** What a function argument — a function's name (`SUM`, Excel's eta-reduced LAMBDA) or a LAMBDA of one
+ *  parameter — answers for a table, or #VALUE! when it is neither. A table answer is #CALC!. */
+export function aggregatorFor(arg: string, context: FunctionContext): ((table: CellArray) => CellValue) | typeof VALUE_ERROR {
+  const name = arg.trim();
+  const lambda = parseLambda(name);
+  const isFunctionName = /^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)*$/.test(name) && functionRegistry.hasFunction(name);
+  if (lambda ? lambda.params.length !== 1 : !isFunctionName) return VALUE_ERROR;
+  return (table) =>
+    singleCell(
+      withHoldings((holdings) => {
+        const text = hold(table, holdings);
+        return lambda ? callFor(lambda, [text], context) : normalizedValue(valueOf(`${name}(${text})`, context));
+      }),
+    );
+}
+
 // MAP(array1, [array2, …], lambda): the LAMBDA at each element, the arrays lined up as in A1:A3+B1:B3.
 const mapHandler: FunctionHandler = (args, context) => {
   const lambda = lambdaArg(args.at(-1) ?? "", args.length - 1);
