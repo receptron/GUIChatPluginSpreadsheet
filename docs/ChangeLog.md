@@ -1,5 +1,26 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@5.0.0 — 2026-10-21
+
+The package now needs an ES2023 runtime; the rest is cleanup with no change in behaviour, which clears every code scanning finding.
+
+### Breaking
+
+- **An ES2023 runtime is required** (#185): the engine uses `Array.prototype.toSorted` / `toReversed` (and the typed-array forms) as they are, with no polyfill. That means Node 22 or later (as `engines` already said), Chrome 110, Safari 16, Firefox 115 or later. An older browser stops with `TypeError: … toSorted is not a function` when a sheet is calculated. README's Installation section says so.
+
+### Cleanup (no change in behaviour)
+
+- **oxlint, knip and marker findings** (#185): `toSorted` / `toReversed` in place of `sort` / `reverse` on copies, no shadowed names, helpers that capture nothing moved to module scope, unused exports dropped (and the unused `collectNumericValues` removed), the `TODO` on `FormulaInfo.dependencies` replaced by what the field is. Checked by running `origin/main` and the branch side by side over every formula in the tests and over generated sheets.
+- **Repeated code folded** (#186): the RANK-style and `(range, k)` handlers share one factory each, and the name-binding scans share one quote-skipping walk; the tests share their sheet, closeness, fixture, random-stream and script-runner helpers.
+- **`View.vue`'s stylesheet replaced by Tailwind classes** (#187): the same values, with the rules for the rendered table as arbitrary variants on its container, so nothing becomes global. Computed styles of every element were compared old against new across the View's states.
+- **Large files split** (#188, #189, #190, #191): `evaluator.ts` (expression text, array evaluation, the evaluator context), `calculator.ts` (range reading, sheet preparation, shared types) and `View.vue` (mini editor, table rendering, editor selection, Excel download) — code moved as it was. The package's exports are unchanged (`src/index.ts`, `src/core/index.ts`, `src/engine/index.ts` export the same names). The View was driven old against new in a browser: the same DOM, result data, editor selection and downloaded file. One visible difference: the editor now logs a `console.warn` when a sheet's data has an unknown shape, as the engine already did.
+
+### Tooling
+
+- **`vite.config.ts` uses `import.meta.dirname`** (#192): the package is ESM, and `__dirname` worked only through Vite's bundling config loader; with `--configLoader runner`, vitest and `vite build` now start. The build output is byte-for-byte the same.
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@5.0.0`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/5.0.0)
+
 ## @gui-chat-plugin/spreadsheet@4.3.0 — 2026-10-21
 
 Dynamic arrays, LET / LAMBDA, the table functions, regression and forecasting, more statistics, and a list of the registered functions for hosts.
