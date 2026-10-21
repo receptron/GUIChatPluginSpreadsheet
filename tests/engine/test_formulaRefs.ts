@@ -16,6 +16,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { stripFormulaPrefix, expandRange, parseSingleCellRef, extractCellReferences } from "../../src/engine/formulaRefs.js";
+import { rowMajorCells } from "./formulaAnswers.ts";
 
 describe("stripFormulaPrefix", () => {
   it("strips a leading =", () => {
@@ -41,12 +42,7 @@ describe("stripFormulaPrefix", () => {
 
 describe("expandRange", () => {
   it("expands a small square range", () => {
-    assert.deepEqual(expandRange("A1:B2"), [
-      { row: 0, col: 0 },
-      { row: 0, col: 1 },
-      { row: 1, col: 0 },
-      { row: 1, col: 1 },
-    ]);
+    assert.deepEqual(expandRange("A1:B2"), rowMajorCells(2, 2));
   });
 
   it("expands a single-cell range (A1:A1)", () => {
@@ -211,12 +207,7 @@ describe("extractCellReferences — happy path", () => {
 
 describe("extractCellReferences — range handling", () => {
   it("expands a SUM(A1:B2) range into 4 cells", () => {
-    assert.deepEqual(extractCellReferences("=SUM(A1:B2)"), [
-      { row: 0, col: 0 },
-      { row: 0, col: 1 },
-      { row: 1, col: 0 },
-      { row: 1, col: 1 },
-    ]);
+    assert.deepEqual(extractCellReferences("=SUM(A1:B2)"), rowMajorCells(2, 2));
   });
 
   it("does NOT emit the range endpoints as standalone cells", () => {
@@ -249,12 +240,7 @@ describe("extractCellReferences — range handling", () => {
   });
 
   it("handles absolute-reference ranges", () => {
-    assert.deepEqual(extractCellReferences("=SUM($A$1:$B$2)"), [
-      { row: 0, col: 0 },
-      { row: 0, col: 1 },
-      { row: 1, col: 0 },
-      { row: 1, col: 1 },
-    ]);
+    assert.deepEqual(extractCellReferences("=SUM($A$1:$B$2)"), rowMajorCells(2, 2));
   });
 });
 

@@ -5,16 +5,14 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { SpreadsheetEngine } from "../../src/engine/index.ts";
-import { cellAt } from "./cellAccess.ts";
+import { valueBelow } from "./formulaAnswers.ts";
 
 /** Calculate `formula` in the cell just below a single column of `values`. */
-const evalOverColumn = (values: (string | number)[], formula: string): unknown => {
-  const data: { v: string | number }[][] = values.map((value) => [{ v: value }]);
-  data.push([{ v: formula }]);
-  const result = new SpreadsheetEngine().calculate({ name: "S", data });
-  return cellAt(result.data, data.length - 1, 0);
-};
+const evalOverColumn = (values: (string | number)[], formula: string): unknown =>
+  valueBelow(
+    values.map((value) => [value]),
+    formula,
+  );
 
 // {2,4,4,4,5,5,7,9}: mean 5, Σ(x-μ)² = 32.
 // Sample:     32 / (8-1) = 4.5714… → stdev 2.1380…

@@ -8,14 +8,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { cellAt } from "./cellAccess.ts";
+import { valueBelow } from "./formulaAnswers.ts";
 
-/** Calculate `formula` in cell A-after-the-data of a single sheet built from `rows`. */
-const evalInSheet = (rows: (string | number)[][], formula: string): unknown => {
-  const data = rows.map((row) => row.map((value) => ({ v: value })));
-  data.push([{ v: formula }]);
-  const result = new SpreadsheetEngine().calculate({ name: "S", data });
-  return cellAt(result.data, data.length - 1, 0);
-};
+const evalInSheet = valueBelow;
 
 describe("VLOOKUP — same sheet", () => {
   const table: (string | number)[][] = [

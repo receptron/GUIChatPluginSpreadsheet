@@ -7,13 +7,11 @@ import { SpreadsheetEngine, type CellValue } from "../../src/engine/index.ts";
 import { filterTable } from "../../src/engine/functions/array-functions-math.ts";
 import { NA_ERROR, VALUE_ERROR } from "../../src/engine/spreadsheet-errors.ts";
 import { seededRandom } from "./seededRandom.ts";
+import { spilledBeside } from "./formulaAnswers.ts";
 
 /** What `formula`, written beside `rows` (a column apart), spills. */
 function answer(formula: string, rows: CellValue[][]): CellValue[][] {
-  const width = rows[0]?.length ?? 0;
-  const data = rows.map((row, r) => [...row, "", r === 0 ? formula : ""].map((v) => ({ v })));
-  const [sheet] = new SpreadsheetEngine().calculateWorkbook([{ name: "S", data }]);
-  return (sheet?.data ?? []).map((row) => row.slice(width + 1)).filter((row) => row.some((cell) => cell !== ""));
+  return spilledBeside(formula, rows);
 }
 
 const sales: CellValue[][] = [

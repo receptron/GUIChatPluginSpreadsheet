@@ -48,8 +48,8 @@ export const pairedHandler =
     return "ys" in pairs ? rule(pairs) : pairs;
   };
 
-/** `(range, k)`: the numbers in the range, and k evaluated as a scalar. */
-const rankedHandler =
+/** `(range, k)`: the numbers in the range, read first, and then k as a number. */
+export const rankedHandler =
   (rule: (values: number[], k: number) => number | SpreadsheetError): FunctionHandler =>
   (args, context) => {
     const values = collectNumbersOrError([requiredArg(context, args, 0)], context);
@@ -58,15 +58,20 @@ const rankedHandler =
     return typeof k === "number" ? rule(values, k) : k;
   };
 
-const rankHandler: FunctionHandler = (args, context) => {
-  const target = scalarArg(args, context, 0);
-  if (typeof target !== "number") return target;
-  const values = collectNumbersOrError([requiredArg(context, args, 1)], context);
-  if (!Array.isArray(values)) return values;
-  const order = args.length > 2 ? scalarArg(args, context, 2) : 0;
-  if (typeof order !== "number") return order;
-  return rankOf(target, values, order !== 0);
-};
+/** `(number, ref, [order])`: where the number stands among the numbers in ref, ascending when order
+ *  is given and not 0, descending otherwise. */
+export const rankingHandler =
+  (rule: (target: number, values: number[], ascending: boolean) => number | SpreadsheetError): FunctionHandler =>
+  (args, context) => {
+    const target = scalarArg(args, context, 0);
+    if (typeof target !== "number") return target;
+    const values = collectNumbersOrError([requiredArg(context, args, 1)], context);
+    if (!Array.isArray(values)) return values;
+    const order = args.length > 2 ? scalarArg(args, context, 2) : 0;
+    return typeof order === "number" ? rule(target, values, order !== 0) : order;
+  };
+
+const rankHandler = rankingHandler(rankOf);
 
 /** The `range, criteria` pairs starting at `first`, or the first error a
  *  criteria evaluated to. A range without its criteria is an arity error,

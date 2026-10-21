@@ -6,24 +6,9 @@
 import { calculateSheet, calculateWorkbook } from "../../src/engine/calculator";
 import { createSheet, expectSheetOutput } from "./test-utils";
 import "../../src/engine/functions"; // Load all functions
+import { scriptRunner } from "./scriptRunner";
 
-let passedTests = 0;
-let failedTests = 0;
-const failures: string[] = [];
-
-function test(name: string, fn: () => void) {
-  try {
-    fn();
-    passedTests++;
-    console.log(`✓ ${name}`);
-  } catch (error) {
-    failedTests++;
-    const message = error instanceof Error ? error.message : String(error);
-    failures.push(`✗ ${name}: ${message}`);
-    console.log(`✗ ${name}`);
-    console.error(`  ${message}`);
-  }
-}
+const { test, finish } = scriptRunner({ printErrors: true });
 
 console.log("\n=== Calculator Tests - Array Output Comparison ===\n");
 
@@ -320,16 +305,4 @@ test("detects circular references", () => {
   }
 });
 
-// Summary
-console.log("\n=== Test Summary ===");
-console.log(`Passed: ${passedTests}`);
-console.log(`Failed: ${failedTests}`);
-
-if (failures.length > 0) {
-  console.log("\n=== Failures ===");
-  failures.forEach((f) => console.log(f));
-  process.exit(1);
-} else {
-  console.log("\n✓ All tests passed!");
-  process.exit(0);
-}
+finish();

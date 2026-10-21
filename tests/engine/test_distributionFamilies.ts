@@ -7,10 +7,10 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { cellAt } from "./cellAccess.ts";
 import { pick, seededRandom } from "./seededRandom.ts";
+import { referenceCases } from "./referenceFixture.ts";
 
 const RELATIVE_TOLERANCE = 1e-9;
 // A reference far below the doubles' resolution near 1 has no relative error to speak of.
@@ -31,10 +31,7 @@ interface ReferenceCase {
 
 const isReferenceCase = (value: unknown): value is ReferenceCase =>
   typeof value === "object" && value !== null && typeof Reflect.get(value, "formula") === "string";
-const parsed: unknown = JSON.parse(readFileSync(new URL("./fixtures/distribution-families-reference.json", import.meta.url), "utf8"));
-const referenceCases: unknown = typeof parsed === "object" && parsed !== null ? Reflect.get(parsed, "cases") : undefined;
-assert.ok(Array.isArray(referenceCases) && referenceCases.every(isReferenceCase), "the reference fixture holds cases");
-const cases: ReferenceCase[] = referenceCases.filter(isReferenceCase);
+const cases: ReferenceCase[] = referenceCases("distribution-families-reference.json", isReferenceCase);
 
 describe("against 50-digit references", () => {
   it("answers every formula of the fixture within 1e-9", () => {

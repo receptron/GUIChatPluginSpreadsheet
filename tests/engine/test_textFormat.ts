@@ -15,9 +15,9 @@ import { formatWithPattern, parseNumberPattern } from "../../src/engine/textForm
 import { groupThousands } from "../../src/engine/formatter.ts";
 import { SpreadsheetEngine } from "../../src/engine/index.ts";
 import { cellAt } from "./cellAccess.ts";
+import { formulaValue } from "./formulaAnswers.ts";
 
-const engine = new SpreadsheetEngine();
-const evalFormula = (formula: string): unknown => cellAt(engine.calculate(engine.createSheet("S", [[`=${formula}`]])).data, 0, 0);
+const evalFormula = (formula: string): unknown => formulaValue(`=${formula}`);
 
 describe("formatWithPattern — the cases reported in #2360", () => {
   it("groups digits for a currency pattern", () => {
@@ -240,6 +240,7 @@ describe("TEXT — end to end through SpreadsheetEngine", () => {
   });
 
   it("formats a cell reference the same way", () => {
+    const engine = new SpreadsheetEngine();
     const sheet = engine.createSheet("S", [[{ v: 1234.5 }, { v: '=TEXT(A1,"$#,##0.00")' }]]);
     assert.equal(cellAt(engine.calculate(sheet).data, 0, 1), "$1,234.50");
   });

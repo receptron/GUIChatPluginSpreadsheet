@@ -4,33 +4,9 @@
  */
 
 import { formatNumber } from "../../src/engine/formatter";
+import { expect, scriptRunner } from "./scriptRunner";
 
-let passedTests = 0;
-let failedTests = 0;
-const failures: string[] = [];
-
-function test(name: string, fn: () => void) {
-  try {
-    fn();
-    passedTests++;
-    console.log(`✓ ${name}`);
-  } catch (error) {
-    failedTests++;
-    const message = error instanceof Error ? error.message : String(error);
-    failures.push(`✗ ${name}: ${message}`);
-    console.log(`✗ ${name}`);
-  }
-}
-
-function expect(actual: any) {
-  return {
-    toBe(expected: any) {
-      if (actual !== expected) {
-        throw new Error(`Expected "${expected}", got "${actual}"`);
-      }
-    },
-  };
-}
+const { test, finish } = scriptRunner();
 
 console.log("\n=== Formatter Tests ===\n");
 
@@ -145,16 +121,4 @@ test("0.00000: very small decimal", () => {
   expect(formatNumber(0.00001, "0.00000")).toBe("0.00001");
 });
 
-// Summary
-console.log("\n=== Test Summary ===");
-console.log(`Passed: ${passedTests}`);
-console.log(`Failed: ${failedTests}`);
-
-if (failures.length > 0) {
-  console.log("\n=== Failures ===");
-  failures.forEach((f) => console.log(f));
-  process.exit(1);
-} else {
-  console.log("\n✓ All tests passed!");
-  process.exit(0);
-}
+finish();

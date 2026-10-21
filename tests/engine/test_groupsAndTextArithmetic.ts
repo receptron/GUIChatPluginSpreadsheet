@@ -6,11 +6,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { textOperandsAsNumbers } from "../../src/engine/textArithmetic.ts";
-import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { VALUE_ERROR } from "../../src/engine/spreadsheet-errors.ts";
 import type { SpreadsheetCell } from "../../src/engine/types.ts";
-import { cellAt } from "./cellAccess.ts";
 import { pick, seededRandom } from "./seededRandom.ts";
+import { valuesBesideCells } from "./formulaColumns.ts";
 
 describe("textOperandsAsNumbers", () => {
   it("reads text beside an arithmetic operator as its number", () => {
@@ -37,11 +36,7 @@ describe("textOperandsAsNumbers", () => {
 // A1 holds "abc", A2 holds "3", A3 holds TRUE, A4 is blank; the formulas go down column B.
 const CELLS: SpreadsheetCell[] = [{ v: "abc" }, { v: "3" }, { v: true }, { v: "" }];
 
-function valuesOf(formulas: string[]): unknown[] {
-  const rows = Array.from({ length: Math.max(CELLS.length, formulas.length) }, (_, row) => [CELLS[row] ?? { v: "" }, { v: formulas[row] ?? "" }]);
-  const grid = new SpreadsheetEngine().calculate({ name: "S", data: rows } satisfies SheetData).data;
-  return formulas.map((_, row) => cellAt(grid, row, 1));
-}
+const valuesOf = (formulas: string[]): unknown[] => valuesBesideCells(formulas, CELLS);
 
 describe("a bracketed part (#94)", () => {
   it("answers the issue's formulas as Excel does", () => {

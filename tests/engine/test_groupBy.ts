@@ -3,9 +3,10 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { SpreadsheetEngine, type CellValue } from "../../src/engine/index.ts";
+import { type CellValue } from "../../src/engine/index.ts";
 import { groupsOf, sortedRows } from "../../src/engine/functions/group-by-math.ts";
 import { seededRandom } from "./seededRandom.ts";
+import { spilledBeside } from "./formulaAnswers.ts";
 
 const SALES: CellValue[][] = [
   ["Region", "Rep", "Sales"],
@@ -18,10 +19,7 @@ const SALES: CellValue[][] = [
 
 /** What `formula`, written a column beside `rows`, spills. */
 function answer(formula: string, rows: CellValue[][] = SALES): CellValue[][] {
-  const width = rows[0]?.length ?? 0;
-  const data = rows.map((row, r) => [...row, "", r === 0 ? formula : ""].map((v) => ({ v })));
-  const [sheet] = new SpreadsheetEngine().calculateWorkbook([{ name: "S", data }]);
-  return (sheet?.data ?? []).map((row) => row.slice(width + 1)).filter((row) => row.some((cell) => cell !== ""));
+  return spilledBeside(formula, rows);
 }
 
 describe("GROUPBY", () => {

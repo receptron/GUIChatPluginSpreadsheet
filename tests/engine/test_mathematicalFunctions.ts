@@ -22,6 +22,7 @@ import {
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { DIV_ZERO_ERROR, NUM_ERROR } from "../../src/engine/spreadsheet-errors.ts";
 import { cellAt } from "./cellAccess.ts";
+import { formulaValue } from "./formulaAnswers.ts";
 
 const closeTo = (actual: number, expected: number, eps = 1e-9): boolean => Math.abs(actual - expected) <= eps;
 
@@ -135,8 +136,7 @@ describe("logWithBase — number and base domain", () => {
   });
 });
 
-const evalFormula = (formula: string): unknown =>
-  cellAt(new SpreadsheetEngine().calculate({ name: "S", data: [[{ v: formula }]] } satisfies SheetData).data, 0, 0);
+const evalFormula = formulaValue;
 
 describe("the handlers surface the errors end-to-end", () => {
   it("displays the Excel error codes through the engine", () => {

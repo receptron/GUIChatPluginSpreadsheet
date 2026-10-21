@@ -12,16 +12,14 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { substituteText, takeLeft, takeRight, toProperCase } from "../../src/engine/functions/text.ts";
-import { SpreadsheetEngine } from "../../src/engine/index.ts";
 import { VALUE_ERROR } from "../../src/engine/spreadsheet-errors.ts";
-import { cellAt } from "./cellAccess.ts";
+import { formulaValue } from "./formulaAnswers.ts";
 
 // The engine's display pass renders an error VALUE back to its code, so the
 // end-to-end assertions compare against the string a cell shows.
 const VALUE_ERROR_TEXT = VALUE_ERROR.code;
 
-const engine = new SpreadsheetEngine();
-const evalFormula = (formula: string): unknown => cellAt(engine.calculate(engine.createSheet("S", [[`=${formula}`]])).data, 0, 0);
+const evalFormula = (formula: string): unknown => formulaValue(`=${formula}`);
 
 describe("substituteText — empty old_text", () => {
   it("returns the text unchanged instead of inserting between characters", () => {

@@ -21,13 +21,11 @@ import {
   type NumericPairs,
 } from "../../src/engine/functions/analysis-math.ts";
 import { DIV_ZERO_ERROR, NA_ERROR, NUM_ERROR, VALUE_ERROR } from "../../src/engine/spreadsheet-errors.ts";
+import { assertWithin } from "./closeness.ts";
 
 const TOLERANCE = 1e-6;
 
-const assertClose = (actual: unknown, expected: number): void => {
-  assert.equal(typeof actual, "number", `expected a number, got ${String(actual)}`);
-  assert.ok(Math.abs(Number(actual) - expected) < TOLERANCE, `${String(actual)} is not ${expected}`);
-};
+const assertClose = (actual: unknown, expected: number): void => assertWithin(actual, expected, TOLERANCE);
 
 const pairsOf = (ys: number[], xs: number[]): NumericPairs => ({ ys, xs });
 

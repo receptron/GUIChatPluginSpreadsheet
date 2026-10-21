@@ -72,28 +72,32 @@ describe("cross-sheet range aggregation stays numeric", () => {
 // A cell that depends on itself through other sheets is a circular reference like one within a sheet:
 // it reads 0 and is reported as circular. (Before #130 it read "#ERROR!", because the other sheet was
 // read mid-calculation, its formula still text.)
+/** The first sheet of `sheets`, calculated with the others, is 0 with one circular-reference error. */
+function assertCircular(sheets: SheetData[]): void {
+  const [first] = sheets;
+  assert.ok(first);
+  const result = calculateSheet(first, sheets);
+  assert.equal(result.data[0]?.[0], 0);
+  assert.deepEqual(
+    result.errors.map((error) => error.type),
+    ["circular"],
+  );
+}
+
 describe("cyclic cross-sheet references terminate instead of hanging", () => {
   it("a 2-sheet cycle (A!A1=B!A1, B!A1=A!A1) is a circular reference", () => {
-    const sheetA: SheetData = { name: "A", data: [[{ v: "=B!A1" }]] };
-    const sheetB: SheetData = { name: "B", data: [[{ v: "=A!A1" }]] };
-    const result = calculateSheet(sheetA, [sheetA, sheetB]);
-    assert.equal(result.data[0]?.[0], 0);
-    assert.deepEqual(
-      result.errors.map((error) => error.type),
-      ["circular"],
-    );
+    assertCircular([
+      { name: "A", data: [[{ v: "=B!A1" }]] },
+      { name: "B", data: [[{ v: "=A!A1" }]] },
+    ]);
   });
 
   it("a 3-sheet cycle (A->B->C->A) is a circular reference too", () => {
-    const sheetA: SheetData = { name: "A", data: [[{ v: "=B!A1" }]] };
-    const sheetB: SheetData = { name: "B", data: [[{ v: "=C!A1" }]] };
-    const sheetC: SheetData = { name: "C", data: [[{ v: "=A!A1" }]] };
-    const result = calculateSheet(sheetA, [sheetA, sheetB, sheetC]);
-    assert.equal(result.data[0]?.[0], 0);
-    assert.deepEqual(
-      result.errors.map((error) => error.type),
-      ["circular"],
-    );
+    assertCircular([
+      { name: "A", data: [[{ v: "=B!A1" }]] },
+      { name: "B", data: [[{ v: "=C!A1" }]] },
+      { name: "C", data: [[{ v: "=A!A1" }]] },
+    ]);
   });
 
   it("a valid cross-sheet reference next to the cycle still resolves", () => {
