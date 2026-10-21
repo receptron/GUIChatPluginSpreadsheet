@@ -27,5 +27,8 @@ export { isSpreadsheetArtifactPath } from "./paths";
 // Another plugin (a chart) reads a calculated range of a saved workbook
 export { calculatedRange, readCalculatedRange, MAX_RANGE_CELLS, type RangeCell } from "./rangeValues";
 
+// A host that lists the callable functions in its own guidance checks the list against these
+export { registeredFunctionsByCategory, isRegisteredFunction } from "./functionList";
+
 // Export samples
 export { samples } from "./samples";

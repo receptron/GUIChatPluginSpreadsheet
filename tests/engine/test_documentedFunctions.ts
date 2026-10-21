@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { functionRegistry } from "../../src/engine/functions/index.ts";
+import { isRegisteredFunction, registeredFunctionsByCategory } from "../../src/core/functionList.ts";
 import { SYSTEM_PROMPT, TOOL_DEFINITION } from "../../src/core/definition.ts";
 import { samples } from "../../src/core/samples.ts";
 
@@ -35,9 +35,6 @@ const readmeFunctionsByCategory = (readme: string): Map<string, string[]> => {
   return new Map(entries);
 };
 
-const registeredByCategory = (): Map<string, string[]> =>
-  new Map([...functionRegistry.getFunctionsByCategory()].map(([category, definitions]) => [category, definitions.map((definition) => definition.name).sort()]));
-
 const functionsIn = (formula: string): string[] => [...formula.matchAll(FUNCTION_CALL)].map((match) => match[1] ?? "");
 
 /** Every string value starting with "=" anywhere inside `value`. */
@@ -54,13 +51,11 @@ const listedFunctions = (text: string): string[] =>
     .flatMap((match) => (match[1] ?? "").split(",").map((item) => item.trim()))
     .filter((item) => /^[A-Z][A-Z0-9]*$/.test(item));
 
-const isRegistered = (name: string): boolean => functionRegistry.hasFunction(name);
-
 describe("documented functions match the registry", () => {
   it("the README lists every registered function under its category, and nothing else", () => {
     // A Windows checkout gives the README CRLF line endings.
     const documented = readmeFunctionsByCategory(fs.readFileSync(README_PATH, "utf8").replaceAll("\r\n", "\n"));
-    assert.deepEqual(Object.fromEntries(documented), Object.fromEntries(registeredByCategory()));
+    assert.deepEqual(Object.fromEntries(documented), registeredFunctionsByCategory());
   });
 
   // The `functions` field (#114) is where the model DEFINES a workbook's own functions: its example
@@ -70,7 +65,7 @@ describe("documented functions match the registry", () => {
     const called = [...functionsIn(guidance), ...listedFunctions(guidance)];
     assert.ok(listedFunctions(guidance).length > 0, "the guidance lists functions");
     assert.deepEqual(
-      called.filter((name) => !isRegistered(name)),
+      called.filter((name) => !isRegisteredFunction(name)),
       [],
     );
   });
@@ -79,7 +74,7 @@ describe("documented functions match the registry", () => {
     const called = formulasIn(samples).flatMap(functionsIn);
     assert.ok(called.length > 0, "the samples contain formulas");
     assert.deepEqual(
-      called.filter((name) => !isRegistered(name)),
+      called.filter((name) => !isRegisteredFunction(name)),
       [],
     );
   });
