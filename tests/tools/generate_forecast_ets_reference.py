@@ -77,7 +77,7 @@ def case(rng, period):
 
 def main():
     rng = random.Random(149)
-    cases = [case(rng, period) for period in [0, 0, 0, 0, 2, 3, 4, 4, 7, 12, 12]]
+    cases = [case(rng, period) for period in [0, 0, 0, 0, 0, 0, 2, 2, 3, 3, 4, 4, 4, 5, 6, 7, 7, 12, 12, 12]]
     path = Path(__file__).resolve().parents[1] / "engine" / "fixtures" / "forecast-ets-reference.json"
     path.write_text(json.dumps(cases, indent=1) + "\n")
     print(f"wrote {len(cases)} cases to {path}")

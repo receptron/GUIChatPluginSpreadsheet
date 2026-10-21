@@ -31,13 +31,13 @@ const FIT_CACHE_SIZE = 32;
 const cellsOf = (arg: string, context: FunctionContext): CellValue[] =>
   (context.getRangeGrid ? context.getRangeGrid(arg) : [[context.evaluateFormula(arg)]]).flat();
 
-/** One pair: a blank value is left out (a missing point); a blank or non-number time, or a value that
+/** One pair: a blank value is null (a missing point the time still places); a blank or non-number time, or a value that
  *  is not a number, is #VALUE!, and an error cell is that error. */
-function pairOf(value: CellValue, time: CellValue): TimedValue | null | SpreadsheetError {
+function pairOf(value: CellValue, time: CellValue): TimedValue | SpreadsheetError {
   if (isSpreadsheetErrorValue(time)) return time;
   if (isSpreadsheetErrorValue(value)) return value;
   if (!holdsNumber(time)) return VALUE_ERROR;
-  if (value === "") return null;
+  if (value === "") return { time: toNumber(time), value: null };
   return holdsNumber(value) ? { time: toNumber(time), value: toNumber(value) } : VALUE_ERROR;
 }
 
@@ -49,7 +49,7 @@ function pairsArg(args: string[], context: FunctionContext, at: number): TimedVa
   const pairs = values.map((value, index) => pairOf(value, times[index] ?? ""));
   const error = pairs.find(isSpreadsheetErrorValue);
   if (error) return error;
-  return pairs.filter((pair): pair is TimedValue => pair !== null && !isSpreadsheetErrorValue(pair));
+  return pairs.filter((pair): pair is TimedValue => !isSpreadsheetErrorValue(pair));
 }
 
 /** A whole-number option from `low` to `high`, `fallback` when left out; #NUM! otherwise. */

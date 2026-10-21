@@ -16,9 +16,10 @@ import {
   type Smoothing,
 } from "../../src/engine/functions/forecast-ets-math.ts";
 import { isSpreadsheetErrorValue } from "../../src/engine/spreadsheet-errors.ts";
+import { lagProducts } from "../../src/engine/functions/fft-math.ts";
 
 const RELATIVE_TOLERANCE = 1e-9;
-const OPTIMUM_SLACK = 1.001;
+const OPTIMUM_SLACK = 1.0005;
 
 interface ReferenceCase {
   values: number[];
@@ -62,6 +63,25 @@ function stream(seed: number): () => number {
   };
 }
 
+describe("the chosen smoothing", () => {
+  it("keeps 0 ≤ α, β ≤ 1 and 0 ≤ γ ≤ 1 − α", () => {
+    const next = stream(7);
+    Array.from({ length: 60 }).forEach((_, index) => {
+      const period = [0, 2, 4, 12][index % 4] ?? 0;
+      const length = 2 * Math.max(period, 3) + Math.floor(next() * 30);
+      const jump = next() * 40;
+      const values = Array.from(
+        { length },
+        (_, t) => (t > length / 2 ? jump : 0) + (period ? 15 * Math.sin((2 * Math.PI * t) / period) * (1 + t / 10) : 0) + next() * 3,
+      );
+      const fit = fitHoltWinters(values, period);
+      assert.ok(!isSpreadsheetErrorValue(fit));
+      const { alpha, beta, gamma } = fit.smoothing;
+      assert.ok(alpha >= 0 && alpha <= 1 && beta >= 0 && beta <= 1 && gamma >= 0 && gamma <= 1 - alpha + 1e-12, JSON.stringify(fit.smoothing));
+    });
+  });
+});
+
 describe("the interval", () => {
   it("equals z·σ·√(1 + Σⱼ₌₁ᵏ⁻¹ cⱼ²) summed term by term", () => {
     const next = stream(149);
@@ -84,6 +104,20 @@ describe("the interval", () => {
       });
       const expected = 1.96 * Math.sqrt(fit.variance * (1 + weights.reduce((total, weight) => total + weight, 0)));
       close(intervalAt(fit, steps, 1.96), expected, JSON.stringify({ fit, steps }));
+    });
+  });
+});
+
+describe("the lag products", () => {
+  it("equal Σₜ xₜxₜ₊ₖ summed directly", () => {
+    const next = stream(184);
+    [1, 2, 3, 5, 8, 16, 17, 100, 257].forEach((length) => {
+      const values = Array.from({ length }, () => next() * 20 - 10);
+      const products = lagProducts(values, length - 1);
+      values.forEach((_, lag) => {
+        const direct = values.slice(0, length - lag).reduce((total, value, index) => total + value * (values[index + lag] ?? 0), 0);
+        assert.ok(Math.abs((products[lag] ?? 0) - direct) <= 1e-9 * Math.max(1, Math.abs(products[0] ?? 0)), `${length} ${lag}`);
+      });
     });
   });
 });
@@ -210,6 +244,16 @@ describe("FORECAST.ETS", () => {
     const [byLine, byZero] = [7, 0].map((fill) => answers(full, [4, 6, 5, fill, 9, 8, 10, 12, 11, 13, 14], [`=FORECAST.ETS(13,${range(11)},0)`])[0]);
     const [blank] = answers(full, [4, 6, 5, "", 9, 8, 10, 12, 11, 13, 14], [`=FORECAST.ETS(13,${range(11)},0)`]);
     assert.deepEqual([interpolated, zeros, blank], [byLine, byZero, byLine]);
+  });
+
+  it("keeps a blank value's time, inside the series or at either end, as a missing point to fill", () => {
+    const formula = (completion: string): string => `=FORECAST.ETS(6,${range(4)},0${completion})`;
+    const [inside, insideZero] = answers(sequence(4), [10, "", 20, 25], [formula(""), formula(",0")]);
+    assert.deepEqual([inside, insideZero], [answers(sequence(4), [10, 15, 20, 25], [formula("")])[0], answers(sequence(4), [10, 0, 20, 25], [formula("")])[0]]);
+    const atEnd = (values: CellValue[]): CellValue => answers(sequence(7), values, [`=FORECAST.ETS(9,${range(7)},0)`])[0] ?? "";
+    assert.equal(atEnd([4, 6, 5, 9, 8, 10, ""]), atEnd([4, 6, 5, 9, 8, 10, 10]));
+    assert.equal(atEnd(["", 6, 5, 9, 8, 10, 12]), atEnd([6, 6, 5, 9, 8, 10, 12]));
+    assert.deepEqual(answers(sequence(4), [10, "", "", 25], [formula("")]), ["#NUM!"]);
   });
 
   it("answers #NUM! for a step that is not constant, too many missing points, or a target before the end", () => {

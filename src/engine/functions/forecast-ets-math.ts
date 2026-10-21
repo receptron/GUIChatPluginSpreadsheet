@@ -4,8 +4,8 @@
  * does not publish how it fits its model, so values can differ from Excel's.
  */
 
-import { NUM_ERROR, isSpreadsheetErrorValue, type SpreadsheetError } from "../spreadsheet-errors";
-import { autocorrelation } from "./time-series-math";
+import { NUM_ERROR, type SpreadsheetError } from "../spreadsheet-errors";
+import { lagProducts } from "./fft-math";
 
 export const MAX_SEASONALITY = 8760;
 const MAX_MISSING_SHARE = 0.3;
@@ -13,8 +13,13 @@ const STEP_TOLERANCE = 1e-9;
 const SIGNIFICANT_CORRELATION_Z = 1.96;
 const MIN_SEASON = 2;
 const MIN_POINTS_WITHOUT_SEASON = 3;
-const COARSE_STEP = 0.05;
-const FINE_STEP = 0.005;
+const GRID_STEP = 0.1;
+const SEARCH_START_STEP = 0.05;
+const SEARCH_END_STEP = 1e-4;
+const MAX_SEARCH_MOVES = 100;
+const SEARCH_STARTS = 3;
+// The transform's rounding is far below this, so two lags equal in exact arithmetic compare equal.
+const CORRELATION_RESOLUTION = 1e12;
 
 const sum = (values: readonly number[]): number => values.reduce((total, value) => total + value, 0);
 const mean = (values: readonly number[]): number => sum(values) / values.length;
@@ -32,9 +37,9 @@ const AGGREGATIONS: readonly ((values: readonly number[]) => number)[] = [
   mean,
   (values) => values.length,
   (values) => values.length,
-  (values) => Math.max(...values),
+  (values) => values.reduce((most, value) => Math.max(most, value), -Infinity),
   median,
-  (values) => Math.min(...values),
+  (values) => values.reduce((least, value) => Math.min(least, value), Infinity),
   sum,
 ];
 
@@ -42,9 +47,10 @@ export const LAST_AGGREGATION = AGGREGATIONS.length - 1;
 
 export const aggregationOf = (code: number): ((values: readonly number[]) => number) => AGGREGATIONS[code] ?? mean;
 
+/** A value at a time; null for a blank value, a missing point the time still places. */
 export interface TimedValue {
   time: number;
-  value: number;
+  value: number | null;
 }
 
 /** Values one step apart, ending at `lastTime`. */
@@ -59,8 +65,9 @@ function groupedByTime(points: readonly TimedValue[]): { time: number; values: n
   const sorted = [...points].sort((left, right) => left.time - right.time);
   return sorted.reduce<{ time: number; values: number[] }[]>((groups, point) => {
     const last = groups.at(-1);
-    if (last && last.time === point.time) last.values.push(point.value);
-    else groups.push({ time: point.time, values: [point.value] });
+    const group = last && last.time === point.time ? last : { time: point.time, values: [] };
+    if (group !== last) groups.push(group);
+    if (point.value !== null) group.values.push(point.value);
     return groups;
   }, []);
 }
@@ -73,14 +80,16 @@ function stepOffsets(times: readonly number[], step: number): number[] | null {
   return whole ? offsets.map(Math.round) : null;
 }
 
-/** The values at `offsets` laid out one step apart, a missing point filled with zero or by a straight
- *  line between its neighbours. */
-function filled(known: readonly number[], offsets: readonly number[], withZeros: boolean): number[] {
-  const length = (offsets.at(-1) ?? 0) + 1;
+/** `length` values one step apart from the known ones at `offsets` (ascending), a missing point
+ *  filled with zero, or on the straight line between its known neighbours (the nearest one at an end). */
+function filled(known: readonly number[], offsets: readonly number[], length: number, withZeros: boolean): number[] {
+  const cursor = { next: 0 };
   return Array.from({ length }, (_, position) => {
-    const after = offsets.findIndex((offset) => offset >= position);
+    while ((offsets[cursor.next] ?? Infinity) < position) cursor.next += 1;
+    const after = cursor.next;
     if (offsets[after] === position) return known[after] ?? 0;
     if (withZeros) return 0;
+    if (after === 0 || after >= offsets.length) return known[Math.min(after, offsets.length - 1)] ?? 0;
     const [from, to] = [offsets[after - 1] ?? 0, offsets[after] ?? 0];
     const share = (position - from) / (to - from);
     return (known[after - 1] ?? 0) * (1 - share) + (known[after] ?? 0) * share;
@@ -88,8 +97,9 @@ function filled(known: readonly number[], offsets: readonly number[], withZeros:
 }
 
 /** The points as a series one step apart: values at one time combined by `aggregate`, the step the
- *  smallest gap, and missing points filled. #NUM! when there are fewer than two times, a gap is not a
- *  whole number of steps, or more than 30% of the points are missing. */
+ *  smallest gap between times (a blank value's included), and missing points filled. #NUM! when fewer
+ *  than two times have a value, a gap is not a whole number of steps, or more than 30% of the points
+ *  are missing. */
 export function regularSeries(
   points: readonly TimedValue[],
   aggregate: (values: readonly number[]) => number,
@@ -97,15 +107,17 @@ export function regularSeries(
 ): RegularSeries | SpreadsheetError {
   const groups = groupedByTime(points);
   const times = groups.map((group) => group.time);
-  if (times.length < 2) return NUM_ERROR;
-  const step = Math.min(...times.slice(1).map((time, index) => time - (times[index] ?? 0)));
+  const valued = groups.map((group, index) => ({ group, index })).filter(({ group }) => group.values.length > 0);
+  if (valued.length < 2) return NUM_ERROR;
+  const step = times.slice(1).reduce((least, time, index) => Math.min(least, time - (times[index] ?? 0)), Infinity);
   const offsets = stepOffsets(times, step);
   if (!offsets) return NUM_ERROR;
   const length = (offsets.at(-1) ?? 0) + 1;
-  if (length - times.length > MAX_MISSING_SHARE * length) return NUM_ERROR;
+  if (length - valued.length > MAX_MISSING_SHARE * length) return NUM_ERROR;
   const values = filled(
-    groups.map((group) => aggregate(group.values)),
-    offsets,
+    valued.map(({ group }) => aggregate(group.values)),
+    valued.map(({ index }) => offsets[index] ?? 0),
+    length,
     withZeros,
   );
   return { values, lastTime: times.at(-1) ?? 0, step };
@@ -123,13 +135,10 @@ function detrended(values: readonly number[]): number[] {
 /** The season's length: the lag from 2 to half the length (at most 8760) whose autocorrelation, with
  *  the trend line removed, is the highest local peak above 1.96/√n; 0 when there is none. */
 export function detectedSeasonality(values: readonly number[]): number {
-  const residuals = detrended(values);
   const longest = Math.min(Math.floor(values.length / 2), MAX_SEASONALITY);
-  const correlations = Array.from({ length: longest + 2 }, (_, lag) => {
-    const value = lag < values.length ? autocorrelation(residuals, lag) : 0;
-    return isSpreadsheetErrorValue(value) ? 0 : value;
-  });
-  const correlation = (lag: number): number => correlations[lag] ?? 0;
+  const products = lagProducts(detrended(values), longest + 1);
+  const spread = products[0] ?? 0;
+  const correlation = (lag: number): number => (spread > 0 ? Math.round(((products[lag] ?? 0) / spread) * CORRELATION_RESOLUTION) / CORRELATION_RESOLUTION : 0);
   const threshold = SIGNIFICANT_CORRELATION_Z / Math.sqrt(values.length);
   const lags = Array.from({ length: Math.max(longest - 1, 0) }, (_, index) => index + MIN_SEASON);
   const peaks = lags.filter((lag) => correlation(lag) > threshold && correlation(lag) >= correlation(lag - 1) && correlation(lag) >= correlation(lag + 1));
@@ -194,27 +203,54 @@ function smoothed(values: readonly number[], period: number, { alpha, beta, gamm
   return run;
 }
 
-/** Points from `low` to `high` (clipped to 0…`limit`) `step` apart. */
-function gridAround(low: number, high: number, step: number, limit: number): number[] {
-  const [from, to] = [Math.max(low, 0), Math.min(high, limit)];
-  const count = Math.floor((to - from) / step + STEP_TOLERANCE) + 1;
-  return Array.from({ length: Math.max(count, 1) }, (_, index) => Math.min(from + index * step, to));
+interface Scored {
+  smoothing: Smoothing;
+  error: number;
 }
 
-/** The smoothing with the least squared one-step error among α and β on the grids, and γ from 0 to
- *  1 − α (0 without a season); the first found wins a tie. */
-function bestOnGrid(values: readonly number[], period: number, alphas: number[], betas: number[], gammaGrid: (alpha: number) => number[]): Smoothing {
-  const candidates = alphas.flatMap((alpha) => betas.flatMap((beta) => (period === 0 ? [0] : gammaGrid(alpha)).map((gamma) => ({ alpha, beta, gamma }))));
-  const scored = candidates.map((smoothing) => ({ smoothing, error: smoothed(values, period, smoothing).squaredErrors }));
-  return scored.reduce((best, candidate) => (candidate.error < best.error ? candidate : best)).smoothing;
+/** Points from 0 to `limit`, `GRID_STEP` apart. */
+const grid = (limit: number): number[] => Array.from({ length: Math.floor(limit / GRID_STEP + STEP_TOLERANCE) + 1 }, (_, index) => index * GRID_STEP);
+
+const squaredErrorOf = (values: readonly number[], period: number, smoothing: Smoothing): number => smoothed(values, period, smoothing).squaredErrors;
+
+/** The smoothings on a grid of α and β, and γ from 0 to 1 − α (0 without a season), with their squared
+ *  one-step errors, least first (a tie in grid order). */
+function scoredGrid(values: readonly number[], period: number): Scored[] {
+  const candidates = grid(1).flatMap((alpha) => grid(1).flatMap((beta) => (period === 0 ? [0] : grid(1 - alpha)).map((gamma) => ({ alpha, beta, gamma }))));
+  return candidates.map((smoothing) => ({ smoothing, error: squaredErrorOf(values, period, smoothing) })).sort((left, right) => left.error - right.error);
 }
 
-/** α, β and γ minimising the squared one-step errors: on a coarse grid, then a fine one around the best. */
+/** The smoothings one `step` from `at` along each parameter, kept within 0 ≤ α, β ≤ 1 and 0 ≤ γ ≤ 1 − α. */
+function neighbours(at: Smoothing, step: number, period: number): Smoothing[] {
+  const clip = (value: number, limit: number): number => Math.min(Math.max(value, 0), limit);
+  const moved = [-step, step].flatMap((delta) => {
+    const alpha = clip(at.alpha + delta, 1);
+    const alongAlpha = { ...at, alpha, gamma: Math.min(at.gamma, 1 - alpha) };
+    const alongBeta = { ...at, beta: clip(at.beta + delta, 1) };
+    return period === 0 ? [alongAlpha, alongBeta] : [alongAlpha, alongBeta, { ...at, gamma: clip(at.gamma + delta, 1 - at.alpha) }];
+  });
+  return moved.filter((smoothing) => smoothing.alpha !== at.alpha || smoothing.beta !== at.beta || smoothing.gamma !== at.gamma);
+}
+
+/** A pattern search from `start`: to the best neighbour that improves, halving the step when none does. */
+function searchedFrom(values: readonly number[], period: number, start: Scored): Scored {
+  const search = { ...start, step: SEARCH_START_STEP, moves: 0 };
+  while (search.step >= SEARCH_END_STEP && search.moves < MAX_SEARCH_MOVES) {
+    const scored = neighbours(search.smoothing, search.step, period).map((smoothing) => ({ smoothing, error: squaredErrorOf(values, period, smoothing) }));
+    const best = scored.reduce<Scored | null>((least, candidate) => (least === null || candidate.error < least.error ? candidate : least), null);
+    if (best && best.error < search.error) Object.assign(search, best);
+    else search.step /= 2;
+    search.moves += 1;
+  }
+  return { smoothing: search.smoothing, error: search.error };
+}
+
+/** α, β and γ minimising the squared one-step errors: a pattern search from each of the best points
+ *  of a coarse grid, the least error winning (the better grid point on a tie). */
 function fittedSmoothing(values: readonly number[], period: number): Smoothing {
-  const coarse = gridAround(0, 1, COARSE_STEP, 1);
-  const rough = bestOnGrid(values, period, coarse, coarse, (alpha) => gridAround(0, 1 - alpha, COARSE_STEP, 1 - alpha));
-  const near = (center: number, limit: number): number[] => gridAround(center - COARSE_STEP, center + COARSE_STEP, FINE_STEP, limit);
-  return bestOnGrid(values, period, near(rough.alpha, 1), near(rough.beta, 1), (alpha) => near(rough.gamma, 1 - alpha));
+  const starts = scoredGrid(values, period).slice(0, SEARCH_STARTS);
+  const found = starts.map((start) => searchedFrom(values, period, start));
+  return found.reduce((best, candidate) => (candidate.error < best.error ? candidate : best)).smoothing;
 }
 
 /** The fitted model of a series one step apart, with a season of `period` points (0 for none).
