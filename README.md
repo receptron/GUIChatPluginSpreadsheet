@@ -102,6 +102,8 @@ The View must be rendered inside the host's `PLUGIN_RUNTIME_KEY` provider to loa
 | `@gui-chat-plugin/spreadsheet/vue` | Vue implementation with UI components |
 | `@gui-chat-plugin/spreadsheet/style.css` | Tailwind CSS styles |
 
+A host whose own guidance lists the functions a formula may call can check that list against the engine: `registeredFunctionsByCategory()` (from `./core`) returns each category's function names, sorted, as below, and `isRegisteredFunction(name)` tells whether a name is one of them, in any case.
+
 ## Supported Functions
 
 ### Mathematical
