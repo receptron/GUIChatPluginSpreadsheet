@@ -3,9 +3,8 @@
 
 import { ref, type Ref } from "vue";
 import type { SpreadsheetSheet, SpreadsheetCell } from "../core/types";
-import { extractCellReferences, buildCellFromInput } from "../engine";
+import { extractCellReferences, buildCellFromInput, normalizeData } from "../engine";
 import { errorMessage as formatErrorMessage, isRecord } from "../engine/guards";
-import { normalizeSheetData } from "./sheetRows";
 import { getArrowKeyOffset, isWithinSheetBounds } from "./keyboardNav";
 
 /** What the mini editor works on: the editor's JSON, the sheet shown, and how a change is saved. */
@@ -45,7 +44,7 @@ export function useMiniEditor({ editableData, activeSheetIndex, persistSheets }:
       }
 
       // Normalize the data in case it's malformed
-      const normalizedData = normalizeSheetData(currentSheet.data);
+      const normalizedData = normalizeData(currentSheet.data);
 
       if (!normalizedData[rowIndex] || normalizedData[rowIndex][colIndex] === undefined) {
         return;
@@ -119,7 +118,7 @@ export function useMiniEditor({ editableData, activeSheetIndex, persistSheets }:
       const { row, col } = miniEditorCell.value;
 
       // Normalize the data in case it's malformed
-      const normalizedData = normalizeSheetData(currentSheet.data);
+      const normalizedData = normalizeData(currentSheet.data);
 
       // Ensure the row exists
       while (normalizedData.length <= row) {
