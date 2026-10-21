@@ -105,22 +105,11 @@
 
 <script setup lang="ts">
 import { computed, inject, ref, watch, onMounted, onUnmounted } from "vue";
-import * as XLSX from "xlsx";
 import { PLUGIN_RUNTIME_KEY, type ToolResult } from "gui-chat-protocol/vue";
-import type { SpreadsheetToolData, SpreadsheetSheet, StorableCell, SpreadsheetCell } from "../core/types";
+import type { SpreadsheetToolData, SpreadsheetSheet } from "../core/types";
 import { isSpreadsheetArtifactPath } from "../core/paths";
-import {
-  SpreadsheetEngine,
-  prefersDayFirst,
-  indexToColumn,
-  extractCellReferences,
-  buildCellFromInput,
-  normalizeData,
-  findCellJsonPosition,
-  type SheetData,
-  type CellValue,
-} from "../engine";
-import { errorMessage as formatErrorMessage, isObj, isRecord } from "../engine/guards";
+import { indexToColumn } from "../engine";
+import { errorMessage as formatErrorMessage } from "../engine/guards";
 import { applyCellHighlights, clearCellHighlights } from "./cellHighlights";
 import {
   APPLY_BUTTON_CLASSES,
@@ -136,14 +125,16 @@ import {
   TABLE_CLASSES,
   sheetTabClasses,
 } from "./viewClasses";
-import { getArrowKeyOffset, isWithinSheetBounds } from "./keyboardNav";
-import { escapeHtml, isCrossOriginHttpUrl } from "./htmlText";
+import { isCrossOriginHttpUrl } from "./htmlText";
 import { useT } from "../lang";
 import { createSheetSession, type LoadOutcome } from "./sheetSession";
 import { readLoadReply, readSaveReply, type LoadedWorkbook, type SaveReply } from "../core/dispatchReplies";
 import { fileChangeAction } from "./fileFollow";
 import { useCustomFunctions } from "./useCustomFunctions";
-import { calculateWith } from "../engine/customFunctions";
+import { useMiniEditor } from "./useMiniEditor";
+import { selectCellInEditor } from "./editorSelection";
+import { downloadWorkbook } from "./excelDownload";
+import { useRenderedTable } from "./useRenderedTable";
 
 // Import all spreadsheet functions to populate the function registry
 import "../engine/functions";
@@ -155,38 +146,6 @@ const t = useT();
 const runtime = inject(PLUGIN_RUNTIME_KEY, undefined);
 const locale = computed(() => runtime?.locale.value ?? "en");
 
-/**
- * Normalize malformed data structures
- * Some models generate flat arrays instead of 2D arrays - fix them
- */
-function normalizeSheetData(data: unknown): unknown[][] {
-  if (!Array.isArray(data) || data.length === 0) {
-    return [];
-  }
-
-  // If data is already a 2D array, return as-is
-  if (Array.isArray(data[0])) {
-    return data;
-  }
-
-  // If data is a flat array of cell objects, convert to 2D by pairing cells
-  // Pattern: [cell1, cell2, cell3, cell4] -> [[cell1, cell2], [cell3, cell4]]
-  if (isObj(data[0])) {
-    const rows: unknown[][] = [];
-    for (let i = 0; i < data.length; i += 2) {
-      const row = [data[i]];
-      if (i + 1 < data.length) {
-        row.push(data[i + 1]);
-      }
-      rows.push(row);
-    }
-    return rows;
-  }
-
-  // Unknown structure - return empty
-  return [];
-}
-
 const props = defineProps<{
   selectedResult: ToolResult<SpreadsheetToolData>;
 }>();
@@ -194,9 +153,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   updateResult: [result: ToolResult];
 }>();
-
-// Create spreadsheet engine instance
-const engine = new SpreadsheetEngine();
 
 const loading = ref(false);
 const errorMessage = ref("");
@@ -389,17 +345,19 @@ const editorTextarea = ref<HTMLTextAreaElement | null>(null);
 const editorDetails = ref<HTMLDetailsElement | null>(null);
 const tableContainer = ref<HTMLDivElement | null>(null);
 
-// Mini editor state
-const miniEditorOpen = ref(false);
-const miniEditorCell = ref<{ row: number; col: number } | null>(null);
-
-const miniEditorValue = ref<unknown>(null);
-const miniEditorType = ref<"number" | "string" | "object">("string");
-const miniEditorFormula = ref("");
-const miniEditorFormat = ref("");
-
-// Referenced cells state (for formula highlighting)
-const referencedCells = ref<{ row: number; col: number }[]>([]);
+const {
+  miniEditorOpen,
+  miniEditorCell,
+  miniEditorValue,
+  miniEditorType,
+  miniEditorFormula,
+  miniEditorFormat,
+  referencedCells,
+  openMiniEditor,
+  closeMiniEditor,
+  saveMiniEditor,
+  handleKeyboardNavigation,
+} = useMiniEditor({ editableData, activeSheetIndex, persistSheets });
 
 // Check if spreadsheet data has been modified
 const hasChanges = computed(() => {
@@ -414,221 +372,15 @@ const hasChanges = computed(() => {
 // Short alias used in the template column header.
 const indexToCol = indexToColumn;
 
-// `normalizeData` is the engine's own reader for the stored cell forms (bare
-// values, `null` gaps, flat rows); `calculate` runs it internally anyway, so
-// applying it here only meets the engine's declared type at the call site.
-const toEngineSheet = (sheet: SpreadsheetSheet): SheetData => ({ name: sheet.name, data: normalizeData(sheet.data) });
-
-// Calculate formulas in the data using the spreadsheet engine
-const calculateFormulas = (data: StorableCell[][], sheetName?: string): CellValue[][] => {
-  // If we have a sheet name, we need to find all sheets for cross-sheet references
-  const allSheets = resolvedSheets.value.map(toEngineSheet);
-
-  // Create a SheetData object for the engine
-  const sheet: SheetData = {
-    name: sheetName || "Sheet1",
-    data: normalizeData(data),
-  };
-
-  // Read the date order from the current locale on every calculation, so a
-  // locale switch takes effect without rebuilding the engine.
-  engine.setOptions({ preferDDMMYYYY: prefersDayFirst(locale.value) });
-  const result = calculateWith(customFunctions.value, () => engine.calculate(sheet, allSheets));
-
-  return result.data;
-};
-
 // Render the active sheet as HTML table
-const renderedHtml = computed(() => {
-  if (!resolvedSheets.value || resolvedSheets.value.length === 0) {
-    return "";
-  }
-
-  const sheet = resolvedSheets.value[activeSheetIndex.value];
-  if (!sheet || !sheet.data) {
-    return "";
-  }
-
-  try {
-    // Calculate formulas first with sheet name for cross-sheet references
-    const calculatedData = calculateFormulas(sheet.data, sheet.name);
-
-    // Convert data array to worksheet
-    const worksheet = XLSX.utils.aoa_to_sheet(calculatedData);
-
-    // Generate HTML table
-    const html = XLSX.utils.sheet_to_html(worksheet, {
-      id: "spreadsheet-table",
-      editable: false,
-    });
-
-    return html;
-  } catch (error) {
-    console.error("Failed to render spreadsheet:", error);
-    // Fed into v-html, and a caught throw can carry an object whose
-    // `details` / `message` formatErrorMessage surfaces verbatim.
-    return `<div class="error">Failed to render spreadsheet: ${escapeHtml(formatErrorMessage(error, "Unknown error"))}</div>`;
-  }
-});
+const renderedHtml = useRenderedTable({ resolvedSheets, activeSheetIndex, customFunctions, locale });
 
 // Download as Excel file
-const downloadExcel = () => {
-  if (!resolvedSheets.value || resolvedSheets.value.length === 0) return;
-
-  try {
-    const workbook = XLSX.utils.book_new();
-
-    // Add all sheets to workbook
-    resolvedSheets.value.forEach((sheet) => {
-      const worksheet = XLSX.utils.aoa_to_sheet(sheet.data);
-      XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name);
-    });
-
-    // Generate filename
-    const filename = props.selectedResult.title ? `${props.selectedResult.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.xlsx` : "spreadsheet.xlsx";
-
-    // Write file
-    XLSX.writeFile(workbook, filename);
-  } catch (error) {
-    console.error("Failed to download Excel:", error);
-    alert(`Failed to download Excel file: ${formatErrorMessage(error, "Unknown error")}`);
-  }
-};
+const downloadExcel = () => downloadWorkbook(resolvedSheets.value, props.selectedResult.title);
 
 function handleDataEdit() {
   // Just update the local state, don't apply yet
   // User needs to click "Apply Changes" button
-}
-
-function openMiniEditor(rowIndex: number, colIndex: number) {
-  try {
-    const sheets = JSON.parse(editableData.value);
-    const currentSheet = sheets[activeSheetIndex.value];
-
-    if (!currentSheet || !currentSheet.data) {
-      return;
-    }
-
-    // Normalize the data in case it's malformed
-    const normalizedData = normalizeSheetData(currentSheet.data);
-
-    if (!normalizedData[rowIndex] || normalizedData[rowIndex][colIndex] === undefined) {
-      return;
-    }
-
-    const cellValue = normalizedData[rowIndex][colIndex];
-
-    // Determine cell type and extract values (new format: {v, f})
-    if (isRecord(cellValue) && "v" in cellValue) {
-      const value = cellValue["v"];
-      const format = typeof cellValue["f"] === "string" ? cellValue["f"] : "";
-
-      // Check if it's a formula (value starts with "=")
-      if (typeof value === "string" && value.startsWith("=")) {
-        miniEditorType.value = "object";
-        miniEditorValue.value = "";
-        miniEditorFormula.value = value.substring(1); // Remove "=" prefix
-        miniEditorFormat.value = format;
-        // Extract and store referenced cells for highlighting
-        referencedCells.value = extractCellReferences(value);
-      } else if (typeof value === "number") {
-        miniEditorType.value = "object";
-        miniEditorValue.value = "";
-        miniEditorFormula.value = String(value);
-        miniEditorFormat.value = format;
-        referencedCells.value = [];
-      } else {
-        miniEditorType.value = "string";
-        miniEditorValue.value = String(value);
-        miniEditorFormula.value = "";
-        miniEditorFormat.value = "";
-        referencedCells.value = [];
-      }
-    } else {
-      // Legacy format or plain value
-      miniEditorType.value = "string";
-      miniEditorValue.value = plainCellText(cellValue);
-      miniEditorFormula.value = "";
-      miniEditorFormat.value = "";
-      referencedCells.value = [];
-    }
-
-    miniEditorCell.value = { row: rowIndex, col: colIndex };
-    miniEditorOpen.value = true;
-  } catch (error) {
-    console.error("Failed to open mini editor:", error);
-  }
-}
-
-// A bare value as the editor shows it. An object without `v` (`{}`, `{ f }`)
-// holds no value, so it reads as empty rather than "[object Object]".
-const plainCellText = (value: unknown): string => (typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : "");
-
-function closeMiniEditor() {
-  miniEditorOpen.value = false;
-  miniEditorCell.value = null;
-  miniEditorValue.value = null;
-  miniEditorFormula.value = "";
-  miniEditorFormat.value = "";
-  referencedCells.value = [];
-}
-
-function saveMiniEditor() {
-  if (!miniEditorCell.value) return;
-
-  try {
-    const sheets = JSON.parse(editableData.value);
-    const currentSheet = sheets[activeSheetIndex.value];
-
-    if (!currentSheet || !currentSheet.data) return;
-
-    const { row, col } = miniEditorCell.value;
-
-    // Normalize the data in case it's malformed
-    const normalizedData = normalizeSheetData(currentSheet.data);
-
-    // Ensure the row exists
-    while (normalizedData.length <= row) {
-      normalizedData.push([]);
-    }
-
-    // Ensure the row is an array
-    if (!Array.isArray(normalizedData[row])) {
-      normalizedData[row] = [];
-    }
-
-    // Build the new cell value (delegates formula/number detection
-    // and format attachment to the pure helper).
-    const newCellValue: SpreadsheetCell = buildCellFromInput({
-      type: miniEditorType.value,
-      value: miniEditorValue.value,
-      formula: miniEditorFormula.value,
-      format: miniEditorFormat.value,
-    });
-
-    // Update the cell in normalized data
-    normalizedData[row][col] = newCellValue;
-
-    // Update the sheet with normalized data
-    currentSheet.data = normalizedData;
-
-    // Update editableData
-    editableData.value = JSON.stringify(sheets, null, 2);
-
-    // Persist to disk (if file-backed) and emit update
-    void persistSheets(sheets);
-
-    // Update referenced cells if the saved cell contains a formula
-    if (typeof newCellValue.v === "string" && newCellValue.v.startsWith("=")) {
-      referencedCells.value = extractCellReferences(newCellValue.v);
-    } else {
-      referencedCells.value = [];
-    }
-
-    // Don't close the mini editor - keep it open so user can see the updated references
-  } catch (error) {
-    alert(`Failed to save cell: ${formatErrorMessage(error, "Unknown error")}`);
-  }
 }
 
 // External http(s) links inside cells (XLSX hyperlink fields) open in a new
@@ -665,28 +417,7 @@ function handleTableClick(event: MouseEvent) {
 
   // If editor is open, try to find and select this cell in the editor.
   if (!editorTextarea.value) return;
-  try {
-    const sheets = JSON.parse(editableData.value);
-    const currentSheet = sheets[activeSheetIndex.value];
-    if (!currentSheet || !currentSheet.data) return;
-    const normalizedData = normalizeSheetData(currentSheet.data);
-    if (!normalizedData[rowIndex] || normalizedData[rowIndex][colIndex] === undefined) {
-      return;
-    }
-    const cellStr = JSON.stringify(normalizedData[rowIndex][colIndex]);
-    const cellStart = findCellJsonPosition(editableData.value, currentSheet.name, rowIndex, colIndex);
-    if (cellStart < 0) return;
-    editorTextarea.value.focus();
-    editorTextarea.value.setSelectionRange(cellStart, cellStart + cellStr.length);
-    // Scroll the textarea to make the selection visible.
-    const textBeforeSelection = editableData.value.substring(0, cellStart);
-    const lineNumber = textBeforeSelection.split("\n").length;
-    const lineHeight = 22;
-    const textarea = editorTextarea.value;
-    textarea.scrollTop = Math.max(0, lineNumber * lineHeight - textarea.clientHeight / 2);
-  } catch (error) {
-    console.error("Failed to select cell in editor:", error);
-  }
+  selectCellInEditor(editorTextarea.value, editableData.value, activeSheetIndex.value, rowIndex, colIndex);
 }
 
 async function applyChanges() {
@@ -741,29 +472,6 @@ watch(
   },
   { flush: "post" },
 );
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
-}
-
-function handleKeyboardNavigation(event: KeyboardEvent) {
-  if (!miniEditorOpen.value || !miniEditorCell.value) return;
-  if (isEditableTarget(event.target)) return;
-
-  const { row, col } = miniEditorCell.value;
-  const next = getArrowKeyOffset(event.key, row, col);
-  if (!next) return;
-
-  try {
-    const sheets = JSON.parse(editableData.value);
-    if (!isWithinSheetBounds(sheets[activeSheetIndex.value], next.row, next.col)) return;
-    event.preventDefault();
-    openMiniEditor(next.row, next.col);
-  } catch (error) {
-    console.error("Failed to navigate cells:", error);
-  }
-}
 
 // Add keyboard event listener on mount
 onMounted(() => {
