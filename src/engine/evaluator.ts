@@ -4,7 +4,7 @@
  * Evaluates spreadsheet formulas including functions, cell references, and arithmetic
  */
 
-import { CALL_NAMES, FUNCTION_NAME_SOURCE, functionRegistry, isCallableName, tooFewArgumentsError, type CellCoordinates } from "./registry";
+import { CALL_NAMES, FUNCTION_NAME_SOURCE, functionRegistry, isCallableName, tooFewArgumentsError } from "./registry";
 
 const SIMPLE_CALL = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\((.*)\\)$`, "i");
 const CALL_START = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\(`, "i");
@@ -27,28 +27,7 @@ import { booleansAsNumbers, logicalLiteralsAsBooleans, loneBoolean } from "./log
 import { textOperandsAsNumbers } from "./textArithmetic";
 import { endOfStringLiteral, findCellRefs, isSafeConcatExpression, parseFunctionArgs, renderOperand, substituteCellRefs } from "./expressionText";
 import { evaluateOverArrays } from "./arrayEvaluation";
-
-/**
- * Evaluation context for formulas
- */
-export interface EvaluatorContext {
-  getCellValue: (ref: string) => CellValue;
-  getRangeValues: (range: string) => CellValue[];
-  getRangeValuesRaw?: ((range: string) => CellValue[]) | undefined;
-  getRangeValuesKeepingBlanks?: ((range: string) => CellValue[]) | undefined;
-  countFilledCells?: ((range: string) => number) | undefined;
-  evaluateFormula: (formula: string) => CellValue;
-  /** A formula's value, a table included; see FunctionContext. */
-  evaluateValue?: ((formula: string) => FormulaValue) | undefined;
-  getRangeGrid?: ((range: string) => CellValue[][]) | undefined;
-  /** Reading order for an ambiguous slash date; see engine/date-locale.ts. */
-  preferDDMMYYYY?: boolean | undefined;
-  /** Whether the referenced cell holds nothing. `getCellValue` reads such a cell as 0, which
-   *  is right for arithmetic and wrong for `&`, where a blank cell joins as "". */
-  isCellEmpty?: ((ref: string) => boolean) | undefined;
-  currentCell?: CellCoordinates | undefined;
-  currentSheet?: string | undefined;
-}
+import type { EvaluatorContext } from "./evaluatorContext";
 
 /** Run `new Function` on an expression the callers have already gated with a
  *  character allowlist. A JS parse/eval failure becomes #ERROR! — a genuinely

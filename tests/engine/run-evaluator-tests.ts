@@ -3,7 +3,8 @@
  * Run with: npx tsx tests/engine/run-evaluator-tests.ts
  */
 
-import { evaluateFormula, type EvaluatorContext } from "../../src/engine/evaluator";
+import { evaluateFormula } from "../../src/engine/evaluator";
+import type { EvaluatorContext } from "../../src/engine/evaluatorContext";
 import { parseFunctionArgs } from "../../src/engine/expressionText";
 import "../../src/engine/functions"; // Load all functions
 import { expect, scriptRunner } from "./scriptRunner";

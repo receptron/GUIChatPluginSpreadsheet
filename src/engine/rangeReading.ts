@@ -22,7 +22,7 @@ export interface RangeReadOptions {
 
 /** Before a range is read, the spills that could reach any of its cells: those reaching its
  *  bottom-right corner, since a table spills right and down. */
-export function ensureSpillsCovering(sheet: OpenSheet, coords: readonly CellCoordinates[]): void {
+function ensureSpillsCovering(sheet: OpenSheet, coords: readonly CellCoordinates[]): void {
   const corner = coords.reduce((far, { row, col }) => ({ row: Math.max(far.row, row), col: Math.max(far.col, col) }), { row: -1, col: -1 });
   if (corner.row >= 0) sheet.ensureSpillsReaching(corner.row, corner.col);
 }

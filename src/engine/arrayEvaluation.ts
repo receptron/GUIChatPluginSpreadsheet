@@ -11,7 +11,7 @@ import { indexToColumn } from "./parser";
 import { isFormulaError, unknownError } from "./formulaError";
 import { isSpreadsheetErrorValue, NA_ERROR, spreadsheetError, type SpreadsheetError } from "./spreadsheet-errors";
 import { renderOperand } from "./expressionText";
-import type { EvaluatorContext } from "./evaluator";
+import type { EvaluatorContext } from "./evaluatorContext";
 
 /** An array operand as the element formulas see it: its shape, and what stands in its place in the
  *  formula for one element — the text written there, or the error that element is. */

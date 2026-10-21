@@ -1,7 +1,6 @@
 // With the JSON editor open, a click on a table cell selects that cell's JSON in the editor.
 
-import { findCellJsonPosition } from "../engine";
-import { normalizeSheetData } from "./sheetRows";
+import { findCellJsonPosition, normalizeData } from "../engine";
 
 /** Select, in `textarea` holding `editableJson`, the JSON of the cell at `rowIndex`, `colIndex` of the
  *  sheet at `sheetIndex`, and scroll it into view; nothing when the cell is not in the JSON. */
@@ -10,7 +9,7 @@ export function selectCellInEditor(textarea: HTMLTextAreaElement, editableJson: 
     const sheets = JSON.parse(editableJson);
     const currentSheet = sheets[sheetIndex];
     if (!currentSheet || !currentSheet.data) return;
-    const normalizedData = normalizeSheetData(currentSheet.data);
+    const normalizedData = normalizeData(currentSheet.data);
     if (!normalizedData[rowIndex] || normalizedData[rowIndex][colIndex] === undefined) {
       return;
     }
