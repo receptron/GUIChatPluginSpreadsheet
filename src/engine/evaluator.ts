@@ -9,12 +9,9 @@ import { CALL_NAMES, FUNCTION_NAME_SOURCE, functionRegistry, isCallableName, too
 const SIMPLE_CALL = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\((.*)\\)$`, "i");
 const CALL_START = new RegExp(`^(${FUNCTION_NAME_SOURCE})\\(`, "i");
 import type { CellValue, FormulaValue } from "./types";
-import { isCellArray, normalizedValue, rowsOfRange, scalarOf } from "./cellArray";
-import { alignedIndex, arrayOperands, combinedShape, parseArrayConstant, type ArrayOperand, type TableShape } from "./arrayExpression";
-import { parseRangeBounds } from "./formulaRefs";
-import { indexToColumn } from "./parser";
+import { normalizedValue, rowsOfRange, scalarOf } from "./cellArray";
+import { arrayOperands } from "./arrayExpression";
 import { isSoleRangeReference } from "./spillCandidate";
-import { endOfQuotedSheetName, UNQUOTED_SHEET_NAME } from "./sheetReference";
 import { parseDate } from "./date-parser";
 import { concatOperands, concatToSum, topLevelGroups } from "./concatPrecedence";
 import { isEscapedAt } from "./escapes";
@@ -23,11 +20,13 @@ import { caretToPow, rewriteComparisonEq, isSafeArithmetic, isSafeComparison, se
 import { foldComparisons, splitTopLevelComparisons } from "./textComparison";
 import { standsAloneInConcat } from "./concatOperand";
 import { stripOuterParens } from "./condition";
-import { divZeroError, isFormulaError, unknownError, nameError, propagatedError } from "./formulaError";
-import { errorCodeOf, isSpreadsheetErrorValue, NA_ERROR, spreadsheetError, VALUE_ERROR, type SpreadsheetError } from "./spreadsheet-errors";
+import { divZeroError, unknownError, nameError, propagatedError } from "./formulaError";
+import { errorCodeOf, isSpreadsheetErrorValue, VALUE_ERROR } from "./spreadsheet-errors";
 import { inlineLambdaCalls } from "./nameBinding";
 import { booleansAsNumbers, logicalLiteralsAsBooleans, loneBoolean } from "./logicalLiterals";
 import { textOperandsAsNumbers } from "./textArithmetic";
+import { endOfStringLiteral, findCellRefs, isSafeConcatExpression, parseFunctionArgs, renderOperand, substituteCellRefs } from "./expressionText";
+import { evaluateOverArrays } from "./arrayEvaluation";
 
 /**
  * Evaluation context for formulas
@@ -49,204 +48,6 @@ export interface EvaluatorContext {
   isCellEmpty?: ((ref: string) => boolean) | undefined;
   currentCell?: CellCoordinates | undefined;
   currentSheet?: string | undefined;
-}
-
-/** Render a cell's value as the text that stands in for it inside an
- *  expression. Strings are quoted so they cannot be read as identifiers or
- *  operators, and their own quotes and backslashes are escaped so the literal
- *  cannot be closed early. A missing value becomes 0, matching how blanks are
- *  treated everywhere else in the engine. */
-export function renderOperand(value: CellValue | null | undefined): string {
-  if (value === null || value === undefined) return "0";
-  const text = isSpreadsheetErrorValue(value) ? value.code : value;
-  if (typeof text === "string") return `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-  return text.toString();
-}
-
-/** Replace every quoted string literal with an empty pair of quotes, honouring
- *  `\` escapes so an escaped quote does not end the literal early. Used to
- *  validate the STRUCTURE of a concat/arithmetic expression without letting the
- *  arbitrary CONTENT of a string decide whether the whole thing looks safe. */
-export function maskStringLiterals(expr: string): string {
-  let out = "";
-  let quote: string | null = null;
-  for (let index = 0; index < expr.length; index++) {
-    const char = expr[index];
-    if (quote !== null) {
-      if (char === "\\") {
-        index++; // skip the escaped character — it is part of the literal
-        continue;
-      }
-      if (char === quote) {
-        quote = null;
-        out += char;
-      }
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      out += char;
-      continue;
-    }
-    out += char;
-  }
-  return out;
-}
-
-/** Whether a `&`-to-`+` concatenation expression is safe to evaluate. Checks the
- *  structure with string CONTENT masked out — a string literal may hold any
- *  character (a `!`, a `\`), and validating those against a character allowlist
- *  rejected valid formulas like `=A1&"!"` and every escaped operand. Once the
- *  literals are masked, only the joining structure remains to validate. */
-export function isSafeConcatExpression(expr: string): boolean {
-  // A boolean cell renders as a bare `true` / `false` here (renderOperand) —
-  // the only non-literal identifier the substitution can emit. Drop those words
-  // before validating so a boolean operand (`=A1&"!"` with A1 = true) still
-  // evaluates, while any other identifier keeps the structure from matching and
-  // never reaches `new Function`.
-  const structure = maskStringLiterals(expr).replace(/\b(?:true|false)\b/g, "");
-  return /^[\d+\-*/(). "']*$/.test(structure);
-}
-
-/** Index just past the string literal that opens at `start` (a quote char),
- *  honouring `\` escapes so an escaped quote does not close it early. Returns
- *  `expr.length` when the literal is never closed. */
-export function endOfStringLiteral(expr: string, start: number): number {
-  const quote = expr[start];
-  let index = start + 1;
-  while (index < expr.length) {
-    if (expr[index] === "\\") {
-      index += 2; // skip the escaped character — it is part of the literal
-      continue;
-    }
-    if (expr[index] === quote) return index + 1;
-    index++;
-  }
-  return expr.length;
-}
-
-/** A `'Sheet Name'!A1` reference beginning at `start` (a `'`), or null when the
- *  quotes open a plain string literal rather than a sheet-qualified reference. */
-function matchQuotedSheetRef(expr: string, start: number): string | null {
-  const afterName = endOfQuotedSheetName(expr, start);
-  if (afterName === -1 || expr[afterName] !== "!") return null;
-  const cellPart = expr.substring(afterName + 1).match(/^(\$?[A-Z]+\$?\d+)/);
-  if (!cellPart) return null;
-  return expr.substring(start, afterName + 1 + cellPart[0].length);
-}
-
-const UNQUOTED_SHEET_PREFIX = new RegExp(String.raw`^(${UNQUOTED_SHEET_NAME})!`, "u");
-
-/** A `Sheet!A1` or bare `A1` / `$A$1` reference beginning at `start`, or null. */
-function matchUnquotedRef(expr: string, start: number): string | null {
-  const rest = expr.substring(start);
-  const sheetMatch = rest.match(UNQUOTED_SHEET_PREFIX);
-  if (sheetMatch) {
-    const cellPart = rest.substring(sheetMatch[0].length).match(/^(\$?[A-Z]+\$?\d+)/);
-    if (cellPart) return sheetMatch[0] + cellPart[0];
-  }
-  const cellMatch = rest.match(/^(\$?[A-Z]+\$?\d+)/);
-  return cellMatch ? cellMatch[0] : null;
-}
-
-/** Every cell reference in an expression, as `{ref, start}` spans in source
- *  order. Quoted string literals are skipped whole: a `"A1"` in the text is a
- *  constant, not a reference, and substituting it would turn `="A1"&"!"` into
- *  A1's value. A `'` opens either a `'Sheet'!A1` reference or a string literal —
- *  only the former is a reference; the latter is skipped like a `"` literal. */
-export interface CellRefSpan {
-  ref: string;
-  start: number;
-}
-
-export function findCellRefs(expr: string): CellRefSpan[] {
-  const cellRefs: CellRefSpan[] = [];
-  let i = 0;
-  while (i < expr.length) {
-    const char = expr[i];
-    if (char === '"') {
-      i = endOfStringLiteral(expr, i);
-      continue;
-    }
-    if (char === "'") {
-      const sheetRef = matchQuotedSheetRef(expr, i);
-      if (sheetRef) {
-        cellRefs.push({ ref: sheetRef, start: i });
-        i += sheetRef.length;
-      } else {
-        i = endOfStringLiteral(expr, i);
-      }
-      continue;
-    }
-    const ref = matchUnquotedRef(expr, i);
-    if (ref) {
-      cellRefs.push({ ref, start: i });
-      i += ref.length;
-      continue;
-    }
-    i++;
-  }
-  return cellRefs;
-}
-
-/** Replace every reference span in `expr` with the text `render` gives for it,
- *  walking BACK TO FRONT so the spans ahead of each edit stay valid. A global
- *  string replace rewrote every occurrence of the shorter reference first, so
- *  `=A1+A10` had its `A10` broken into `<A1's value>0` and produced a plausible
- *  wrong number (#2357). */
-export function substituteCellRefs(expr: string, cellRefs: CellRefSpan[], render: (ref: string, start: number) => string): string {
-  return cellRefs.toReversed().reduce((text, { ref, start }) => text.slice(0, start) + render(ref, start) + text.slice(start + ref.length), expr);
-}
-
-/**
- * Parse function arguments, handling nested functions and quoted strings
- *
- * @param argsStr - String containing function arguments
- * @returns Array of argument strings
- */
-export function parseFunctionArgs(argsStr: string): string[] {
-  const args: string[] = [];
-  let currentArg = "";
-  let depth = 0;
-  let inString = false;
-  let stringChar = "";
-
-  for (let i = 0; i < argsStr.length; i++) {
-    const char = argsStr[i];
-    // Handle string boundaries
-    if ((char === '"' || char === "'") && !isEscapedAt(argsStr, i)) {
-      if (!inString) {
-        inString = true;
-        stringChar = char;
-      } else if (char === stringChar) {
-        inString = false;
-        stringChar = "";
-      }
-      currentArg += char;
-      continue;
-    }
-
-    // Track bracket depth (nested calls, and an array constant's own commas)
-    if (!inString) {
-      if (char === "(" || char === "{") depth++;
-      if (char === ")" || char === "}") depth--;
-
-      // Split on comma only at depth 0 and not in string
-      if (char === "," && depth === 0) {
-        args.push(currentArg.trim());
-        currentArg = "";
-        continue;
-      }
-    }
-
-    currentArg += char;
-  }
-
-  if (currentArg.trim()) {
-    args.push(currentArg.trim());
-  }
-
-  return args;
 }
 
 /** Run `new Function` on an expression the callers have already gated with a
@@ -340,84 +141,6 @@ function withGroupsEvaluated(expr: string, context: EvaluatorContext): string {
     if (isSpreadsheetErrorValue(value)) throw propagatedError(value.code);
     return rewritten.slice(0, open) + renderOperand(value) + rewritten.slice(close + 1);
   }, expr);
-}
-
-/** An array operand as the element formulas see it: its shape, and what stands in its place in the
- *  formula for one element — the text written there, or the error that element is. */
-interface OperandTable {
-  shape: TableShape;
-  elementAt: (row: number, col: number) => string | SpreadsheetError;
-}
-
-/** A range's element is the reference to its cell (`A1:A3*2` → `A2*2`), so a blank cell, text and
- *  an error cell answer as a reference to that one cell does. */
-function rangeTable(range: string): OperandTable {
-  const bounds = parseRangeBounds(range);
-  if (!bounds) throw unknownError(`Invalid range: ${range}`);
-  const [top, left] = [Math.min(bounds.startRow, bounds.endRow), Math.min(bounds.startCol, bounds.endCol)];
-  const shape = { rows: Math.abs(bounds.endRow - bounds.startRow) + 1, columns: Math.abs(bounds.endCol - bounds.startCol) + 1 };
-  return { shape, elementAt: (row, col) => `${bounds.sheetPrefix}${indexToColumn(left + col)}${top + row}` };
-}
-
-/** Values written in their element's place: text as a literal, a number or a logical value bracketed. */
-function valueTable(rows: CellValue[][]): OperandTable {
-  const shape = { rows: rows.length, columns: rows[0]?.length ?? 1 };
-  const elementAt = (row: number, col: number): string | SpreadsheetError => {
-    const value = rows[row]?.[col] ?? "";
-    if (isSpreadsheetErrorValue(value)) return value;
-    return typeof value === "string" ? renderOperand(value) : `(${String(value)})`;
-  };
-  return { shape, elementAt };
-}
-
-function operandTable({ kind, text }: ArrayOperand, context: EvaluatorContext): OperandTable {
-  if (kind === "range") return rangeTable(text);
-  if (kind === "constant") {
-    const rows = parseArrayConstant(text);
-    if (!rows) throw unknownError(`Invalid array constant: ${text}`);
-    return valueTable(rows);
-  }
-  const value = normalizedValue(context.evaluateValue ? context.evaluateValue(text) : context.evaluateFormula(text));
-  return valueTable(isCellArray(value) ? value : [[value]]);
-}
-
-/** One element of an expression over arrays: the formula with each operand replaced by its element
- *  there, evaluated as any formula is. A failure is that element's error; the others still answer. */
-function evaluateElement(formula: string, operands: ArrayOperand[], pieces: (string | SpreadsheetError)[], context: EvaluatorContext): CellValue {
-  const error = pieces.find(isSpreadsheetErrorValue);
-  if (error) return error;
-  const elementFormula = operands.reduceRight((text, { start, end }, index) => {
-    const piece = pieces[index];
-    return text.slice(0, start) + (typeof piece === "string" ? piece : "") + text.slice(end);
-  }, formula);
-  try {
-    return context.evaluateFormula(elementFormula);
-  } catch (failure) {
-    if (isFormulaError(failure)) return spreadsheetError(failure.display);
-    throw failure;
-  }
-}
-
-/** An expression over arrays, as a table: the largest height and width among its operands, a single
- *  row or column repeated along the other, and #N/A past the end of a shorter operand (Excel). */
-function evaluateOverArrays(formula: string, operands: ArrayOperand[], context: EvaluatorContext): FormulaValue {
-  const tables = operands.map((operand) => operandTable(operand, context));
-  const shape = combinedShape(tables.map((table) => table.shape));
-  const pieceAt = (table: OperandTable, row: number, col: number): string | SpreadsheetError => {
-    const [tableRow, tableCol] = [alignedIndex(table.shape.rows, row), alignedIndex(table.shape.columns, col)];
-    return tableRow < 0 || tableCol < 0 ? NA_ERROR : table.elementAt(tableRow, tableCol);
-  };
-  const rows = Array.from({ length: shape.rows }, (_, row) =>
-    Array.from({ length: shape.columns }, (_, col) =>
-      evaluateElement(
-        formula,
-        operands,
-        tables.map((table) => pieceAt(table, row, col)),
-        context,
-      ),
-    ),
-  );
-  return normalizedValue(rows);
 }
 
 /**

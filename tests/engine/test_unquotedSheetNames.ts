@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { calculateSheet, type SheetData } from "../../src/engine/index.ts";
-import { findCellRefs } from "../../src/engine/evaluator.ts";
+import { findCellRefs } from "../../src/engine/expressionText.ts";
 
 const calculated = (name: string, formulas: string[]): unknown[] => {
   const here: SheetData = { name: "Here", data: [["here", 5, ...formulas].map((v) => ({ v }))] };

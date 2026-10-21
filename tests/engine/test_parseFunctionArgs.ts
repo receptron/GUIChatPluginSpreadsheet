@@ -5,7 +5,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parseFunctionArgs } from "../../src/engine/evaluator.ts";
+import { parseFunctionArgs } from "../../src/engine/expressionText.ts";
 
 describe("parseFunctionArgs — plain splitting", () => {
   it("splits comma-separated arguments and trims each", () => {

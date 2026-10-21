@@ -3,7 +3,7 @@
  */
 
 import { evaluateConditionValues, readOperand, renderConditionOperand } from "../condition";
-import { findCellRefs, substituteCellRefs } from "../evaluator";
+import { findCellRefs, substituteCellRefs } from "../expressionText";
 import { functionRegistry, requiredArg, type FunctionHandler } from "../registry";
 import { isErrorResult, isSpreadsheetErrorValue, NA_ERROR } from "../spreadsheet-errors";
 import { coerceToBoolean } from "../coerce-boolean";
