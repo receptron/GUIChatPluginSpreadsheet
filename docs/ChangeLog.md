@@ -1,5 +1,39 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@4.3.0 — 2026-10-21
+
+Dynamic arrays, LET / LAMBDA, the table functions, regression and forecasting, more statistics, and a list of the registered functions for hosts.
+
+### Formulas that answer a table
+
+- **Spill** (#163, part 1 of #148): a formula can answer a table, which spills from its cell right and down as dynamic arrays do in Excel 365. A bare range (`=A1:B3`) or a whole-formula call to a table function spills; a blocked or oversized target is `#SPILL!`, and the first table in reading order keeps its place.
+- **Array constants and expressions over arrays** (#172, part 2 of #148): `{1,2;3,4}` constants; `=A2:A9*B2:B9`, `=A2:A9>5` and `=SORT(A2:A9)*2` answer a table, with operands of different sizes lined up as in Excel; `SUMPRODUCT`.
+- **Workbook functions may return a table** (#177, closes #148): a QuickJS function returning rows spills like any table, and other functions read it (`=SUM(MYFN(…))`). The answer is written back as tagged JSON and checked with type guards, so a replaced `JSON.stringify` gives `#VALUE!`.
+- **Table functions** (#168, #175, #179, #181, closes #150): `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `TRANSPOSE`, `CHOOSECOLS`, `CHOOSEROWS`, `HSTACK`, `VSTACK`, `TAKE`, `DROP`, `XMATCH`; `FILTER`; `GROUPBY` and `PIVOTBY` (subtotal depths, sort orders, `filter_array`, field headers as Microsoft documents); and `XLOOKUP` answering the whole matching row or column of a two-dimensional return range — which also fixes a silent wrong value, where such a range used to be read flat.
+- **LET, LAMBDA, MAP, BYROW, BYCOL, REDUCE** (#174, closes #157).
+
+### Statistics, regression and forecasting
+
+- **Descriptive statistics** (#159, closes #153): `TRIMMEAN`, `AVEDEV`, `DEVSQ`, `SKEW.P`, `PERCENTILE.EXC`, `QUARTILE.EXC`, `PERCENTRANK.EXC`, `RANK.AVG`, `MODE.SNGL`, `PROB`, `COUNTBLANK`, `AVERAGEA`, `MAXA`, `MINA`, and the rank correlations `SPEARMAN` and `KENDALL`.
+- **Hypothesis tests** (#161, closes #152): `F.TEST`, `Z.TEST`, `CHISQ.TEST` (and `FTEST`, `ZTEST`, `CHITEST`), plus `ANOVA.TEST`, `MANNWHITNEY.TEST`, `WILCOXON.TEST`, `KS.TEST` and `SHAPIRO.TEST`, which Excel does not have.
+- **Matrices and frequency** (#170, closes #154): `FREQUENCY`, `MMULT`, `MINVERSE`, `MDETERM`, `MUNIT`.
+- **Regression** (#173, #180): `LINEST` and `LOGEST` (with the stats rows), `TREND` and `GROWTH` over several x variables; polynomial fits through `x^{1,2,3}` and Microsoft's LINEST Example 2 are pinned by tests.
+- **Forecasting** (#184, closes #149): `FORECAST.ETS`, `FORECAST.ETS.CONFINT`, `FORECAST.ETS.SEASONALITY`, by additive Holt-Winters with FFT season detection. Excel does not publish its model, so values can differ from Excel's.
+- **Time series** (#178, closes #156): `AUTOCORREL`, `EMA`, `DECOMPOSE` (computed as statsmodels / pandas compute them).
+- **Random numbers** (#176, closes #155): `RAND`, `RANDBETWEEN`, `RANDARRAY`. Each call is seeded by its sheet, cell and position in the formula, so a workbook calculates to the same numbers every time — the agent and the page see the same table.
+
+### Fixes
+
+- **A formula's `""` and text read the same whichever cell is calculated first** (#164, fixes #162).
+- **A criterion compares with its spaces and quotes** (#166, fixes #165): `COUNTIF(A1:A5," x")` no longer matches `x`.
+- **Lookups' exact match ignores case** (#169, fixes #167): MATCH, VLOOKUP, HLOOKUP and XLOOKUP, as in Excel.
+
+### For hosts
+
+- **`registeredFunctionsByCategory()` and `isRegisteredFunction(name)` from `./core`** (#183, closes #182): each category's function names, sorted, without the engine's internal functions; and whether a name is one of the engine's own functions, in any case (a workbook's own functions are not). A host that lists the callable functions in its own guidance can check that list against the engine.
+
+📦 **npm**: [`@gui-chat-plugin/spreadsheet@4.3.0`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.3.0)
+
 ## @gui-chat-plugin/spreadsheet@4.2.5 — 2026-10-20
 
 Date and time format codes, read the way Excel reads them — by `TEXT` and by a cell's display format alike.
