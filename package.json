@@ -56,8 +56,7 @@
   },
   "dependencies": {
     "@jitl/quickjs-singlefile-mjs-release-sync": "^0.32.0",
-    "quickjs-emscripten-core": "^0.32.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "quickjs-emscripten-core": "^0.32.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -79,7 +78,8 @@
     "vitest": "^5.0.5",
     "vue": "^3.5.44",
     "vue-eslint-parser": "^10.4.1",
-    "vue-tsc": "^3.3.13"
+    "vue-tsc": "^3.3.13",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "keywords": [
     "guichat",
