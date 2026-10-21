@@ -6,7 +6,7 @@ import { functionRegistry, answersTable, rawRangeReader, requiredArg, toNumber, 
 import { indexToColumn } from "../parser";
 import { parseRangeBounds, resolveIndexTarget, resolveTableOffset, type RangeBounds } from "../formulaRefs";
 import { isApproximateMatch } from "./lookup-math";
-import type { CellValue } from "../types";
+import type { CellValue, FormulaValue } from "../types";
 import { NA_ERROR, REF_ERROR, VALUE_ERROR } from "../spreadsheet-errors";
 import { referenceBounds } from "./reference-math";
 import { compareText } from "../textCollation";
@@ -239,11 +239,32 @@ const xlookupHandler: FunctionHandler = (args, context) => {
 
   if (matchIdx === -1) return ifNotFound;
 
+  const returnTable = lookupTable(returnArrayRange, context);
+  const lookupTableShape = lookupTable(lookupArrayRange, context);
+  if (returnTable && lookupTableShape && isTwoDimensional(returnTable.bounds)) {
+    return matchedLine(returnTable, isRowRange(lookupTableShape.bounds), matchIdx);
+  }
+
   // A match past the end of the return range has nothing to return — the two
   // ranges are independent arguments and need not be the same length.
   const found = returnArray[matchIdx];
   return found === undefined ? NA_ERROR : found;
 };
+
+const isTwoDimensional = (bounds: RangeBounds): boolean => bounds.endRow !== bounds.startRow && bounds.endCol !== bounds.startCol;
+const isRowRange = (bounds: RangeBounds): boolean => bounds.startRow === bounds.endRow && bounds.startCol !== bounds.endCol;
+
+/** XLOOKUP's answer from a return range of several rows and columns: the matching row when the lookup
+ *  ran down a column, the matching column when it ran along a row; #N/A past the range's end. */
+function matchedLine(table: LookupTable, alongRow: boolean, matchIdx: number): FormulaValue {
+  const { startRow, endRow, startCol, endCol } = table.bounds;
+  if (alongRow) {
+    const col = startCol + matchIdx;
+    return col > endCol ? NA_ERROR : inclusiveRange(startRow, endRow).map((row) => [table.cellAt(row, col)]);
+  }
+  const row = startRow + matchIdx;
+  return row > endRow ? NA_ERROR : [inclusiveRange(startCol, endCol).map((col) => table.cellAt(row, col))];
+}
 
 /** XMATCH(lookup, lookup_array, [match_mode], [search_mode]): the 1-based position XLOOKUP would
  *  take its answer from; a mode it does not have is #VALUE!. */
@@ -322,7 +343,9 @@ functionRegistry.register({
   handler: xlookupHandler,
   minArgs: 3,
   maxArgs: 6,
-  description: "Searches a range or an array, and returns an item corresponding to the first match it finds",
+  spills: true,
+  description:
+    "Searches a range or an array, and returns the item corresponding to the first match it finds; a return range of several columns (or rows) gives the whole matching row (or column), which spills",
   examples: ["XLOOKUP(A1, B1:B10, C1:C10)", 'XLOOKUP("USA", Countries, Populations)'],
   category: "Lookup & Reference",
 });
