@@ -1,19 +1,19 @@
 <template>
-  <div class="spreadsheet-container">
+  <div class="w-full h-full flex flex-col bg-white">
     <div v-if="loading" class="min-h-full p-8 flex items-center justify-center">
       <div class="text-gray-500">{{ t.loading }}</div>
     </div>
     <div v-else-if="errorMessage" class="min-h-full p-8 flex items-center justify-center">
-      <div class="error">{{ errorMessage }}</div>
+      <div class="p-[1em] my-[1em] rounded bg-[#ffebee] text-[#c62828]">{{ errorMessage }}</div>
     </div>
     <div v-else-if="!resolvedSheets || resolvedSheets.length === 0" class="min-h-full p-8 flex items-center justify-center">
       <div class="text-gray-500">{{ t.noData }}</div>
     </div>
     <template v-else>
-      <div class="spreadsheet-content-wrapper">
+      <div class="flex-1 min-h-0 overflow-y-auto">
         <div class="p-4">
-          <div class="header">
-            <h1 class="title">
+          <div class="flex items-center justify-between mb-[1em]">
+            <h1 class="m-0 text-[2em] font-bold">
               {{ selectedResult.title || t.untitled }}
             </h1>
             <button
@@ -33,11 +33,11 @@
           </div>
 
           <!-- Sheet tabs (if multiple sheets) -->
-          <div v-if="resolvedSheets.length > 1" class="sheet-tabs">
+          <div v-if="resolvedSheets.length > 1" class="flex gap-[0.25em] mb-[1em] border-b-2 border-b-[#e0e0e0]">
             <button
               v-for="(sheet, index) in resolvedSheets"
               :key="index"
-              :class="['sheet-tab', { active: activeSheetIndex === index }]"
+              :class="sheetTabClasses(activeSheetIndex === index)"
               @click="activeSheetIndex = index"
             >
               {{ sheet.name }}
@@ -45,30 +45,30 @@
           </div>
 
           <!-- Spreadsheet table -->
-          <div ref="tableContainer" class="table-container" @click="handleTableClick" v-html="renderedHtml"></div>
+          <div ref="tableContainer" :class="TABLE_CLASSES" @click="handleTableClick" v-html="renderedHtml"></div>
         </div>
       </div>
 
       <!-- Collapsible Editor -->
-      <details v-if="!miniEditorOpen" ref="editorDetails" class="spreadsheet-source">
-        <summary>{{ t.editData }}</summary>
-        <textarea ref="editorTextarea" v-model="editableData" class="spreadsheet-editor" spellcheck="false" @input="handleDataEdit"></textarea>
-        <button class="apply-btn" :disabled="!hasChanges" @click="applyChanges">{{ t.applyChanges }}</button>
+      <details v-if="!miniEditorOpen" ref="editorDetails" :class="SOURCE_CLASSES">
+        <summary :class="SOURCE_SUMMARY_CLASSES">{{ t.editData }}</summary>
+        <textarea ref="editorTextarea" v-model="editableData" :class="EDITOR_CLASSES" spellcheck="false" @input="handleDataEdit"></textarea>
+        <button :class="APPLY_BUTTON_CLASSES" :disabled="!hasChanges" @click="applyChanges">{{ t.applyChanges }}</button>
       </details>
 
       <!-- Mini Editor at Bottom -->
-      <div v-if="miniEditorOpen" class="mini-editor-panel">
-        <div class="mini-editor-content">
-          <span v-if="miniEditorCell" class="cell-ref"> {{ indexToCol(miniEditorCell.col) }}{{ miniEditorCell.row + 1 }} </span>
+      <div v-if="miniEditorOpen" class="bg-[#f8f8f8] border-t border-t-[#d0d0d0] shrink-0">
+        <div class="flex items-center gap-2 px-4 py-2">
+          <span v-if="miniEditorCell" :class="CELL_REF_CLASSES"> {{ indexToCol(miniEditorCell.col) }}{{ miniEditorCell.row + 1 }} </span>
 
           <!-- Type Selector -->
-          <div class="radio-group">
-            <label class="radio-option">
-              <input v-model="miniEditorType" type="radio" value="string" />
+          <div class="flex gap-3 pr-3 border-r border-r-[#d0d0d0]">
+            <label :class="RADIO_OPTION_CLASSES">
+              <input v-model="miniEditorType" type="radio" value="string" :class="RADIO_INPUT_CLASSES" />
               {{ t.stringType }}
             </label>
-            <label class="radio-option">
-              <input v-model="miniEditorType" type="radio" value="object" />
+            <label :class="RADIO_OPTION_CLASSES">
+              <input v-model="miniEditorType" type="radio" value="object" :class="RADIO_INPUT_CLASSES" />
               {{ t.formulaType }}
             </label>
           </div>
@@ -78,19 +78,25 @@
             v-if="miniEditorType === 'string'"
             v-model="miniEditorValue"
             type="text"
-            class="form-input"
+            :class="FORM_INPUT_CLASSES"
             :placeholder="t.valuePlaceholder"
             @keyup.enter="saveMiniEditor"
           />
 
           <!-- Formula inputs -->
           <template v-if="miniEditorType === 'object'">
-            <input v-model="miniEditorFormula" type="text" class="form-input" :placeholder="t.valueOrFormulaPlaceholder" @keyup.enter="saveMiniEditor" />
-            <input v-model="miniEditorFormat" type="text" class="form-input" :placeholder="t.formatPlaceholder" @keyup.enter="saveMiniEditor" />
+            <input
+              v-model="miniEditorFormula"
+              type="text"
+              :class="FORM_INPUT_CLASSES"
+              :placeholder="t.valueOrFormulaPlaceholder"
+              @keyup.enter="saveMiniEditor"
+            />
+            <input v-model="miniEditorFormat" type="text" :class="FORM_INPUT_CLASSES" :placeholder="t.formatPlaceholder" @keyup.enter="saveMiniEditor" />
           </template>
 
-          <button class="save-btn" @click="saveMiniEditor">{{ t.update }}</button>
-          <button class="cancel-btn" @click="closeMiniEditor">✕</button>
+          <button :class="SAVE_BUTTON_CLASSES" @click="saveMiniEditor">{{ t.update }}</button>
+          <button :class="CANCEL_BUTTON_CLASSES" @click="closeMiniEditor">✕</button>
         </div>
       </div>
     </template>
@@ -116,6 +122,20 @@ import {
 } from "../engine";
 import { errorMessage as formatErrorMessage, isObj, isRecord } from "../engine/guards";
 import { applyCellHighlights, clearCellHighlights } from "./cellHighlights";
+import {
+  APPLY_BUTTON_CLASSES,
+  CANCEL_BUTTON_CLASSES,
+  CELL_REF_CLASSES,
+  EDITOR_CLASSES,
+  FORM_INPUT_CLASSES,
+  RADIO_INPUT_CLASSES,
+  RADIO_OPTION_CLASSES,
+  SAVE_BUTTON_CLASSES,
+  SOURCE_CLASSES,
+  SOURCE_SUMMARY_CLASSES,
+  TABLE_CLASSES,
+  sheetTabClasses,
+} from "./viewClasses";
 import { getArrowKeyOffset, isWithinSheetBounds } from "./keyboardNav";
 import { escapeHtml, isCrossOriginHttpUrl } from "./htmlText";
 import { useT } from "../lang";
@@ -756,299 +776,3 @@ onUnmounted(() => {
   stopFollowingFile();
 });
 </script>
-
-<style scoped>
-.spreadsheet-container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: white;
-}
-
-.spreadsheet-content-wrapper {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1em;
-}
-
-.title {
-  font-size: 2em;
-  margin: 0;
-  font-weight: bold;
-}
-
-/* Sheet tabs */
-.sheet-tabs {
-  display: flex;
-  gap: 0.25em;
-  margin-bottom: 1em;
-  border-bottom: 2px solid #e0e0e0;
-}
-
-.sheet-tab {
-  padding: 0.5em 1em;
-  background: #f5f5f5;
-  border: none;
-  border-top-left-radius: 4px;
-  border-top-right-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9em;
-  color: #666;
-  transition: background-color 0.2s;
-}
-
-.sheet-tab:hover {
-  background: #e8e8e8;
-}
-
-.sheet-tab.active {
-  background: white;
-  color: #333;
-  font-weight: 500;
-  border-bottom: 2px solid white;
-  margin-bottom: -2px;
-}
-
-/* Table container */
-.table-container {
-  overflow-x: auto;
-  background: white;
-}
-
-/* Style the generated table */
-.table-container :deep(table) {
-  border-collapse: collapse;
-  width: 100%;
-  font-family: "Segoe UI", Arial, sans-serif;
-  font-size: 0.9em;
-}
-
-.table-container :deep(td),
-.table-container :deep(th) {
-  border: 1px solid #d0d0d0;
-  padding: 0.5em 0.75em;
-  text-align: left;
-}
-
-.table-container :deep(th) {
-  background-color: #f5f5f5;
-  font-weight: 600;
-  color: #333;
-}
-
-.table-container :deep(tr:nth-child(even)) {
-  background-color: #fafafa;
-}
-
-.table-container :deep(tr:hover) {
-  background-color: #f0f0f0;
-}
-
-.table-container :deep(.cell-editing) {
-  background-color: #e8f5e9 !important;
-  outline: 2px solid #217346 !important;
-  outline-offset: -2px;
-}
-
-.table-container :deep(.cell-referenced) {
-  background-color: #fff3e0 !important;
-  outline: 2px solid #ff9800 !important;
-  outline-offset: -2px;
-}
-
-/* Error message */
-.error {
-  padding: 1em;
-  background: #ffebee;
-  color: #c62828;
-  border-radius: 4px;
-  margin: 1em 0;
-}
-
-/* Editor section */
-.spreadsheet-source {
-  padding: 0.5rem;
-  background: #f5f5f5;
-  border-top: 1px solid #e0e0e0;
-  font-family: Consolas, "MS Gothic", "BIZ UDGothic", monospace;
-  font-size: 0.85rem;
-  flex-shrink: 0;
-}
-
-.spreadsheet-source summary {
-  cursor: pointer;
-  user-select: none;
-  padding: 0.5rem;
-  background: #e8e8e8;
-  border-radius: 4px;
-  font-weight: 500;
-  color: #333;
-}
-
-.spreadsheet-source[open] summary {
-  margin-bottom: 0.5rem;
-}
-
-.spreadsheet-source summary:hover {
-  background: #d8d8d8;
-}
-
-.spreadsheet-editor {
-  width: 100%;
-  height: 40vh;
-  padding: 1rem;
-  background: #ffffff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  color: #333;
-  font-family: "Courier New", "MS Gothic", "BIZ UDGothic", monospace;
-  font-size: 0.9rem;
-  resize: vertical;
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
-
-.spreadsheet-editor:focus {
-  outline: none;
-  border-color: #217346;
-  box-shadow: 0 0 0 2px rgba(33, 115, 70, 0.1);
-}
-
-.apply-btn {
-  padding: 0.5rem 1rem;
-  background: #217346;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background 0.2s;
-  font-weight: 500;
-}
-
-.apply-btn:hover {
-  background: #1e6a3f;
-}
-
-.apply-btn:active {
-  background: #1a5c36;
-}
-
-.apply-btn:disabled {
-  background: #cccccc;
-  color: #666666;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.apply-btn:disabled:hover {
-  background: #cccccc;
-}
-
-/* Mini Editor Panel */
-.mini-editor-panel {
-  background: #f8f8f8;
-  border-top: 1px solid #d0d0d0;
-  flex-shrink: 0;
-}
-
-.mini-editor-content {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-}
-
-.cell-ref {
-  font-family: Consolas, "MS Gothic", "BIZ UDGothic", monospace;
-  font-weight: 600;
-  color: #217346;
-  font-size: 0.85rem;
-  min-width: 2rem;
-}
-
-.radio-group {
-  display: flex;
-  gap: 0.75rem;
-  border-right: 1px solid #d0d0d0;
-  padding-right: 0.75rem;
-}
-
-.radio-option {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: #555;
-}
-
-.radio-option input[type="radio"] {
-  cursor: pointer;
-  width: 0.9rem;
-  height: 0.9rem;
-}
-
-.form-input {
-  flex: 1;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  font-size: 0.85rem;
-  font-family: inherit;
-  transition: border-color 0.2s;
-  min-width: 120px;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: #217346;
-  box-shadow: 0 0 0 2px rgba(33, 115, 70, 0.1);
-}
-
-.form-input::placeholder {
-  color: #999;
-  font-size: 0.8rem;
-}
-
-.save-btn,
-.cancel-btn {
-  padding: 0.4rem 0.8rem;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  transition: background 0.2s;
-}
-
-.save-btn {
-  background: #217346;
-  color: white;
-}
-
-.save-btn:hover {
-  background: #1e6a3f;
-}
-
-.cancel-btn {
-  background: transparent;
-  color: #666;
-  padding: 0.4rem;
-  font-size: 1.2rem;
-  line-height: 1;
-}
-
-.cancel-btn:hover {
-  color: #333;
-  background: #e0e0e0;
-}
-</style>
