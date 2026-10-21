@@ -98,7 +98,7 @@ function orthogonalise(design: number[][]): Orthogonalised {
 /** The inverse of a unit upper-triangular matrix, by back substitution. */
 function unitUpperInverse(r: number[][]): number[][] {
   const size = r.length;
-  const inverse = r.map((_, row) => Array.from({ length: size }, (_, col): number => (row === col ? 1 : 0)));
+  const inverse = r.map((_, row) => Array.from({ length: size }, (_cell, col): number => (row === col ? 1 : 0)));
   Array.from({ length: size }, (_, offset) => size - 1 - offset).forEach((row) => {
     Array.from({ length: size - row - 1 }, (_, step) => row + 1 + step).forEach((col) => {
       const known = Array.from({ length: col - row }, (_, step) => row + 1 + step).reduce((sum, k) => sum + (r[row]?.[k] ?? 0) * (inverse[k]?.[col] ?? 0), 0);
@@ -155,7 +155,7 @@ const ratio = (numerator: number, denominator: number): number | SpreadsheetErro
  *  freedom, the regression and residual sums of squares — with #N/A where a row has no more values. */
 export function linestTable(fit: Regression, data: RegressionData, stats: boolean): CellValue[][] {
   const width = fit.coefficients.length + 1;
-  const coefficients = [...[...fit.coefficients].reverse(), fit.intercept];
+  const coefficients = [...fit.coefficients.toReversed(), fit.intercept];
   if (!stats) return [coefficients];
   const fitted = fittedValues(fit, data);
   const mean = data.ys.reduce((sum, y) => sum + y, 0) / data.ys.length;
@@ -170,7 +170,7 @@ export function linestTable(fit: Regression, data: RegressionData, stats: boolea
     if (!isKept) return 0;
     return isSpreadsheetErrorValue(sey) ? sey : sey * Math.sqrt(inverseDiagonal);
   };
-  const errors = fit.coefficients.map((_, index) => errorOf(fit.inverseDiagonal[index] ?? 0, fit.kept[index] ?? false)).reverse();
+  const errors = fit.coefficients.map((_, index) => errorOf(fit.inverseDiagonal[index] ?? 0, fit.kept[index] ?? false)).toReversed();
   const interceptError = fit.interceptInverseDiagonal === null ? NA_ERROR : errorOf(fit.interceptInverseDiagonal, true);
   const regressionMeanSquare = ratio(ssreg, keptCount);
   const f = isSpreadsheetErrorValue(regressionMeanSquare) || isSpreadsheetErrorValue(variance) ? NUM_ERROR : ratio(regressionMeanSquare, variance);

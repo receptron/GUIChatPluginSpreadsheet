@@ -28,7 +28,7 @@ const readmeFunctionsByCategory = (readme: string): Map<string, string[]> => {
     .slice(1)
     .map((block): [string, string[]] => {
       const [heading = "", ...lines] = block.split("\n");
-      return [heading.trim(), [...lines.join("\n").matchAll(/`([A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)*)`/g)].map((match) => match[1] ?? "").sort()];
+      return [heading.trim(), [...lines.join("\n").matchAll(/`([A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)*)`/g)].map((match) => match[1] ?? "").toSorted()];
     });
   const headings = entries.map(([heading]) => heading);
   assert.deepEqual(headings, [...new Set(headings)], "each category appears once");

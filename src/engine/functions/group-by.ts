@@ -57,6 +57,8 @@ function tableOfHeight(args: string[], context: FunctionContext, index: number, 
 const split = (table: CellArray, hasHeaders: boolean): { data: CellArray; header: CellValue[] } =>
   hasHeaders ? { data: table.slice(1), header: table[0] ?? [] } : { data: table, header: [] };
 
+const generated = (prefix: string, count: number): CellValue[] => Array.from({ length: count }, (_, index) => `${prefix} ${index + 1}`);
+
 // GROUPBY(row_fields, values, function, [field_headers], [total_depth], [sort_order], [filter_array], [field_relationship])
 const groupByHandler: FunctionHandler = (args, context) => {
   const keysTable = tableArg(args, context, 0);
@@ -76,7 +78,6 @@ const groupByHandler: FunctionHandler = (args, context) => {
   if (typeof totalDepth !== "number" || isSpreadsheetErrorValue(sortOrder) || isSpreadsheetErrorValue(included)) {
     return [totalDepth, sortOrder, included].find(isSpreadsheetErrorValue) ?? VALUE_ERROR;
   }
-  const generated = (prefix: string, count: number): CellValue[] => Array.from({ length: count }, (_, index) => `${prefix} ${index + 1}`);
   const headers =
     mode === 3 ? [...keys.header, ...values.header] : mode === 2 ? [...generated("Row Field", keyWidth), ...generated("Value", width - keyWidth)] : null;
   return groupByTable(keys.data, values.data, included, aggregate, { headers, totalDepth: Math.trunc(totalDepth), sortOrder });

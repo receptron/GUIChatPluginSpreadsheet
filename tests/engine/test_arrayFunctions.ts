@@ -252,7 +252,7 @@ describe(`properties over generated tables (seed ${baseSeed})`, () => {
       const range = rangeOf(columns);
       const label = `seed ${baseSeed}: ${JSON.stringify(columns)}`;
       const sorted = spilled(`=SORT(${range})`, columns);
-      assert.deepEqual(sorted.map(sortKey).sort(), rowsOf(columns).map(sortKey).sort(), label);
+      assert.deepEqual(sorted.map(sortKey).toSorted(), rowsOf(columns).map(sortKey).toSorted(), label);
       const unique = spilled(`=UNIQUE(${range})`, columns);
       assert.equal(new Set(unique.map(sortKey)).size, unique.length, label);
       assert.deepEqual(new Set(unique.map(sortKey)), new Set(rowsOf(columns).map(sortKey)), label);

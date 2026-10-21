@@ -254,8 +254,8 @@ function openSheet(
 
   // How far a sheet reaches, for bounding `A:A` and `1:1`; null for a sheet that does not exist.
   const extentOf = (name: string | null, reach?: ExtentReach): SheetExtent | null => {
-    const sheet = name === null || name === sheetName ? self : (opened.get(name) ?? openOther(name));
-    return sheet ? sheet.extent(reach) : null;
+    const named = name === null || name === sheetName ? self : (opened.get(name) ?? openOther(name));
+    return named ? named.extent(reach) : null;
   };
 
   const formulaAt = (row: number, col: number): string | null => {
@@ -425,14 +425,14 @@ function openSheet(
   const locateCell = (ref: string): { cell: unknown; position: CellPosition; read: CellReader } | null => {
     const resolved = resolveSheetData(ref);
     if (!resolved) throw invalidRefError(ref); // Sheet not found → #REF!
-    const { sheetData, ref: cellRef, read, sheet } = resolved;
+    const { sheetData, ref: cellRef, read, sheet: owner } = resolved;
 
     // `$` symbols and the A1 shape are parsed by the shared single-cell reader.
     const coord = parseSingleCellRef(cellRef);
     if (!coord) return null;
 
     const { row, col } = coord;
-    sheet.ensureSpillsReaching(row, col);
+    owner.ensureSpillsReaching(row, col);
     const gridRow = row >= 0 ? sheetData[row] : undefined;
     if (!gridRow || col < 0 || col >= gridRow.length) return null;
 
@@ -472,11 +472,11 @@ function openSheet(
     if (answersTable(range)) return calledRangeValues(range, rangeOptions);
     const resolved = resolveSheetData(range);
     if (!resolved) return []; // Sheet not found → empty range
-    const { sheetData, ref: rangeRef, read, sheet } = resolved;
+    const { sheetData, ref: rangeRef, read, sheet: owner } = resolved;
 
     const coords = expandRangeOrCell(rangeRef);
     if (!coords) return [];
-    ensureSpillsCovering(sheet, coords);
+    ensureSpillsCovering(owner, coords);
 
     const sourceRows = sourceSheetOf(range);
     const values: CellValue[] = [];
@@ -586,7 +586,7 @@ function openSheet(
     const info: FormulaInfo = {
       cell: { row: position.row, col: position.col },
       formula: value,
-      dependencies: [], // TODO: Extract dependencies from formula
+      dependencies: [], // not tracked: recalculation follows references as it reads them
       result: 0, // Will be updated below
     };
     formulas.push(info);

@@ -240,7 +240,7 @@ describe("extractCellReferences — range handling", () => {
   it("expands multiple ranges in one formula", () => {
     const refs = extractCellReferences("=SUM(A1:A2)+SUM(C1:C2)");
     assert.equal(refs.length, 4);
-    assert.deepEqual(refs.slice().sort(cmpCoord), [
+    assert.deepEqual(refs.toSorted(cmpCoord), [
       { row: 0, col: 0 },
       { row: 0, col: 2 },
       { row: 1, col: 0 },

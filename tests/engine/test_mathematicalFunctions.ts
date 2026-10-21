@@ -33,12 +33,12 @@ describe("roundTo / roundUpTo / roundDownTo — direction", () => {
   });
 
   it("rounds up away from zero", () => {
-    assert.ok(closeTo(roundUpTo(-3.14159, 2), -3.15));
-    assert.ok(closeTo(roundUpTo(3.14159, 2), 3.15));
+    assert.ok(closeTo(roundUpTo(-5.14159, 2), -5.15));
+    assert.ok(closeTo(roundUpTo(5.14159, 2), 5.15));
   });
 
   it("rounds down toward zero", () => {
-    assert.ok(closeTo(roundDownTo(-3.14159, 2), -3.14));
+    assert.ok(closeTo(roundDownTo(-5.14159, 2), -5.14));
     assert.ok(closeTo(roundDownTo(3.19, 1), 3.1));
   });
 });

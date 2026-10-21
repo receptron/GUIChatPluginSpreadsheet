@@ -12,9 +12,10 @@ import { seededRandom } from "./seededRandom.ts";
 
 const operandTexts = (formula: string): string[] => arrayOperands(formula, CALL_NAMES).map(({ kind, text }) => `${kind}:${text}`);
 
+const toSheet = (name: string, data: CellValue[][]) => ({ name, data: data.map((row) => row.map((v) => ({ v }))) });
+
 /** The sheet `rows` calculates to; a string starting with "=" is a formula. */
 function calculated(rows: CellValue[][], extraSheets: { name: string; data: CellValue[][] }[] = []): CellValue[][] {
-  const toSheet = (name: string, data: CellValue[][]) => ({ name, data: data.map((row) => row.map((v) => ({ v }))) });
   const [first] = new SpreadsheetEngine().calculateWorkbook([toSheet("S", rows), ...extraSheets.map(({ name, data }) => toSheet(name, data))]);
   return first?.data ?? [];
 }
@@ -204,7 +205,7 @@ describe(`properties over generated formulas (seed ${baseSeed})`, () => {
       const operators = ["+", "-", "*", "/", "&", ">", "="];
       const operator = operators[Math.floor(random() * operators.length)] ?? "*";
       const label = `seed ${baseSeed}: ${JSON.stringify(rows)} ${operator}`;
-      const sheet = calculated(rows.map((row, r) => [...row, r === 0 ? `=A1:A${height}${operator}B1:B${height}` : "", `=A${r + 1}${operator}B${r + 1}`]));
+      const sheet = calculated(rows.map((row, r) => row.concat([r === 0 ? `=A1:A${height}${operator}B1:B${height}` : "", `=A${r + 1}${operator}B${r + 1}`])));
       assert.deepEqual(
         sheet.map((row) => row[2]),
         sheet.map((row) => row[3]),

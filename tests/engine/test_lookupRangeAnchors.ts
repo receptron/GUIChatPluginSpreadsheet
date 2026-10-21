@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { parseRangeBounds } from "../../src/engine/formulaRefs.ts";
 import { SpreadsheetEngine, type SheetData } from "../../src/engine/index.ts";
 import { cellAt } from "./cellAccess.ts";
-import { pick, seededRandom, type Random } from "./seededRandom.ts";
+import { seededRandom, type Random } from "./seededRandom.ts";
 
 describe("parseRangeBounds", () => {
   it("reads $ anchors and lowercase as the plain range", () => {
@@ -78,7 +78,7 @@ const writtenCell = (random: Random, column: string, row: number): string => {
 describe(`a range written every way (seed ${baseSeed})`, () => {
   it("has the bounds of the plain range, and the lookups answer alike", () => {
     const random = seededRandom(baseSeed);
-    const data = Array.from({ length: 4 }, (_, row) => COLUMNS.map((_, col) => ({ v: row * 10 + col })));
+    const data = Array.from({ length: 4 }, (_, row) => COLUMNS.map((_column, col) => ({ v: row * 10 + col })));
     Array.from({ length: GENERATED_CASES }).forEach(() => {
       const [first, last] = [Math.floor(random() * 2), 2 + Math.floor(random() * 2)];
       const [top, bottom] = [1 + Math.floor(random() * 2), 3 + Math.floor(random() * 2)];

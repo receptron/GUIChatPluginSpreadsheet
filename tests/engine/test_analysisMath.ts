@@ -205,10 +205,11 @@ describe("population spread", () => {
   });
 });
 
-describe("rowsMeetingAll", () => {
-  const isEast = (value: unknown): boolean => value === "East";
-  const overTen = (value: unknown): boolean => typeof value === "number" && value > 10;
+const isEast = (value: unknown): boolean => value === "East";
 
+const overTen = (value: unknown): boolean => typeof value === "number" && value > 10;
+
+describe("rowsMeetingAll", () => {
   it("marks the rows that meet every condition", () => {
     const conditions = [
       { range: ["East", "West", "East", "East"], matches: isEast },

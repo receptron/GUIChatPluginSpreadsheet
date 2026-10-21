@@ -72,7 +72,7 @@ describe("the chosen smoothing", () => {
       const jump = next() * 40;
       const values = Array.from(
         { length },
-        (_, t) => (t > length / 2 ? jump : 0) + (period ? 15 * Math.sin((2 * Math.PI * t) / period) * (1 + t / 10) : 0) + next() * 3,
+        (_value, t) => (t > length / 2 ? jump : 0) + (period ? 15 * Math.sin((2 * Math.PI * t) / period) * (1 + t / 10) : 0) + next() * 3,
       );
       const fit = fitHoltWinters(values, period);
       assert.ok(!isSpreadsheetErrorValue(fit));
@@ -122,9 +122,9 @@ describe("the lag products", () => {
   });
 });
 
-describe("the season's length", () => {
-  const steps = (count: number): number[] => Array.from({ length: count }, (_, index) => index);
+const steps = (count: number): number[] => Array.from({ length: count }, (_, index) => index);
 
+describe("the season's length", () => {
   it("is found under a steep trend, which is removed first", () => {
     assert.equal(detectedSeasonality(steps(24).map((t) => 5 * t + ([1, -1, -1, 1][t % 4] ?? 0))), 4);
   });
@@ -149,6 +149,10 @@ function answers(times: CellValue[], values: CellValue[], formulas: string[]): C
 const range = (count: number): string => `B1:B${count},A1:A${count}`;
 const sequence = (count: number, from = 1, step = 1): number[] => Array.from({ length: count }, (_, index) => from + index * step);
 const seasonal = (count: number): number[] => sequence(count, 0).map((t) => 50 + 0.5 * t + [6, -2, -7, 3][t % 4] + ((t * 37) % 7) / 10);
+
+const tenPointForecast = (completion: string): string => `=FORECAST.ETS(13,${range(10)},0${completion})`;
+
+const fourPointForecast = (completion: string): string => `=FORECAST.ETS(6,${range(4)},0${completion})`;
 
 describe("FORECAST.ETS", () => {
   it("continues a straight line exactly, with no interval around it", () => {
@@ -214,7 +218,7 @@ describe("FORECAST.ETS", () => {
     const values = seasonal(16);
     const daily = answers(sequence(16), values, [`=FORECAST.ETS(18,${range(16)},4)`]);
     const weekly = answers(sequence(16, 45000, 7), values, [`=FORECAST.ETS(${45000 + 17 * 7},${range(16)},4)`]);
-    const order = sequence(16, 0).reverse();
+    const order = sequence(16, 0).toReversed();
     const reversed = answers(
       order.map((index) => index + 1),
       order.map((index) => values[index] ?? 0),
@@ -238,8 +242,7 @@ describe("FORECAST.ETS", () => {
   it("fills a missing point on the line between its neighbours, or with 0, and reads a blank value as missing", () => {
     const times = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11];
     const values = [4, 6, 5, 9, 8, 10, 12, 11, 13, 14];
-    const formula = (completion: string): string => `=FORECAST.ETS(13,${range(10)},0${completion})`;
-    const [interpolated, zeros] = answers(times, values, [formula(""), formula(",0")]);
+    const [interpolated, zeros] = answers(times, values, [tenPointForecast(""), tenPointForecast(",0")]);
     const full = sequence(11);
     const [byLine, byZero] = [7, 0].map((fill) => answers(full, [4, 6, 5, fill, 9, 8, 10, 12, 11, 13, 14], [`=FORECAST.ETS(13,${range(11)},0)`])[0]);
     const [blank] = answers(full, [4, 6, 5, "", 9, 8, 10, 12, 11, 13, 14], [`=FORECAST.ETS(13,${range(11)},0)`]);
@@ -247,13 +250,15 @@ describe("FORECAST.ETS", () => {
   });
 
   it("keeps a blank value's time, inside the series or at either end, as a missing point to fill", () => {
-    const formula = (completion: string): string => `=FORECAST.ETS(6,${range(4)},0${completion})`;
-    const [inside, insideZero] = answers(sequence(4), [10, "", 20, 25], [formula(""), formula(",0")]);
-    assert.deepEqual([inside, insideZero], [answers(sequence(4), [10, 15, 20, 25], [formula("")])[0], answers(sequence(4), [10, 0, 20, 25], [formula("")])[0]]);
+    const [inside, insideZero] = answers(sequence(4), [10, "", 20, 25], [fourPointForecast(""), fourPointForecast(",0")]);
+    assert.deepEqual(
+      [inside, insideZero],
+      [answers(sequence(4), [10, 15, 20, 25], [fourPointForecast("")])[0], answers(sequence(4), [10, 0, 20, 25], [fourPointForecast("")])[0]],
+    );
     const atEnd = (values: CellValue[]): CellValue => answers(sequence(7), values, [`=FORECAST.ETS(9,${range(7)},0)`])[0] ?? "";
     assert.equal(atEnd([4, 6, 5, 9, 8, 10, ""]), atEnd([4, 6, 5, 9, 8, 10, 10]));
     assert.equal(atEnd(["", 6, 5, 9, 8, 10, 12]), atEnd([6, 6, 5, 9, 8, 10, 12]));
-    assert.deepEqual(answers(sequence(4), [10, "", "", 25], [formula("")]), ["#NUM!"]);
+    assert.deepEqual(answers(sequence(4), [10, "", "", 25], [fourPointForecast("")]), ["#NUM!"]);
   });
 
   it("answers #NUM! for a step that is not constant, too many missing points, or a target before the end", () => {

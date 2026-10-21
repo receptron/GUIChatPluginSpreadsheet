@@ -15,7 +15,7 @@ const MIN_SKEWNESS_VALUES = 3;
 const PROBABILITY_SUM_TOLERANCE = 1e-9;
 
 // A Float64Array sorts by value; a plain array's default sort compares text.
-const ascending = (values: readonly number[]): number[] => Array.from(Float64Array.from(values).sort());
+const ascending = (values: readonly number[]): number[] => Array.from(Float64Array.from(values).toSorted());
 
 /** TRIMMEAN: the mean once ⌊n·percent / 2⌋ values are dropped from each end, as Excel rounds the
  *  dropped count down to an even number. A percent outside 0 ≤ p < 1, or no values: #NUM!. */

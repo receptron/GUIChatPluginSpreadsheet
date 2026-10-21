@@ -12,7 +12,7 @@ import type { CellArray, CellValue, FormulaValue } from "./types";
  *  a function building one from numbers it is given (SEQUENCE, MUNIT) refuses a size past it. */
 export const MAX_TABLE_ROWS = 1_048_576;
 export const MAX_TABLE_COLUMNS = 16_384;
-export const MAX_TABLE_CELLS = 1_048_576;
+const MAX_TABLE_CELLS = 1_048_576;
 
 export const fitsInSheet = (rows: number, columns: number): boolean =>
   rows <= MAX_TABLE_ROWS && columns <= MAX_TABLE_COLUMNS && rows * columns <= MAX_TABLE_CELLS;

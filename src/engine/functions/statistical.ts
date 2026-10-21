@@ -116,11 +116,8 @@ export const overNumbers =
     return Array.isArray(values) ? rule(values) : values;
   };
 
-export const collectNumericValues = (args: string[], context: FunctionContext): number[] =>
-  collectArgumentValues(args, context, context.getRangeValues).map(({ value }) => toNumber(value));
-
-// Same walk as `collectNumericValues`, but keeping each cell as it is: COUNTA
-// counts non-empty cells, so text must survive the trip.
+// Every value the arguments hold, each cell as it is: COUNTA counts non-empty cells, so text must
+// survive the trip.
 const collectRawValues = (args: string[], context: FunctionContext): CellValue[] =>
   collectArgumentValues(args, context, blankAwareRangeReader(context)).map(({ value }) => value);
 

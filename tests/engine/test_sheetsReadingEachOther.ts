@@ -40,7 +40,7 @@ function generateGrid(): Grid {
   const rows = 2 + below(MAX_ROWS - 1);
   const columns = 2 + below(MAX_COLUMNS - 1);
   const cells = Array.from({ length: rows }, (_, row) =>
-    Array.from({ length: columns }, (_, col) => {
+    Array.from({ length: columns }, (_cell, col) => {
       if ((row === 0 && col === 0) || random() < 0.35) return String(below(20) - 5);
       const a = earlierRef(row, col, columns);
       const b = earlierRef(row, col, columns);
@@ -62,19 +62,23 @@ const oneSheet = (grid: Grid): SheetData => ({
   ),
 });
 
+const sheetOf = (col: number): string => (col % 2 === 0 ? "A" : "B");
+
+// A range names its sheet once: `B!A1:A3`. Ranges here are one column, so one sheet.
+const local = (r: number, c: number): string => `${indexToColumn(Math.floor(c / 2))}${r + 1}`;
+
+const place = (r: number, c: number): string => `${sheetOf(c)}!${indexToColumn(Math.floor(c / 2))}${r + 1}`;
+
+const render = (cell: string): string =>
+  cell
+    .replace(
+      /\{(\d+),(\d+)\}:\{(\d+),(\d+)\}/g,
+      (_, r1: string, c: string, r2: string) => `${sheetOf(Number(c))}!${local(Number(r1), Number(c))}:${local(Number(r2), Number(c))}`,
+    )
+    .replace(/\{(\d+),(\d+)\}/g, (_, r: string, c: string) => place(Number(r), Number(c)));
+
 /** Render it across sheets A and B, alternating columns, every reference to its cell's new home. */
 function twoSheets(grid: Grid): SheetData[] {
-  const sheetOf = (col: number): string => (col % 2 === 0 ? "A" : "B");
-  const place = (r: number, c: number): string => `${sheetOf(c)}!${indexToColumn(Math.floor(c / 2))}${r + 1}`;
-  // A range names its sheet once: `B!A1:A3`. Ranges here are one column, so one sheet.
-  const local = (r: number, c: number): string => `${indexToColumn(Math.floor(c / 2))}${r + 1}`;
-  const render = (cell: string): string =>
-    cell
-      .replace(
-        /\{(\d+),(\d+)\}:\{(\d+),(\d+)\}/g,
-        (_, r1: string, c: string, r2: string) => `${sheetOf(Number(c))}!${local(Number(r1), Number(c))}:${local(Number(r2), Number(c))}`,
-      )
-      .replace(/\{(\d+),(\d+)\}/g, (_, r: string, c: string) => place(Number(r), Number(c)));
   return ["A", "B"].map((name) => ({
     name,
     data: grid.cells.map((row) => row.flatMap((cell, col) => (sheetOf(col) === name ? [{ v: render(cell) }] : []))),

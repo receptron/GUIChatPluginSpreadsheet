@@ -190,11 +190,11 @@ describe("pluginCore.execute routing", () => {
   });
 });
 
+const sheet = (functions: CustomFunctionSpec[]): SpreadsheetSheet[] => [{ name: "S", functions, data: [[{ v: 1 }]] }];
+
 // A function the agent defined that cannot be used is said in the reply (#114): otherwise its
 // cells show #NAME? with nothing saying why.
 describe("executeSpreadsheet — a workbook's functions", () => {
-  const sheet = (functions: CustomFunctionSpec[]): SpreadsheetSheet[] => [{ name: "S", functions, data: [[{ v: 1 }]] }];
-
   it("says which functions cannot be used, and why", async () => {
     const result = await executeSpreadsheet(
       {},

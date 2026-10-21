@@ -20,7 +20,7 @@ const logChoose = (n: number, k: number): number => logGamma(n + 1) - logGamma(k
 
 /** The x in [low, high] where the increasing `cdf` reaches `p`, the bracket widened upward until
  *  it holds the answer, then bisected until it is as narrow as a double can tell. */
-export function invertIncreasing(cdf: (x: number) => number, p: number, low: number, high: number): number {
+function invertIncreasing(cdf: (x: number) => number, p: number, low: number, high: number): number {
   const bracket = { low, high };
   while (cdf(bracket.high) < p && bracket.high < Number.MAX_VALUE / 2) bracket.high *= 2;
   for (let step = 0; step < MAX_BISECTIONS; step += 1) {

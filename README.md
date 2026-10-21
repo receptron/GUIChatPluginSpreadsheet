@@ -39,6 +39,8 @@ yarn add @gui-chat-plugin/spreadsheet gui-chat-protocol
 
 > `gui-chat-protocol` is a peer dependency — install it alongside the plugin; the host application provides the runtime and this plugin only declares the compatible range.
 
+> The package runs on an ES2023 runtime: Node 22 or later, Chrome 110, Safari 16, Firefox 115 or later. It uses ES2023's array methods (`toSorted`, `toReversed`) as they are, with no polyfill.
+
 
 ## Usage
 

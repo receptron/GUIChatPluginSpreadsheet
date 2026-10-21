@@ -40,7 +40,7 @@ function sortedByKeys(rows: CellArray, keys: SortKey[]): CellArray {
   const positions = rows.map((_, index) => index);
   const byKeys = (left: number, right: number): number =>
     keys.reduce((decided, { values, order }) => decided || compareForSort(values[left] ?? "", values[right] ?? "", order), 0);
-  return [...positions].sort(byKeys).map((index) => rows[index] ?? []);
+  return positions.toSorted(byKeys).map((index) => rows[index] ?? []);
 }
 
 /** SORT: by the `index`-th column (1-based), or the `index`-th row when `byColumn`. */
@@ -97,7 +97,7 @@ export function sequence(rows: number, columns: number, start: number, step: num
   const [height, width] = [Math.trunc(rows), Math.trunc(columns)];
   if (height < 0 || width < 0 || !fitsInSheet(height, width)) return VALUE_ERROR;
   if (height === 0 || width === 0) return CALC_ERROR;
-  return Array.from({ length: height }, (_, row) => Array.from({ length: width }, (_, col) => start + (row * width + col) * step));
+  return Array.from({ length: height }, (_, row) => Array.from({ length: width }, (_cell, col) => start + (row * width + col) * step));
 }
 
 /** The 0-based positions CHOOSEROWS / CHOOSECOLS pick: 1 is the first, -1 the last; 0 or past the
@@ -121,7 +121,7 @@ export function chooseColumns(table: CellArray, picks: number[]): TableResult {
 export function stackHorizontally(tables: CellArray[]): CellArray {
   const height = tables.reduce((tallest, table) => Math.max(tallest, table.length), 0);
   return Array.from({ length: height }, (_, row) =>
-    tables.flatMap((table) => Array.from({ length: widthOf(table) }, (_, col) => table[row]?.[col] ?? NA_ERROR)),
+    tables.flatMap((table) => Array.from({ length: widthOf(table) }, (_cell, col) => table[row]?.[col] ?? NA_ERROR)),
   );
 }
 

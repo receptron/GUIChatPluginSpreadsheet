@@ -65,6 +65,8 @@ describe("RAND, RANDBETWEEN and RANDARRAY in a sheet", () => {
   });
 });
 
+const fixed = (): number => 0.5;
+
 describe("the rules", () => {
   it("randomBetween includes both bounds, rounding bottom up and top down", () => {
     assert.equal(randomBetween(1, 6, 0), 1);
@@ -75,7 +77,6 @@ describe("the rules", () => {
   });
 
   it("randomTable's sizes and bounds", () => {
-    const fixed = (): number => 0.5;
     assert.deepEqual(randomTable(1, 2, 0, 10, false, fixed), [[5, 5]]);
     assert.deepEqual(randomTable(2.9, 1, 1, 3, true, fixed), [[2], [2]]);
     // Each whole number takes an equal third of [0, 1): 0.3 falls in the first.

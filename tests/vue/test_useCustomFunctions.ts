@@ -11,12 +11,11 @@ const POLL_MS = 10;
 const WAIT_LIMIT_MS = 10_000;
 
 /** Wait until `done` holds — QuickJS's first load takes a while on a busy machine — or fail. */
-const until = async (done: () => boolean): Promise<void> => {
-  const deadline = Date.now() + WAIT_LIMIT_MS;
-  while (!done()) {
-    if (Date.now() > deadline) throw new Error("timed out waiting for the functions to load");
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-  }
+const until = async (done: () => boolean, deadline = Date.now() + WAIT_LIMIT_MS): Promise<void> => {
+  if (done()) return;
+  if (Date.now() > deadline) throw new Error("timed out waiting for the functions to load");
+  await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+  return until(done, deadline);
 };
 
 /** Let a watcher that should NOT fire have its chance to. */
