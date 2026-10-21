@@ -1,5 +1,14 @@
 # ChangeLog
 
+## @gui-chat-plugin/spreadsheet@5.0.1 / 4.3.1 — 2026-10-22
+
+### Fixed
+
+- **Installs with npm 12 again** (#193, #194): `xlsx` was a runtime dependency on the SheetJS CDN tarball, which npm 12 refuses by default (`allow-remote=none`), so every consumer's install failed (`mulmoclaude@2.8.0`, `mulmoterminal@11.2.0`). SheetJS is already bundled into `dist/vue.js` / `dist/vue.cjs`, so `xlsx` moved to `devDependencies`; the built files are byte-identical to the previous release's. `tests/core/test_packageManifest.ts` fails if a runtime dependency is a URL, git, `file:` or `owner/repo` spec.
+- 4.3.1 carries the same change on the `release/4.x` branch (cut from 4.3.0) and is published under the `release-4x` dist-tag, so `^4.3.0` consumers get it while `latest` stays on 5.x.
+
+npm: [`@gui-chat-plugin/spreadsheet@5.0.1`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/5.0.1), [`@gui-chat-plugin/spreadsheet@4.3.1`](https://www.npmjs.com/package/@gui-chat-plugin/spreadsheet/v/4.3.1)
+
 ## @gui-chat-plugin/spreadsheet@5.0.0 — 2026-10-21
 
 The package now needs an ES2023 runtime; the rest is cleanup with no change in behaviour, which clears every code scanning finding.
