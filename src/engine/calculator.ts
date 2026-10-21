@@ -7,58 +7,23 @@
 import { formatCellForDisplay } from "./cellFormatting";
 import { formulaShowsDate, type DateSource } from "./dateDisplay";
 import { evaluateFormula as evaluateFormulaFn } from "./evaluator";
-import { expandRangeOrCell, parseSingleCellRef } from "./formulaRefs";
-import { parseDate, getDefaultDateFormat } from "./date-parser";
+import { parseSingleCellRef } from "./formulaRefs";
 import type { SheetData, CellValue, CalculatedSheet, CalculationError, FormulaInfo, SpreadsheetCell, CalculateOptions, FormulaValue } from "./types";
-import { cellsOf, isCellArray, MAX_TABLE_COLUMNS, MAX_TABLE_ROWS, scalarOf } from "./cellArray";
-import { isSoleReference } from "./spillCandidate";
+import { isCellArray, MAX_TABLE_COLUMNS, MAX_TABLE_ROWS, scalarOf } from "./cellArray";
 import { arrayOperands } from "./arrayExpression";
 import { spillTargets } from "./spillTargets";
 import { isObj, isRecord } from "./guards";
 import { isBlankCell, isEmptyCell } from "./cellEmpty";
-import { isRangeNumber, parseNumericString } from "./numericCoercion";
+import { parseNumericString } from "./numericCoercion";
 import { splitSheetReference } from "./sheetReference";
-import { answersTable, CALL_NAMES, type CellCoordinates } from "./registry";
+import { CALL_NAMES, type CellCoordinates } from "./registry";
 import { boundWholeReferences, type ExtentReach, type SheetExtent } from "./wholeReferences";
 import { errorMessage } from "./guards";
 import { classifyThrownError, invalidRefError } from "./formulaError";
 import { isSpreadsheetErrorValue, SPILL_ERROR, spreadsheetError } from "./spreadsheet-errors";
-
-// Where a cell sits in the grid of the sheet it belongs to, carrying the row so a formula's result is
-// written back without re-indexing.
-interface CellPosition {
-  cells: any[];
-  row: number;
-  col: number;
-}
-
-/** Reads one cell of a sheet, calculating it if it is a formula. */
-type CellReader = (cell: unknown, position?: CellPosition) => CellValue;
-
-/** A sheet opened during one calculation: its grid, and the reader that calculates a cell of it on
- *  demand. Another sheet's formula reads it cell by cell rather than calculating it whole, so two
- *  sheets that refer to each other work as long as no CELL depends on itself (#130). */
-interface OpenSheet {
-  calculated: (SpreadsheetCell | CellValue)[][];
-  read: CellReader;
-  /** Calculates first every formula that could spill into the cell, so a read finds what spilled there. */
-  ensureSpillsReaching: (row: number, col: number) => void;
-  /** Whether the cell holds part of a table spilled from another cell. */
-  isSpilled: (row: number, col: number) => boolean;
-  /** How far the sheet reaches, spilled tables included that could reach `reach`. */
-  extent: (reach?: ExtentReach) => SheetExtent;
-}
-
-/** The sheets opened so far in one calculation, by name. */
-type OpenSheets = Map<string, OpenSheet>;
-
-// The grid a reference should read from, the sheet-name-stripped ref, and the reader for that sheet.
-interface ResolvedSheetRef {
-  sheetData: (SpreadsheetCell | CellValue)[][];
-  ref: string;
-  read: CellReader;
-  sheet: OpenSheet;
-}
+import type { CellPosition, CellReader, OpenSheet, OpenSheets, ResolvedSheetRef } from "./openSheetTypes";
+import { preprocessDates, sheetsDateSource } from "./sheetPreparation";
+import { isFormulaSource, rangeReaders } from "./rangeReading";
 
 /**
  * Normalize malformed data structures
@@ -67,20 +32,6 @@ interface ResolvedSheetRef {
  * @param data - Potentially malformed sheet data
  * @returns Normalized 2D array
  */
-/** A cell's format and formula, read off the sheets as they were given (dates already carrying
- *  the format they were typed in). A reference names its sheet, or is on `sheet`. */
-function sheetsDateSource(sheets: SheetData[]): DateSource {
-  return (ref, sheet) => {
-    const qualified = splitSheetReference(ref);
-    const target = qualified?.sheetName ?? sheet;
-    const coord = parseSingleCellRef(qualified?.ref ?? ref);
-    const cell = coord ? sheets.find((candidate) => candidate.name === target)?.data[coord.row]?.[coord.col] : undefined;
-    if (!isObj(cell)) return null;
-    const formula = typeof cell.v === "string" && cell.v.startsWith("=") ? cell.v : null;
-    return { format: typeof cell.f === "string" ? cell.f : "", formula, sheet: target };
-  };
-}
-
 export function normalizeData(data: any): SpreadsheetCell[][] {
   // Handle null/undefined
   if (!data) {
@@ -122,47 +73,6 @@ export function normalizeData(data: any): SpreadsheetCell[][] {
   return [];
 }
 
-/**
- * Pre-process sheet data to parse date strings into serial numbers
- *
- * @param data - Raw sheet data
- * @returns Processed data with dates converted to serial numbers
- */
-function preprocessDates(data: SpreadsheetCell[][], preferDDMMYYYY: boolean): SpreadsheetCell[][] {
-  return data.map((row) =>
-    row.map((cell) => {
-      // Skip if not a cell object or if it has a formula
-      if (!isObj(cell) || !("v" in cell)) {
-        return cell;
-      }
-
-      const value = cell.v;
-
-      // Only parse strings that aren't formulas
-      if (typeof value === "string" && !value.startsWith("=")) {
-        const dateSerial = parseDate(value, preferDDMMYYYY);
-
-        if (dateSerial !== null) {
-          // It's a date! Convert to serial number
-          return {
-            v: dateSerial,
-            f: cell.f || getDefaultDateFormat(value, preferDDMMYYYY), // Use existing format or detect from input
-          };
-        }
-      }
-
-      // Not a date, return as-is
-      return cell;
-    }),
-  );
-}
-
-/** How a range is read: only its numbers, or every cell (a blank one as "" with `keepBlanks`). */
-interface RangeReadOptions {
-  numericOnly: boolean;
-  keepBlanks?: boolean;
-}
-
 // `skipFormatting` is internal, not a public knob: a cross-sheet reference
 // computes its target sheet only to READ values, so the display-formatting pass
 // is skipped there — a date must stay a serial, not become "03/04/2025" that a
@@ -177,26 +87,6 @@ interface SpilledCell {
 }
 
 const formatCodeAt = (cell: unknown): string => (isRecord(cell) && typeof cell["f"] === "string" ? cell["f"] : "");
-
-/** Before a range is read, the spills that could reach any of its cells: those reaching its
- *  bottom-right corner, since a table spills right and down. */
-function ensureSpillsCovering(sheet: OpenSheet, coords: readonly CellCoordinates[]): void {
-  const corner = coords.reduce((far, { row, col }) => ({ row: Math.max(far.row, row), col: Math.max(far.col, col) }), { row: -1, col: -1 });
-  if (corner.row >= 0) sheet.ensureSpillsReaching(corner.row, corner.col);
-}
-
-/** Cells read in reading order, put back into the rows they came from. */
-function rowsOfCells(coords: readonly CellCoordinates[], values: readonly CellValue[]): CellValue[][] {
-  const rows = new Map<number, CellValue[]>();
-  coords.forEach(({ row }, index) => {
-    const cells = rows.get(row) ?? [];
-    cells.push(values[index] ?? "");
-    rows.set(row, cells);
-  });
-  return Array.from(rows.values());
-}
-
-const isFormulaSource = (cell: unknown): boolean => isRecord(cell) && typeof cell["v"] === "string" && cell["v"].startsWith("=");
 
 /**
  * Calculate formulas in a single sheet
@@ -461,94 +351,11 @@ function openSheet(
     return name === sheetName ? data : processedAllSheets?.find((other) => other.name === name)?.data;
   };
 
-  // The cells of a table a call answers where a range is read (`SUM(SORT(A1:A9))`), kept as a
-  // range's would be: the numeric read keeps only numbers.
-  const calledRangeValues = (call: string, rangeOptions: RangeReadOptions): CellValue[] => {
-    const cells = cellsOf(evaluateValue(call));
-    return rangeOptions.numericOnly ? cells.filter((value) => value !== "" && isRangeNumber(value)) : cells;
-  };
-
-  const collectRangeValues = (range: string, rangeOptions: RangeReadOptions): CellValue[] => {
-    if (answersTable(range)) return calledRangeValues(range, rangeOptions);
-    const resolved = resolveSheetData(range);
-    if (!resolved) return []; // Sheet not found → empty range
-    const { sheetData, ref: rangeRef, read, sheet: owner } = resolved;
-
-    const coords = expandRangeOrCell(rangeRef);
-    if (!coords) return [];
-    ensureSpillsCovering(owner, coords);
-
-    const sourceRows = sourceSheetOf(range);
-    const values: CellValue[] = [];
-    for (const { row, col } of coords) {
-      const gridRow = row >= 0 ? sheetData[row] : undefined;
-      // A position past the end of a short row, or below the last row, is a blank cell. Skipping
-      // it would shorten a positional read, and every row after it would pair with the wrong one.
-      const cell = gridRow && col >= 0 ? gridRow[col] : undefined;
-      const rawValue = read(cell, gridRow ? { cells: gridRow, row, col } : undefined);
-      // Told by the sheet as written, as isCellEmpty is: a formula cell is never blank (its `=" "`
-      // included), whether it was calculated before this read or by it.
-      const fromFormula = isFormulaSource(sourceRows?.[row]?.[col]);
-
-      if (rangeOptions.numericOnly) {
-        // A blank cell is not a value. Dropping it from the NUMERIC list keeps
-        // SUM unchanged (a blank read as 0) while stopping it from inflating
-        // AVERAGE's denominator and COUNT's tally (#2358). The raw list keeps
-        // every cell so SUMIF/AVERAGEIF's criteria and value ranges stay
-        // row-aligned; dropping there would shift indexes and aggregate the
-        // wrong rows (Codex review).
-        if (!isEmptyCell(cell) && isRangeNumber(rawValue)) {
-          values.push(rawValue);
-        }
-      } else {
-        // A calculated error has no `v`, so isEmptyCell would call it blank; it is a value.
-        const isBlank = !fromFormula && isEmptyCell(cell) && !isSpreadsheetErrorValue(cell);
-        values.push(rangeOptions.keepBlanks && isBlank ? "" : rawValue);
-      }
-    }
-    return values;
-  };
-
-  // Helper to get numeric-only range values (legacy behavior)
-  const getRangeValues = (range: string): CellValue[] => collectRangeValues(range, { numericOnly: true });
-
-  // Helper to get raw range values including text
-  const getRangeValuesRaw = (range: string): CellValue[] => collectRangeValues(range, { numericOnly: false });
-
-  // Every cell, with a blank one as "" — the raw read gives a blank 0, which a
-  // criteria or a pairing cannot tell from a stored 0.
-  const getRangeValuesKeepingBlanks = (range: string): CellValue[] => collectRangeValues(range, { numericOnly: false, keepBlanks: true });
-
-  // The cells of a range that hold something — a value or a formula, even one answering "" —
-  // which is what COUNTA counts. It reads the cells as written: in the calculated grid a
-  // formula that answered "" already looks blank.
-  // A spilled cell holds a value, so it is filled too.
-  const countFilledCells = (range: string): number => {
-    const resolved = resolveSheetData(range);
-    const coords = resolved ? expandRangeOrCell(resolved.ref) : null;
-    if (!resolved || !coords) return 0;
-    const sourceName = splitSheetReference(range)?.sheetName ?? sheetName;
-    const source = sourceName === sheetName ? data : processedAllSheets?.find((s) => s.name === sourceName)?.data;
-    if (!source) return 0;
-    ensureSpillsCovering(resolved.sheet, coords);
-    return coords.filter(({ row, col }) => {
-      const cell = source[row]?.[col];
-      return (cell !== undefined && !isEmptyCell(cell)) || resolved.sheet.isSpilled(row, col);
-    }).length;
-  };
-
-  /** A reference's cells row by row, a blank one as "", or the table a call answers (one value as a
-   *  1×1 table). A reference to a sheet that does not exist is #REF!. */
-  const getRangeGrid = (range: string): CellValue[][] => {
-    if (!isSoleReference(range)) {
-      const value = evaluateValue(range);
-      return isCellArray(value) ? value : [[value]];
-    }
-    const resolved = resolveSheetData(range);
-    const coords = resolved ? expandRangeOrCell(resolved.ref) : null;
-    if (!coords) throw invalidRefError(range);
-    return rowsOfCells(coords, collectRangeValues(range, { numericOnly: false, keepBlanks: true }));
-  };
+  const { getRangeValues, getRangeValuesRaw, getRangeValuesKeepingBlanks, countFilledCells, getRangeGrid } = rangeReaders({
+    resolveSheetData,
+    sourceSheetOf,
+    evaluateValue: (formula) => evaluateValue(formula),
+  });
 
   // Evaluate a formula with context: its value, a table included, and where one value is needed,
   // the one a table stands for (scalarOf).
